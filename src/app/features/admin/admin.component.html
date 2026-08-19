@@ -1,1 +1,13 @@
 <p>admin works!</p>
+
+<div style="padding: 24px; display: flex; gap: 16px;">
+  <!-- 一般確認 -->
+  <button mat-flat-button color="primary" type="button" (click)="testNormalDialog()">
+    測試一般確認彈窗
+  </button>
+
+  <!-- 危險警告 -->
+  <button mat-flat-button color="warn" type="button" (click)="testDangerDialog()">
+    測試危險操作彈窗
+  </button>
+</div>
