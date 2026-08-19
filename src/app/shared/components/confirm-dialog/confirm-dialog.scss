@@ -1,0 +1,32 @@
+.dialog-container {
+  padding: 8px;
+}
+
+.dialog-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 18px;
+  font-weight: 700;
+  margin: 0;
+  color: #123A56;
+
+  mat-icon {
+    color: #1E7A9E;
+    &.destructive-icon {
+      color: #D32F2F;
+    }
+  }
+}
+
+.dialog-content {
+  padding: 16px 0;
+  color: #555555;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.dialog-actions {
+  padding-top: 12px;
+  gap: 8px;
+}
