@@ -8,6 +8,7 @@ import { MatIconModule } from '@angular/material/icon';
 interface NavItem{
   path:string;
   label:string;
+  icon:string;
 }
 
 
@@ -21,22 +22,22 @@ interface NavItem{
 })
 export class MainLayoutComponent {
 readonly isCollapsed=signal(false);
-showFiller = signal(false);
+
 
 readonly navItems = signal<NavItem[]>([
-    { label: 'S-02 儀表板', path: '/dashboard' },
-    { label: 'S-03 品項清單', path: '/products' },
-    { label: 'S-05 選品排行', path: '/ranking' },
-    { label:'S-07 趨勢分析',path:'/trends'},
-    { label:'S-15 熱度標記',path:'/heat-tags'},
-    { label:'S-17 尋源探索',path:'/sourcing'},
-    { label:'S-08 AI任務',path:'/ai-tasks'},
-    { label:'S-09 權重設定',path:'/weights'},
-    { label:'S-10 資料匯入',path:'/imports'},
-    { label:'S-11 風險示警',path:'/risks'},
-    { label:'S-12 決策紀錄',path:'/decisions'},
-    { label:'S-13 報表',path:'/reports'},
-    { label:'S-14設定',path:'/admin'},
+    { label: 'S-02 儀表板', path: '/dashboard',icon:'dashboard'},
+    { label: 'S-03 品項清單', path: '/products',icon:'inventory_2'},
+    { label: 'S-05 選品排行', path: '/ranking',icon:'leaderboard' },
+    { label:'S-07 趨勢分析',path:'/trends',icon:'trending_up'},
+    { label:'S-15 熱度標記',path:'/heat-tags',icon:'local_fire_department'},
+    { label:'S-17 尋源探索',path:'/sourcing',icon:'travel_explore'},
+    { label:'S-08 AI任務',path:'/ai-tasks',icon:'smart_toy'},
+    { label:'S-09 權重設定',path:'/weights',icon:'tune'},
+    { label:'S-10 資料匯入',path:'/imports',icon:'file_upload'},
+    { label:'S-11 風險示警',path:'/risks',icon:'warning'},
+    { label:'S-12 決策紀錄',path:'/decisions',icon:'history_edu'},
+    { label:'S-13 報表',path:'/reports',icon:'bar_chart'},
+    { label:'S-14設定',path:'/admin',icon:'settings'},
   ]);
 
 toggleSidebar(): void {
