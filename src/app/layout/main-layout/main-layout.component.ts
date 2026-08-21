@@ -1,9 +1,12 @@
 import { Component,signal} from '@angular/core';
+import{inject} from '@angular/core';
 import{RouterLink,RouterOutlet,RouterLinkActive} from '@angular/router';
 import {MatSidenavModule} from '@angular/material/sidenav';
 import {MatButtonModule} from '@angular/material/button';
 import { MatListModule } from '@angular/material/list';
 import { MatIconModule } from '@angular/material/icon';
+import { LayoutService } from '../../services/layout-service';
+import { HeaderComponent } from "../header/header.component";
 
 interface NavItem{
   path:string;
@@ -14,15 +17,14 @@ interface NavItem{
 
 @Component({
   selector: 'app-main-layout',
-  imports: [RouterLink,RouterOutlet,RouterLinkActive,MatSidenavModule,MatButtonModule
-    ,MatListModule,MatIconModule
-  ],
+  imports: [RouterLink, RouterOutlet, RouterLinkActive, MatSidenavModule, MatButtonModule,
+    MatListModule, MatIconModule, HeaderComponent],
   templateUrl: './main-layout.component.html',
   styleUrl: './main-layout.component.scss'
 })
 export class MainLayoutComponent {
-readonly isCollapsed=signal(false);
 
+layoutService=inject(LayoutService);
 
 readonly navItems = signal<NavItem[]>([
     { label: 'S-02 儀表板', path: '/dashboard',icon:'dashboard'},
@@ -40,7 +42,4 @@ readonly navItems = signal<NavItem[]>([
     { label:'S-14設定',path:'/admin',icon:'settings'},
   ]);
 
-toggleSidebar(): void {
-    this.isCollapsed.update(val => !val);
-  }
 }

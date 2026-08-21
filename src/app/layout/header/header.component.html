@@ -1,0 +1,17 @@
+<div class="header">
+  <div class="header-left">
+    <button mat-icon-button type="button"  (click)="layoutService.toggleSidebar()">
+      <mat-icon class="menu-btn">menu</mat-icon>
+    </button>
+    <span class="title">莊敬選品</span>
+  </div>
+
+  <div class="header-right">
+<!-- 還沒放上超連結 -->
+      @for (item of navItems(); track item.path) {
+         <mat-icon class="right-icon">{{ item.icon }}</mat-icon>
+      }
+
+</div>
+</div>
+

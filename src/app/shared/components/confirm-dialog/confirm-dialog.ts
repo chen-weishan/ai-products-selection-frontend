@@ -2,7 +2,7 @@ import { Component,inject } from '@angular/core';
 import { MAT_DIALOG_DATA, MatDialogRef, MatDialogModule } from '@angular/material/dialog';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
-import { ConfirmDialogData } from '../../../core/models/confirm-dialog-data';
+import { ConfirmDialogData } from '../../../core/models/confirm-dialog-data-model';
 @Component({
   selector: 'app-confirm-dialog',
   imports: [MatDialogModule,MatButtonModule,MatIconModule],

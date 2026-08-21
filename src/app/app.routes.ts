@@ -1,5 +1,6 @@
 import { Routes } from '@angular/router';
 import {MainLayoutComponent} from './layout/main-layout/main-layout.component';
+import {HeaderComponent} from './layout/header/header.component';
 export const routes: Routes = [
 {path:'',component:MainLayoutComponent,
   children:[
@@ -74,10 +75,10 @@ export const routes: Routes = [
         m => m.AdminComponent
       )
     },
-
   ]
+},
+{path:'header',component:HeaderComponent,}
 
-}
 
 
 ];

@@ -21,6 +21,17 @@ export class AdminComponent {
       console.log('一般彈窗回傳結果：', result);
     });
   }
+   NormalDialog(): void {
+    this.dialogService.Confirm({
+      'title': '',
+      'message': '您確定要繼續執行嗎？',
+      'confirmText':'',
+      'cancelText':'',
+      'isDanger': false
+    }).subscribe(result => {
+      console.log('一般彈窗回傳結果：', result);
+    });
+  }
 
   // 3. 測試危險操作
   testDangerDialog(): void {
