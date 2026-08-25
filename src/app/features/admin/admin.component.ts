@@ -1,14 +1,17 @@
 import { Component,inject } from '@angular/core';
 import{MatButtonModule}from '@angular/material/button';
 import{DialogService}from '../../services/dialog-service';
+import{HttpClient}from '@angular/common/http';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 @Component({
   selector: 'app-admin',
-  imports: [MatButtonModule],
+  imports: [MatButtonModule, MatProgressSpinnerModule],
   templateUrl: './admin.component.html',
   styleUrl: './admin.component.scss'
 })
 export class AdminComponent {
   private  readonly dialogService = inject(DialogService);
+  private readonly httpClient = inject(HttpClient);
 
   testNormalDialog(): void {
     this.dialogService.Confirm({
@@ -24,7 +27,7 @@ export class AdminComponent {
    NormalDialog(): void {
     this.dialogService.Confirm({
       'title': '',
-      'message': '您確定要繼續執行嗎？',
+      'message': '',
       'confirmText':'',
       'cancelText':'',
       'isDanger': false
@@ -45,4 +48,16 @@ export class AdminComponent {
       console.log('危險彈窗回傳結果：', result);
     });
   }
+
+testLoadingApi(){
+  this.httpClient.get('https://httpbin.org/delay/20000').subscribe(
+    {
+      next:(res)=>console.log('回傳成功',res),
+      error:(err)=>console.error('回傳錯誤',err)
+    })
 }
+
+}
+
+
+
