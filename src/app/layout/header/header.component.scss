@@ -1,0 +1,45 @@
+$primary-blue: #123A56;
+$accent-blue: #1E7A9E;
+$bg-page: #F4F6F8;
+
+.header{
+  width:100vw;
+  height:4vw;
+  background-color: $primary-blue;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.header-left{
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+   direction: row;
+}
+.title{
+  color:$bg-page;
+  font-size: 1.15rem;
+  font-weight: 500;
+  //微調保持與圖標一致
+  line-height: 1;
+}
+
+.menu-btn{
+  color:$bg-page;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.header-right{
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+
+}
+
+.right-icon{
+  color:$bg-page;
+margin-right: 0.5rem;
+}

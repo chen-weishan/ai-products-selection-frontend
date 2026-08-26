@@ -5,3 +5,10 @@ html, body {
   box-sizing: border-box;
   font-family: 'Noto Sans TC', sans-serif;
 }
+
+.custom-confirm-dialog-panel {
+  .mat-mdc-dialog-container .mdc-dialog__surface {
+    border-radius: 12px !important; // 圓角調整
+    background-color: #FFFFFF;
+  }
+}

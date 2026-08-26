@@ -1,4 +1,6 @@
+<!-- Dialog測試 要寫前端可直接刪掉 -->
 <p>admin works!</p>
+<mat-spinner></mat-spinner>
 
 <div style="padding: 24px; display: flex; gap: 16px;">
   <!-- 一般確認 -->
@@ -11,3 +13,15 @@
     測試危險操作彈窗
   </button>
 </div>
+
+<div>
+  <button mat-flat-button type="button" (click)="NormalDialog()">
+    確認彈窗
+    </button>
+</div>
+
+
+<button mat-flat-button color="primary" (click)="testLoadingApi()">
+      測試 API 載入動畫 (延遲 2 秒)
+    </button>
+

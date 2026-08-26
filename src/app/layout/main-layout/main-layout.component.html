@@ -1,18 +1,9 @@
-
+<app-header></app-header>
 <mat-drawer-container class="layout-container" autosize>
   <mat-drawer #drawer class="example-sidenav"
-  [class.is-collapsed]="isCollapsed()"
+  [class.is-collapsed]="layoutService.isCollapsed()"
   mode="side" opened>
-    <div class="brand-header">
-      @if(!isCollapsed()){
-        <span class="brand-title">莊敬選品</span>
-    }
-    <button mat-icon-button type="button"
-    class="toggle-btn"
-    (click)="toggleSidebar()">
-        <mat-icon style="color: #efecec;">{{ isCollapsed() ? 'chevron_right' : 'chevron_left' }}</mat-icon>
-        </button>
-</div>
+
       <mat-nav-list class="nav-list">
       @for (item of navItems(); track item.path) {
         <a
@@ -20,11 +11,11 @@
           [routerLink]="item.path"
           routerLinkActive="active"
           class="nav-link-item"
-          [title]="isCollapsed()?item.label:''"
+          [title]="layoutService.isCollapsed()?item.label:''"
         >
         <mat-icon matListItemIcon class="menu-icon">{{ item.icon }}</mat-icon>
 
-        @if(!isCollapsed()){
+        @if(!layoutService.isCollapsed()){
           <span matListItemTitle class="item-label">{{ item.label }}</span>
         }
         </a>
