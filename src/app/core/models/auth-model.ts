@@ -1,3 +1,4 @@
+//改用generate 這個先放著
 export type UserRole =
 
   | 'BUYER'        // 採購專員
@@ -27,9 +28,9 @@ export const USER_ROLE_LABELS: Record<UserRole, string> = {
 
 export interface LoginRequest {
 
-  email:string;
+  email: string;
 
-  password:string;
+  password: string;
 
 }
 

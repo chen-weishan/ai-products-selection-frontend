@@ -50,7 +50,7 @@ export class AdminComponent {
   }
 
 testLoadingApi(){
-  this.httpClient.get('https://httpbin.org/delay/20000').subscribe(
+  this.httpClient.get('https://httpbin.org/delay/2').subscribe(
     {
       next:(res)=>console.log('回傳成功',res),
       error:(err)=>console.error('回傳錯誤',err)

@@ -10,5 +10,6 @@ html, body {
   .mat-mdc-dialog-container .mdc-dialog__surface {
     border-radius: 12px !important; // 圓角調整
     background-color: #FFFFFF;
+    padding: 0 !important;
   }
 }
