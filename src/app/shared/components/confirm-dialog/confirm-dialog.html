@@ -1,26 +1,23 @@
-<!-- TODO 排版細節還沒調整好 -->
 <div class="dialog-container">
   <h2 mat-dialog-title class="dialog-title">
-    <mat-icon [class.destructive-icon]="data.isDanger">
-      {{data.isDanger?'warning':'help_outline'}}
-      </mat-icon>
-      <span>{{data.title||'系統確認'}}</span>
-    </h2>
+    {{ data.title || '系統確認' }}
+  </h2>
 
-    <mat-dialog-content class="dialog-content">
-    <p>{{data.message||'是否執行此操作'}}</p>
-    </mat-dialog-content>
+  <mat-dialog-content class="dialog-content">
+    <p>{{ data.message || '是否執行此操作' }}</p>
+  </mat-dialog-content>
 
-    <mat-dialog-actions align="center" class="dialog-actions">
-      <button mat-button type="button" (click)="onCancel()">
-        {{data.cancelText||'取消'}}
-        </button>
-       <button mat-flat-button
-       [color]="data.isDanger?'warn':'primary'"
-       type="button"
-       (click)="onConfirm()"
-       >
-      {{data.confirmText||'確認'}}
-        </button>
-    </mat-dialog-actions>
-    </div>
+  <mat-dialog-actions class="dialog-actions" align="center">
+    <button mat-button type="button" (click)="onCancel()">
+      {{ data.cancelText || '取消' }}
+    </button>
+    <button
+      mat-flat-button
+      [color]="data.isDanger ? 'warn' : 'primary'"
+      type="button"
+      (click)="onConfirm()"
+    >
+      {{ data.confirmText || '確認' }}
+    </button>
+  </mat-dialog-actions>
+</div>

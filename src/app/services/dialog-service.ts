@@ -14,7 +14,8 @@ export class DialogService {
   const dialogRef=this.dialog.open(ConfirmDialog,{
     data,
     panelClass: 'custom-confirm-dialog-panel',
-    width:'10vw',
+    minWidth: '320px',
+    maxWidth: '400px',
     disableClose:true,
   });
   return dialogRef.afterClosed().pipe(

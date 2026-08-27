@@ -1,49 +1,61 @@
+:host {
+  display: block;
+  width: 100%;
+}
+
 .dialog-container {
-display: flex;
-flex-direction: column;
-align-items: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 24px;
+  box-sizing: border-box;
+  width: 100%;
 }
 
 .dialog-title {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
   font-size: 18px;
   font-weight: 700;
   margin: 0;
   padding: 0;
-  color: #123A56;
-
-  mat-icon {
-    color: #1E7A9E;
-    &.destructive-icon {
-      color: #D32F2F;
-    }
-  }
+  width: 100%;
+  text-align: center;
+  color: #123a56;
 }
 
 .dialog-content {
   display: flex;
   align-items: center;
   justify-content: center;
+  width: 100%;
+  margin: 0 !important;
   padding: 16px 0 !important;
   color: #555555;
   font-size: 14px;
-  max-width: 12em;
-  word-break: break-word;
-  line-height: 1.5;
-}
-p{
-  margin: 0;
+  line-height: 1.6;
   text-align: center;
-  word-break: break-word;
+  box-sizing: border-box;
+
+  p {
+    margin: 0;
+    text-align: center;
+    word-break: break-word;
+    width: 100%;
+  }
 }
 
 .dialog-actions {
   display: flex;
   justify-content: center;
   align-items: center;
-  padding-top: 12px;
-  gap: 8px;
+  width: 100%;
+  margin: 0;
+  padding: 8px 0 0 0;
+  gap: 12px;
+  min-height: unset;
+
+  button {
+    min-width: 80px;
+  }
 }
