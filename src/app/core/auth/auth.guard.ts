@@ -1,5 +1,14 @@
-import { CanActivateFn } from '@angular/router';
+import { inject } from '@angular/core';
+import { CanActivateFn, Router } from '@angular/router';
+import { BasicAuthService } from './basic-auth.service';
 
-export const authGuard: CanActivateFn = (route, state) => {
-  return true;
+export const authGuard: CanActivateFn = (_route, state) => {
+  const auth = inject(BasicAuthService);
+  if (auth.hasCredentials()) {
+    return true;
+  }
+
+  return inject(Router).createUrlTree(['/login'], {
+    queryParams: { returnUrl: state.url },
+  });
 };

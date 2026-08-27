@@ -4,6 +4,8 @@ import { LayoutService } from '../../services/layout-service';
 import { MatIcon } from "@angular/material/icon";
 import { MatButtonModule } from "@angular/material/button";
 import { MatIconModule } from '@angular/material/icon';
+import { Router } from '@angular/router';
+import { BasicAuthService } from '../../core/auth/basic-auth.service';
 
 
 interface NavItem{
@@ -20,11 +22,18 @@ icon:string;
 })
 export class HeaderComponent {
   layoutService=inject(LayoutService);
+  private readonly basicAuth = inject(BasicAuthService);
+  private readonly router = inject(Router);
 //假資料
 readonly navItems=signal<NavItem[]>([
 {label:'登出',path:'/login',icon:'logout'},
 {label:'管理員',path:'/admin',icon:'admin_panel_settings'},
 {label:'用戶管理',path:'/user',icon:'people'},
 ]);
+
+logout(): void {
+  this.basicAuth.clearCredentials();
+  void this.router.navigate(['/login']);
+}
 
 }

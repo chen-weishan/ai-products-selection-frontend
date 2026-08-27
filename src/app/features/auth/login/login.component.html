@@ -1,1 +1,43 @@
-<p>login works!</p>
+<main class="login-page">
+  <mat-card class="login-card">
+    <mat-card-header>
+      <mat-card-title>選品策略系統</mat-card-title>
+      <mat-card-subtitle>本機開發登入</mat-card-subtitle>
+    </mat-card-header>
+
+    <mat-card-content>
+      <p class="login-hint">目前後端使用 HTTP Basic。請輸入 dev profile 設定的帳號與密碼。</p>
+
+      <form [formGroup]="form" (ngSubmit)="submit()">
+        <mat-form-field appearance="outline">
+          <mat-label>帳號</mat-label>
+          <input matInput formControlName="username" autocomplete="username" />
+          @if (form.controls.username.hasError('required')) {
+            <mat-error>請輸入帳號</mat-error>
+          }
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>密碼</mat-label>
+          <input
+            matInput
+            type="password"
+            formControlName="password"
+            autocomplete="current-password"
+          />
+          @if (form.controls.password.hasError('required')) {
+            <mat-error>請輸入密碼</mat-error>
+          }
+        </mat-form-field>
+
+        @if (loginError()) {
+          <p class="login-error" role="alert">{{ loginError() }}</p>
+        }
+
+        <button mat-flat-button color="primary" type="submit" [disabled]="submitting()">
+          {{ submitting() ? '驗證中…' : '登入' }}
+        </button>
+      </form>
+    </mat-card-content>
+  </mat-card>
+</main>

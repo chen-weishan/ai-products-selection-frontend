@@ -7,9 +7,19 @@
   </div>
 
   <div class="header-right">
-<!-- 還沒放上超連結 -->
       @for (item of navItems(); track item.path) {
-         <mat-icon class="right-icon">{{ item.icon }}</mat-icon>
+        @if (item.path === '/login') {
+          <button
+            mat-icon-button
+            type="button"
+            aria-label="登出"
+            (click)="logout()"
+          >
+            <mat-icon class="right-icon">{{ item.icon }}</mat-icon>
+          </button>
+        } @else {
+          <mat-icon class="right-icon">{{ item.icon }}</mat-icon>
+        }
       }
 
 </div>

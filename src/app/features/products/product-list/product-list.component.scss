@@ -1,0 +1,70 @@
+.product-page {
+  padding: 24px;
+}
+
+.page-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 24px;
+}
+
+.page-heading h1 {
+  margin: 2px 0 8px;
+  color: #123a56;
+}
+
+.page-heading p {
+  margin: 0;
+  color: #61696f;
+}
+
+.eyebrow {
+  color: #1e7a9e !important;
+  font-weight: 700;
+}
+
+.state-card,
+.table-card {
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 1px 4px rgb(18 58 86 / 10%);
+}
+
+.state-card {
+  padding: 40px 24px;
+  text-align: center;
+}
+
+.error-state {
+  color: #c0392b;
+}
+
+.table-card {
+  overflow: auto;
+}
+
+table {
+  width: 100%;
+  min-width: 960px;
+}
+
+th {
+  color: #123a56;
+  font-weight: 700;
+}
+
+tr:nth-child(even) td {
+  background: #f8fafb;
+}
+
+.number-cell {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.result-summary {
+  color: #61696f;
+  text-align: right;
+}
