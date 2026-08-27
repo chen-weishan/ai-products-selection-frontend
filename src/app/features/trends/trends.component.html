@@ -1,0 +1,54 @@
+<!-- @for(item of trendList();track item.keywordId) {
+ <p>{{item.keyword}}</p>
+<p>{{item.heatToday}}</p>
+<p>{{item.slope7d}}</p>
+<p>{{item.slope30d}}</p>
+<p>{{item.aiSignal}}</p> 
+} -->
+
+<table mat-table [dataSource]="trendList()" class="mat-shadow-2">
+
+    <!--- Note that these columns can be defined in any order.
+        The actual rendered columns are set as a property on the row definition" -->
+
+    <!-- Position Column -->
+    <ng-container matColumnDef="keyword">
+        <th mat-header-cell *matHeaderCellDef> 關鍵字 </th>
+
+        <td mat-cell *matCellDef="let element"> {{element.keyword}} </td>
+
+    </ng-container>
+
+    <!-- Name Column -->
+    <ng-container matColumnDef="heatToday">
+        <th mat-header-cell *matHeaderCellDef> 熱度趨勢 </th>
+
+        <td mat-cell *matCellDef="let element"> {{element.heatToday}} </td>
+
+    </ng-container>
+
+    <!-- Weight Column -->
+    <ng-container matColumnDef="slope7d">
+        <th mat-header-cell *matHeaderCellDef> 7日均線 </th>
+
+        <td mat-cell *matCellDef="let element"> {{element.slope7d}} </td>
+
+    </ng-container>
+
+    <!-- Symbol Column -->
+    <ng-container matColumnDef="slope30d">
+        <th mat-header-cell *matHeaderCellDef> 30日均線 </th>
+
+        <td mat-cell *matCellDef="let element"> {{element.slope30d}} </td>
+
+    </ng-container>
+
+    <ng-container matColumnDef="aiSignal">
+        <th mat-header-cell *matHeaderCellDef>AI判斷</th>
+        <td mat-cell *matCellDef="let element"> {{element.aiSignal}} </td>
+    </ng-container>
+
+    <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+    <tr mat-row *matRowDef="let row; columns: displayedColumns;" class="clickable-row"
+        (click)="goToDetail(row.keywordId)"></tr>
+</table>

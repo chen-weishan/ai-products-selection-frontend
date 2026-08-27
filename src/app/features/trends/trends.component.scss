@@ -1,0 +1,8 @@
+.clickable-row {
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+
+    &:hover {
+        background-color: rgb(232, 232, 232);
+    }
+}
