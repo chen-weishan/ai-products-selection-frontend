@@ -34,6 +34,20 @@ export const routes: Routes = [
           ),
       },
       {
+        path: 'products/new',
+        loadComponent: () =>
+          import('./features/products/product-form/product-form.component').then(
+            (module) => module.ProductFormComponent,
+          ),
+      },
+      {
+        path: 'products/:id/edit',
+        loadComponent: () =>
+          import('./features/products/product-form/product-form.component').then(
+            (module) => module.ProductFormComponent,
+          ),
+      },
+      {
         path: 'ranking',
         loadComponent: () =>
           import('./features/ranking/ranking.component').then((module) => module.RankingComponent),

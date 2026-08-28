@@ -2,60 +2,240 @@
   <header class="page-heading">
     <div>
       <p class="eyebrow">S-03</p>
-      <h1>品項清單</h1>
-      <p>目前顯示第一頁資料，後續將加入篩選、排序與批次操作。</p>
+      <h1>品項管理</h1>
+      <p>共 {{ productService.totalElements() }} 筆品項</p>
     </div>
+    <a mat-flat-button routerLink="/products/new">＋ 新增品項</a>
   </header>
+
+  <form class="filter-panel" [formGroup]="filterForm">
+    <mat-form-field appearance="outline" class="keyword-filter">
+      <mat-label>搜尋品項名稱</mat-label>
+      <input matInput formControlName="keyword" />
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>類別</mat-label>
+      <mat-select formControlName="categoryId">
+        <mat-option [value]="null">全部</mat-option>
+        @for (category of references.categories(); track category.id) {
+          <mat-option [value]="category.id">{{ category.label }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>供應商</mat-label>
+      <mat-select formControlName="supplierId">
+        <mat-option [value]="null">全部</mat-option>
+        @for (supplier of references.suppliers(); track supplier.id) {
+          <mat-option [value]="supplier.id">{{ supplier.name }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>軌別</mat-label>
+      <mat-select formControlName="trackType">
+        <mat-option [value]="null">全部</mat-option>
+        @for (trackType of trackTypes; track trackType) {
+          <mat-option [value]="trackType">{{ trackType }} 軌</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>尋源狀態</mat-label>
+      <mat-select formControlName="sourcingStatus">
+        <mat-option [value]="null">全部</mat-option>
+        @for (status of sourcingStatuses; track status) {
+          <mat-option [value]="status">{{ sourcingStatusLabel(status) }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>品項狀態</mat-label>
+      <mat-select formControlName="status">
+        <mat-option [value]="null">全部</mat-option>
+        @for (status of productStatuses; track status) {
+          <mat-option [value]="status">{{ productStatusLabel(status) }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>分級</mat-label>
+      <mat-select formControlName="grade">
+        <mat-option [value]="null">全部</mat-option>
+        @for (grade of grades; track grade) {
+          <mat-option [value]="grade">{{ grade }} 級</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>最低分數</mat-label>
+      <input matInput type="number" min="0" max="100" formControlName="minScore" />
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>最高分數</mat-label>
+      <input matInput type="number" min="0" max="100" formControlName="maxScore" />
+    </mat-form-field>
+
+    <mat-checkbox formControlName="hasRisk">只看有風險</mat-checkbox>
+
+    <button mat-stroked-button type="button" (click)="clearFilters()">清除條件</button>
+  </form>
+
+  @if (references.error()) {
+    <p class="reference-error" role="alert">{{ references.error() }}</p>
+  }
+
+  @if (productService.batchMessage()) {
+    <p class="batch-feedback success-feedback" role="status">
+      {{ productService.batchMessage() }}
+    </p>
+  }
+  @if (productService.batchError()) {
+    <p class="batch-feedback error-feedback" role="alert">
+      {{ productService.batchError() }}
+    </p>
+  }
+
+  @if (selection.hasValue()) {
+    <section class="batch-toolbar" aria-label="品項批次操作">
+      <strong>已選取 {{ selection.selected.length }} 筆</strong>
+
+      <button
+        mat-flat-button
+        type="button"
+        [disabled]="productService.batchLoading()"
+        (click)="analyzeSelected()"
+      >
+        批次加入評分佇列
+      </button>
+
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>指定類別</mat-label>
+        <mat-select [formControl]="batchCategoryId">
+          @for (category of references.categories(); track category.id) {
+            <mat-option [value]="category.id">{{ category.label }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+      <button
+        mat-stroked-button
+        type="button"
+        [disabled]="batchCategoryId.value == null || productService.batchLoading()"
+        (click)="assignSelectedCategory()"
+      >
+        批次指定類別
+      </button>
+
+      <button
+        mat-stroked-button
+        type="button"
+        class="danger-action"
+        title="僅採購主管與系統管理員可以執行"
+        [disabled]="productService.batchLoading()"
+        (click)="disableSelected()"
+      >
+        批次停用
+      </button>
+    </section>
+  }
 
   @if (productService.loading()) {
     <div class="state-card" aria-live="polite">正在載入品項…</div>
   } @else if (productService.error()) {
     <div class="state-card error-state" role="alert">
       <p>{{ productService.error() }}</p>
-      <button mat-flat-button type="button" (click)="loadFirstPage()">重新載入</button>
+      <button mat-flat-button type="button" (click)="retry()">重新載入</button>
     </div>
   } @else if (productService.products().length === 0) {
     <div class="state-card">目前沒有符合條件的品項。</div>
   } @else {
     <div class="table-card">
-      <table mat-table [dataSource]="productService.products()">
-        <ng-container matColumnDef="name">
-          <th mat-header-cell *matHeaderCellDef>品項名稱</th>
-          <td mat-cell *matCellDef="let product">{{ product.name ?? '—' }}</td>
-        </ng-container>
-
-        <ng-container matColumnDef="category">
-          <th mat-header-cell *matHeaderCellDef>類別</th>
+      <table
+        mat-table
+        matSort
+        matSortDisableClear
+        [dataSource]="productService.products()"
+        [matSortActive]="sortActive()"
+        [matSortDirection]="sortDirection()"
+        (matSortChange)="onSort($event)"
+      >
+        <ng-container matColumnDef="select">
+          <th mat-header-cell *matHeaderCellDef>
+            <mat-checkbox
+              aria-label="選取本頁全部品項"
+              [checked]="isAllSelected()"
+              [indeterminate]="isPartiallySelected()"
+              (change)="toggleAllRows()"
+            ></mat-checkbox>
+          </th>
           <td mat-cell *matCellDef="let product">
-            {{ product.categoryName ?? '—' }}
+            <mat-checkbox
+              [attr.aria-label]="'選取' + (product.name ?? '品項')"
+              [checked]="product.id != null && selection.isSelected(product.id)"
+              [disabled]="product.id == null"
+              (click)="$event.stopPropagation()"
+              (change)="toggleRow(product.id)"
+            ></mat-checkbox>
           </td>
         </ng-container>
 
+        <ng-container matColumnDef="name">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header="name">品項名稱</th>
+          <td mat-cell *matCellDef="let product">
+            {{ product.name ?? '—' }}
+            @if (product.hasRisk) {
+              <span class="risk-dot" title="此品項有風險標記"></span>
+            }
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="category">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header="categoryName">類別</th>
+          <td mat-cell *matCellDef="let product">{{ product.categoryName ?? '—' }}</td>
+        </ng-container>
+
         <ng-container matColumnDef="trackType">
-          <th mat-header-cell *matHeaderCellDef>軌別</th>
-          <td mat-cell *matCellDef="let product">{{ product.trackType }}</td>
+          <th mat-header-cell *matHeaderCellDef mat-sort-header="trackType">軌別</th>
+          <td mat-cell *matCellDef="let product">{{ product.trackType }} 軌</td>
         </ng-container>
 
         <ng-container matColumnDef="supplier">
-          <th mat-header-cell *matHeaderCellDef>供應商</th>
-          <td mat-cell *matCellDef="let product">
-            {{ product.supplierName ?? '—' }}
+          <th mat-header-cell *matHeaderCellDef mat-sort-header="supplierName">供應商</th>
+          <td mat-cell *matCellDef="let product">{{ product.supplierName ?? '—' }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="cost">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header="cost">成本</th>
+          <td mat-cell *matCellDef="let product" class="number-cell">
+            @if (product.trackType === 'B' || product.cost == null) {
+              —
+            } @else {
+              {{ product.cost | number: '1.0-2' }}
+            }
           </td>
         </ng-container>
 
         <ng-container matColumnDef="price">
-          <th mat-header-cell *matHeaderCellDef>售價</th>
+          <th mat-header-cell *matHeaderCellDef mat-sort-header="suggestedPrice">售價</th>
           <td mat-cell *matCellDef="let product" class="number-cell">
             @if (product.trackType === 'B' || product.suggestedPrice == null) {
               —
             } @else {
-              {{ product.suggestedPrice | number: '1.0-0' }}
+              {{ product.suggestedPrice | number: '1.0-2' }}
             }
           </td>
         </ng-container>
 
         <ng-container matColumnDef="margin">
-          <th mat-header-cell *matHeaderCellDef>毛利率</th>
+          <th mat-header-cell *matHeaderCellDef mat-sort-header="marginRate">毛利率</th>
           <td mat-cell *matCellDef="let product" class="number-cell">
             @if (product.trackType === 'B' || product.marginRate == null) {
               —
@@ -66,7 +246,7 @@
         </ng-container>
 
         <ng-container matColumnDef="score">
-          <th mat-header-cell *matHeaderCellDef>分數</th>
+          <th mat-header-cell *matHeaderCellDef mat-sort-header="latestScore">分數</th>
           <td mat-cell *matCellDef="let product" class="number-cell">
             @if (product.trackType === 'B' || product.latestScore == null) {
               —
@@ -77,20 +257,52 @@
         </ng-container>
 
         <ng-container matColumnDef="gradeOrGap">
-          <th mat-header-cell *matHeaderCellDef>分級／時效</th>
+          <th
+            mat-header-cell
+            *matHeaderCellDef
+            [mat-sort-header]="criteria().trackType === 'B' ? 'timeGapDays' : 'grade'"
+          >
+            分級／時效
+          </th>
           <td mat-cell *matCellDef="let product">
             @if (product.trackType === 'B') {
               {{ product.timeGapDays == null ? '—' : product.timeGapDays + ' 天' }}
             } @else {
-              {{ product.grade ?? '未評分' }}
+              {{ product.grade == null ? '未評分' : product.grade + ' 級' }}
             }
           </td>
         </ng-container>
 
         <ng-container matColumnDef="status">
-          <th mat-header-cell *matHeaderCellDef>狀態</th>
+          <th
+            mat-header-cell
+            *matHeaderCellDef
+            [mat-sort-header]="criteria().trackType === 'B' ? 'sourcingStatus' : 'status'"
+          >
+            狀態
+          </th>
           <td mat-cell *matCellDef="let product">
-            {{ product.sourcingStatus ?? product.status ?? '—' }}
+            {{ statusLabel(product.sourcingStatus ?? product.status) }}
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="updatedAt">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header="updatedAt">更新</th>
+          <td mat-cell *matCellDef="let product">
+            {{ product.updatedAt ? (product.updatedAt | date: 'yyyy/MM/dd') : '—' }}
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="actions">
+          <th mat-header-cell *matHeaderCellDef>操作</th>
+          <td mat-cell *matCellDef="let product">
+            <a
+              mat-button
+              [routerLink]="['/products', product.id, 'edit']"
+              [attr.aria-label]="'編輯' + (product.name ?? '品項')"
+            >
+              編輯
+            </a>
           </td>
         </ng-container>
 
@@ -98,9 +310,15 @@
         <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
       </table>
     </div>
-
-    <p class="result-summary">
-      第 {{ productService.page() + 1 }} 頁，共 {{ productService.totalElements() }} 筆
-    </p>
   }
+
+  <mat-paginator
+    [length]="productService.totalElements()"
+    [pageIndex]="productService.page()"
+    [pageSize]="productService.size()"
+    [pageSizeOptions]="pageSizes"
+    [showFirstLastButtons]="true"
+    aria-label="品項清單分頁"
+    (page)="onPage($event)"
+  ></mat-paginator>
 </section>

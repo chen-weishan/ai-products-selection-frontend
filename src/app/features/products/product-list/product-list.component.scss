@@ -7,7 +7,7 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 24px;
-  margin-bottom: 24px;
+  margin-bottom: 18px;
 }
 
 .page-heading h1 {
@@ -23,6 +23,82 @@
 .eyebrow {
   color: #1e7a9e !important;
   font-weight: 700;
+}
+
+.filter-panel {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(150px, 1fr));
+  gap: 8px 12px;
+  align-items: center;
+  margin-bottom: 16px;
+  padding: 16px;
+  border: 1px solid #dce4e8;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 1px 4px rgb(18 58 86 / 8%);
+}
+
+.filter-panel mat-form-field {
+  width: 100%;
+}
+
+.keyword-filter {
+  grid-column: span 2;
+}
+
+.filter-panel mat-checkbox,
+.filter-panel button {
+  align-self: center;
+  margin-bottom: 20px;
+}
+
+.reference-error {
+  margin: -6px 0 12px;
+  color: #c0392b;
+}
+
+.batch-feedback {
+  margin: 0 0 12px;
+  padding: 10px 14px;
+  border-radius: 8px;
+}
+
+.success-feedback {
+  border: 1px solid #b9ddca;
+  background: #edf8f2;
+  color: #17643a;
+}
+
+.error-feedback {
+  border: 1px solid #f0c4bf;
+  background: #fff2f0;
+  color: #a93226;
+}
+
+.batch-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+  padding: 10px 14px;
+  border: 1px solid #bedce8;
+  border-radius: 10px;
+  background: #eaf6fa;
+  color: #12556f;
+}
+
+.batch-toolbar strong {
+  margin-right: auto;
+  white-space: nowrap;
+}
+
+.batch-toolbar mat-form-field {
+  width: 190px;
+}
+
+.danger-action {
+  border-color: #c0392b !important;
+  color: #a93226 !important;
 }
 
 .state-card,
@@ -47,12 +123,13 @@
 
 table {
   width: 100%;
-  min-width: 960px;
+  min-width: 1180px;
 }
 
 th {
   color: #123a56;
   font-weight: 700;
+  white-space: nowrap;
 }
 
 tr:nth-child(even) td {
@@ -64,7 +141,47 @@ tr:nth-child(even) td {
   font-variant-numeric: tabular-nums;
 }
 
-.result-summary {
-  color: #61696f;
-  text-align: right;
+.risk-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-left: 5px;
+  border-radius: 50%;
+  background: #c0392b;
+  vertical-align: middle;
+}
+
+mat-paginator {
+  margin-top: 8px;
+  border-radius: 10px;
+  background: #fff;
+}
+
+@media (max-width: 1200px) {
+  .filter-panel {
+    grid-template-columns: repeat(3, minmax(150px, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .product-page {
+    padding: 16px;
+  }
+
+  .filter-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .keyword-filter {
+    grid-column: auto;
+  }
+
+  .batch-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .batch-toolbar mat-form-field {
+    width: 100%;
+  }
 }
