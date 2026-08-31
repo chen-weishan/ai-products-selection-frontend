@@ -13,6 +13,19 @@ export interface ProductSaveResult {
   warnings: readonly string[];
 }
 
+/**
+ * OpenAPI Generator maps `uniqueItems: true` arrays to JavaScript Set values.
+ * Angular serializes Set as `{}`, so requests sent over JSON must keep these
+ * fields as arrays even though the generated client model says Set.
+ */
+export type ProductSaveRequest = Omit<
+  ProductCreateRequest,
+  'logisticsConditions' | 'keywordIds'
+> & {
+  logisticsConditions?: ProductCreateRequest.LogisticsConditionsEnum[];
+  keywordIds?: number[];
+};
+
 @Injectable({ providedIn: 'root' })
 export class ProductEditorService {
   private readonly api = inject(ProductControllerService);
@@ -32,16 +45,16 @@ export class ProductEditorService {
     );
   }
 
-  save(productId: number | null, request: ProductCreateRequest): Observable<ProductSaveResult> {
+  save(productId: number | null, request: ProductSaveRequest): Observable<ProductSaveResult> {
     this.saving.set(true);
     this.error.set(null);
 
     const action =
       productId == null
-        ? this.api.create({ productCreateRequest: request })
+        ? this.api.create({ productCreateRequest: request as unknown as ProductCreateRequest })
         : this.api.update({
             id: productId,
-            productUpdateRequest: request as ProductUpdateRequest,
+            productUpdateRequest: request as unknown as ProductUpdateRequest,
           });
 
     return action.pipe(

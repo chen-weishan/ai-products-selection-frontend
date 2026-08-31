@@ -20,6 +20,11 @@
   color: #61696f;
 }
 
+.page-actions {
+  display: flex;
+  gap: 8px;
+}
+
 .eyebrow {
   color: #1e7a9e !important;
   font-weight: 700;
@@ -75,6 +80,12 @@
   color: #a93226;
 }
 
+.notice-feedback {
+  border: 1px solid #d7c78d;
+  background: #fff9e6;
+  color: #735b12;
+}
+
 .batch-toolbar {
   display: flex;
   align-items: center;
@@ -99,6 +110,17 @@
 .danger-action {
   border-color: #c0392b !important;
   color: #a93226 !important;
+}
+
+.danger-menu-item {
+  color: #a93226;
+}
+
+.empty-menu-item {
+  display: block;
+  padding: 10px 16px;
+  color: #737b80;
+  font-size: 14px;
 }
 
 .state-card,

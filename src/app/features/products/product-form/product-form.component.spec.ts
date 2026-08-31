@@ -1,4 +1,5 @@
 import { signal } from '@angular/core';
+import { Location } from '@angular/common';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { ActivatedRoute, convertToParamMap, Router } from '@angular/router';
@@ -7,6 +8,7 @@ import { DialogService } from '../../../services/dialog-service';
 import { ProductEditorService } from '../product-editor.service';
 import { ProductImageService } from '../product-image.service';
 import { ProductReferenceService } from '../product-reference.service';
+import { ProductSupplementService } from '../product-supplement.service';
 import { ProductFormComponent } from './product-form.component';
 
 describe('ProductFormComponent', () => {
@@ -19,8 +21,14 @@ describe('ProductFormComponent', () => {
   const reorderImages = vi.fn();
   const deleteImage = vi.fn();
   const clearImages = vi.fn();
+  const loadFestivals = vi.fn();
+  const loadAffinities = vi.fn();
+  const saveAffinities = vi.fn();
+  const uploadReviewFile = vi.fn();
+  const clearSupplements = vi.fn();
   const navigate = vi.fn();
   const snackOpen = vi.fn();
+  const replaceState = vi.fn();
   let component: ProductFormComponent;
   let fixture: ComponentFixture<ProductFormComponent>;
 
@@ -35,8 +43,14 @@ describe('ProductFormComponent', () => {
       reorderImages,
       deleteImage,
       clearImages,
+      loadFestivals,
+      loadAffinities,
+      saveAffinities,
+      uploadReviewFile,
+      clearSupplements,
       navigate,
       snackOpen,
+      replaceState,
     ].forEach((mock) => mock.mockReset());
     loadReferences.mockReturnValue(of(undefined));
     loadTrendKeywords.mockReturnValue(of(undefined));
@@ -44,6 +58,19 @@ describe('ProductFormComponent', () => {
     uploadFiles.mockReturnValue(of([]));
     reorderImages.mockReturnValue(of([]));
     deleteImage.mockReturnValue(of([]));
+    loadFestivals.mockReturnValue(of([]));
+    loadAffinities.mockReturnValue(of([]));
+    saveAffinities.mockReturnValue(of([]));
+    uploadReviewFile.mockReturnValue(
+      of({
+        fileName: 'reviews.csv',
+        acceptedRows: 1,
+        insertedCount: 1,
+        duplicateCount: 0,
+        totalReviewCount: 1,
+        lowConfidence: true,
+      }),
+    );
     navigate.mockResolvedValue(true);
 
     await TestBed.configureTestingModule({
@@ -54,6 +81,7 @@ describe('ProductFormComponent', () => {
           useValue: { snapshot: { paramMap: convertToParamMap({}) } },
         },
         { provide: Router, useValue: { navigate } },
+        { provide: Location, useValue: { replaceState } },
         {
           provide: ProductReferenceService,
           useValue: {
@@ -90,6 +118,21 @@ describe('ProductFormComponent', () => {
             error: signal(null),
           },
         },
+        {
+          provide: ProductSupplementService,
+          useValue: {
+            loadFestivals,
+            loadAffinities,
+            saveAffinities,
+            uploadReviewFile,
+            clear: clearSupplements,
+            festivals: signal([{ festivalCode: 'MID_AUTUMN', festivalName: '中秋節' }]),
+            affinities: signal([]),
+            reviewUploadResult: signal(null),
+            loading: signal(false),
+            error: signal(null),
+          },
+        },
         { provide: DialogService, useValue: { Confirm: vi.fn(() => of(true)) } },
         { provide: MatSnackBar, useValue: { open: snackOpen } },
       ],
@@ -104,7 +147,36 @@ describe('ProductFormComponent', () => {
     expect(component).toBeTruthy();
     expect(loadReferences).toHaveBeenCalledOnce();
     expect(loadTrendKeywords).toHaveBeenCalledOnce();
+    expect(loadFestivals).toHaveBeenCalledOnce();
     expect(loadProduct).not.toHaveBeenCalled();
+  });
+
+  it('saves festival affinities and an attached review CSV after creating a product', () => {
+    saveProduct.mockReturnValue(of({ product: { id: 104, name: '節慶新品' }, warnings: [] }));
+    const reviewFile = new File(['content,rating\n很好吃,5'], 'reviews.csv', {
+      type: 'text/csv',
+    });
+    component.form.patchValue({
+      name: '節慶新品',
+      categoryId: 10,
+      trackType: 'A',
+      cost: 80,
+      suggestedPrice: 120,
+    });
+    component.addFestivalAffinity();
+    component.festivalAffinities.at(0).setValue({
+      festivalCode: 'MID_AUTUMN',
+      affinity: 0.8,
+    });
+    component.reviewFile.set(reviewFile);
+
+    component.save(false);
+
+    expect(saveAffinities).toHaveBeenCalledWith(104, [
+      { festivalCode: 'MID_AUTUMN', affinity: 0.8 },
+    ]);
+    expect(uploadReviewFile).toHaveBeenCalledWith(104, reviewFile);
+    expect(navigate).toHaveBeenCalledWith(['/products']);
   });
 
   it('saves a valid track A product and calculates its margin', () => {
@@ -116,6 +188,7 @@ describe('ProductFormComponent', () => {
       trackType: 'A',
       cost: 90,
       suggestedPrice: 150,
+      logisticsConditions: ['CHILLED'],
       keywordIds: [30],
     });
 
@@ -133,6 +206,15 @@ describe('ProductFormComponent', () => {
         saveAsDraft: false,
       }),
     );
+    const sentRequest = saveProduct.mock.calls[0][1];
+    expect(sentRequest.logisticsConditions).toEqual(['CHILLED']);
+    expect(sentRequest.keywordIds).toEqual([30]);
+    expect(JSON.parse(JSON.stringify(sentRequest))).toEqual(
+      expect.objectContaining({
+        logisticsConditions: ['CHILLED'],
+        keywordIds: [30],
+      }),
+    );
     expect(navigate).toHaveBeenCalledWith(['/products']);
   });
 
@@ -148,6 +230,44 @@ describe('ProductFormComponent', () => {
 
     expect(component.form.hasError('keywordRequired')).toBe(true);
     expect(saveProduct).not.toHaveBeenCalled();
+  });
+
+  it('omits track A-only fields when saving a track B product', () => {
+    saveProduct.mockReturnValue(of({ product: { id: 103, name: '尋源新品' }, warnings: [] }));
+    component.form.patchValue({
+      name: '尋源新品',
+      categoryId: 10,
+      trackType: 'B',
+      supplierId: 20,
+      cost: 90,
+      suggestedPrice: 150,
+      moq: 10,
+      shelfLifeDays: 30,
+      logisticsConditions: ['CHILLED'],
+      idealTempMin: 2,
+      idealTempMax: 8,
+      season: 'SUMMER',
+      keywordIds: [30],
+    });
+
+    component.save(false);
+
+    expect(saveProduct).toHaveBeenCalledWith(
+      null,
+      expect.objectContaining({
+        trackType: 'B',
+        supplierId: undefined,
+        cost: undefined,
+        suggestedPrice: undefined,
+        moq: undefined,
+        shelfLifeDays: undefined,
+        logisticsConditions: undefined,
+        idealTempMin: undefined,
+        idealTempMax: undefined,
+        season: undefined,
+        keywordIds: [30],
+      }),
+    );
   });
 
   it('allows an incomplete product to be saved as a draft', () => {

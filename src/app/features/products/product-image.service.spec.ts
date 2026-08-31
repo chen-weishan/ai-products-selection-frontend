@@ -3,7 +3,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { TestBed } from '@angular/core/testing';
 import { firstValueFrom } from 'rxjs';
 import { environment } from '../../../environments/environment';
-import { ProductImageService } from './product-image.service';
+import { ProductImageService, ProductImageUploadError } from './product-image.service';
 
 describe('ProductImageService', () => {
   let service: ProductImageService;
@@ -41,6 +41,20 @@ describe('ProductImageService', () => {
     httpTesting.expectOne(imagesUrl).flush({ success: true, data: [] });
 
     await expect(promise).resolves.toEqual([]);
+  });
+
+  it('reports how many files succeeded before a later upload failed', async () => {
+    const first = new File(['first'], 'first.png', { type: 'image/png' });
+    const second = new File(['second'], 'second.png', { type: 'image/png' });
+    const promise = firstValueFrom(service.uploadFiles(101, [first, second]));
+
+    httpTesting.expectOne(imagesUrl).flush({ success: true, data: { id: 1, productId: 101 } });
+    httpTesting
+      .expectOne(imagesUrl)
+      .flush({ error: { message: '第二張圖片失敗' } }, { status: 400, statusText: 'Bad Request' });
+
+    await expect(promise).rejects.toMatchObject({ uploadedCount: 1 });
+    expect(service.error()).toBe('第二張圖片失敗');
   });
 
   it('sends a new image order and refreshes the list', async () => {

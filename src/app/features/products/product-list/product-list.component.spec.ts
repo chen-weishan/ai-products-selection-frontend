@@ -3,6 +3,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ActivatedRoute, convertToParamMap, ParamMap, Router } from '@angular/router';
 import { BehaviorSubject, of } from 'rxjs';
 import { DialogService } from '../../../services/dialog-service';
+import { AccessControlService } from '../../../core/auth/access-control.service';
 import { ProductReferenceService } from '../product-reference.service';
 import { ProductService } from '../product.service';
 import { ProductListComponent } from './product-list.component';
@@ -14,7 +15,11 @@ describe('ProductListComponent', () => {
   const analyzeBatch = vi.fn();
   const assignCategory = vi.fn();
   const disableBatch = vi.fn();
+  const deleteProduct = vi.fn();
+  const changeStatus = vi.fn();
   const confirm = vi.fn();
+  const changeProductStatus = vi.fn();
+  const products = signal<any[]>([]);
   let queryParams: BehaviorSubject<ParamMap>;
   let component: ProductListComponent;
   let fixture: ComponentFixture<ProductListComponent>;
@@ -26,13 +31,20 @@ describe('ProductListComponent', () => {
     analyzeBatch.mockReset();
     assignCategory.mockReset();
     disableBatch.mockReset();
+    deleteProduct.mockReset();
+    changeStatus.mockReset();
     confirm.mockReset();
+    changeProductStatus.mockReset();
+    products.set([]);
     load.mockReturnValue(of({ content: [], page: 0, size: 20, totalElements: 0, totalPages: 0 }));
     loadReferences.mockReturnValue(of(undefined));
     analyzeBatch.mockReturnValue(of({ queuedCount: 2 }));
     assignCategory.mockReturnValue(of({ updatedCount: 2 }));
     disableBatch.mockReturnValue(of({ disabledCount: 2 }));
+    deleteProduct.mockReturnValue(of(undefined));
+    changeStatus.mockReturnValue(of({ status: 'ADOPTED' }));
     confirm.mockReturnValue(of(true));
+    changeProductStatus.mockReturnValue(of({ targetStatus: 'ADOPTED' }));
     navigate.mockResolvedValue(true);
     queryParams = new BehaviorSubject<ParamMap>(convertToParamMap({}));
 
@@ -49,7 +61,14 @@ describe('ProductListComponent', () => {
         },
         {
           provide: DialogService,
-          useValue: { Confirm: confirm },
+          useValue: { Confirm: confirm, ChangeProductStatus: changeProductStatus },
+        },
+        {
+          provide: AccessControlService,
+          useValue: {
+            hasRole: (roles: string | string[]) =>
+              ([] as string[]).concat(roles).includes('BUYER_LEAD'),
+          },
         },
         {
           provide: ProductReferenceService,
@@ -65,7 +84,7 @@ describe('ProductListComponent', () => {
           provide: ProductService,
           useValue: {
             load,
-            products: signal([]),
+            products,
             page: signal(0),
             size: signal(20),
             totalElements: signal(0),
@@ -78,6 +97,8 @@ describe('ProductListComponent', () => {
             analyzeBatch,
             assignCategory,
             disableBatch,
+            deleteProduct,
+            changeStatus,
           },
         },
       ],
@@ -138,7 +159,7 @@ describe('ProductListComponent', () => {
       trackType: 'B',
       page: 0,
       size: 20,
-      sort: ['latestScore,desc'],
+      sort: ['timeGapDays,asc'],
     });
     expect(component.filterForm.controls.minScore.disabled).toBe(true);
     expect(component.filterForm.controls.maxScore.disabled).toBe(true);
@@ -168,12 +189,30 @@ describe('ProductListComponent', () => {
   });
 
   it('adds all selected products to the analysis queue', () => {
+    products.set([
+      { id: 101, name: 'A', trackType: 'A', status: 'EVALUATING' },
+      { id: 102, name: 'B', trackType: 'A', status: 'WATCHING' },
+    ]);
     component.selection.select(101, 102);
 
     component.analyzeSelected();
 
     expect(analyzeBatch).toHaveBeenCalledWith([101, 102]);
     expect(component.selection.isEmpty()).toBe(true);
+  });
+
+  it('skips track B and draft products when requesting analysis', () => {
+    products.set([
+      { id: 101, name: '可評分', trackType: 'A', status: 'EVALUATING' },
+      { id: 102, name: 'B 軌', trackType: 'B', status: 'EVALUATING' },
+      { id: 103, name: '草稿', trackType: 'A', status: 'DRAFT' },
+    ]);
+    component.selection.select(101, 102, 103);
+
+    component.analyzeSelected();
+
+    expect(analyzeBatch).toHaveBeenCalledWith([101]);
+    expect(component.selectionNotice()).toContain('略過 2 筆');
   });
 
   it('assigns a category to selected products before reloading', () => {

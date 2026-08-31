@@ -1,4 +1,5 @@
 import { Injectable, computed, signal } from '@angular/core';
+import { environment } from '../../../environments/environment';
 
 export interface BasicCredentials {
   username: string;
@@ -9,9 +10,10 @@ export interface BasicCredentials {
   providedIn: 'root',
 })
 export class BasicAuthService {
-  private readonly credentials = signal<BasicCredentials | null>(null);
+  private readonly credentials = signal<BasicCredentials | null>(devCredentials());
 
   readonly hasCredentials = computed(() => this.credentials() !== null);
+  readonly currentUsername = computed(() => this.credentials()?.username ?? null);
 
   readonly authorizationHeader = computed(() => {
     const credentials = this.credentials();
@@ -35,8 +37,13 @@ export class BasicAuthService {
   }
 
   clearCredentials(): void {
-    this.credentials.set(null);
+    this.credentials.set(devCredentials());
   }
+}
+
+function devCredentials(): BasicCredentials | null {
+  const credentials = environment.fr03DevCredentials as BasicCredentials | null;
+  return credentials ? { ...credentials } : null;
 }
 
 function encodeUtf8Base64(value: string): string {

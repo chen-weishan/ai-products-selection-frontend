@@ -2,10 +2,15 @@ import { Routes } from '@angular/router';
 import { MainLayoutComponent } from './layout/main-layout/main-layout.component';
 import { HeaderComponent } from './layout/header/header.component';
 import { authGuard } from './core/auth/auth.guard';
+import { roleGuard } from './core/auth/role.guard';
+import { loginPageGuard } from './core/auth/login-page.guard';
+
+const PRODUCT_EDIT_ROLES = ['BUYER', 'BUYER_LEAD', 'DATA_ADMIN', 'SYS_ADMIN'] as const;
 
 export const routes: Routes = [
   {
     path: 'login',
+    canActivate: [loginPageGuard],
     loadComponent: () =>
       import('./features/auth/login/login.component').then((module) => module.LoginComponent),
   },
@@ -35,6 +40,8 @@ export const routes: Routes = [
       },
       {
         path: 'products/new',
+        canActivate: [roleGuard],
+        data: { roles: PRODUCT_EDIT_ROLES },
         loadComponent: () =>
           import('./features/products/product-form/product-form.component').then(
             (module) => module.ProductFormComponent,
@@ -42,6 +49,8 @@ export const routes: Routes = [
       },
       {
         path: 'products/:id/edit',
+        canActivate: [roleGuard],
+        data: { roles: PRODUCT_EDIT_ROLES },
         loadComponent: () =>
           import('./features/products/product-form/product-form.component').then(
             (module) => module.ProductFormComponent,

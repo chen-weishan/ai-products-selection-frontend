@@ -5,7 +5,14 @@
       <h1>品項管理</h1>
       <p>共 {{ productService.totalElements() }} 筆品項</p>
     </div>
-    <a mat-flat-button routerLink="/products/new">＋ 新增品項</a>
+    <div class="page-actions">
+      @if (canImport()) {
+        <a mat-stroked-button routerLink="/imports">匯入 CSV</a>
+      }
+      @if (canEdit()) {
+        <a mat-flat-button routerLink="/products/new">＋ 新增品項</a>
+      }
+    </div>
   </header>
 
   <form class="filter-panel" [formGroup]="filterForm">
@@ -103,47 +110,53 @@
       {{ productService.batchError() }}
     </p>
   }
+  @if (selectionNotice()) {
+    <p class="batch-feedback notice-feedback" role="status">{{ selectionNotice() }}</p>
+  }
 
   @if (selection.hasValue()) {
     <section class="batch-toolbar" aria-label="品項批次操作">
       <strong>已選取 {{ selection.selected.length }} 筆</strong>
 
-      <button
-        mat-flat-button
-        type="button"
-        [disabled]="productService.batchLoading()"
-        (click)="analyzeSelected()"
-      >
-        批次加入評分佇列
-      </button>
+      @if (canEdit()) {
+        <button
+          mat-flat-button
+          type="button"
+          [disabled]="productService.batchLoading() || scorableSelectedCount() === 0"
+          (click)="analyzeSelected()"
+        >
+          批次加入評分佇列（{{ scorableSelectedCount() }}）
+        </button>
 
-      <mat-form-field appearance="outline" subscriptSizing="dynamic">
-        <mat-label>指定類別</mat-label>
-        <mat-select [formControl]="batchCategoryId">
-          @for (category of references.categories(); track category.id) {
-            <mat-option [value]="category.id">{{ category.label }}</mat-option>
-          }
-        </mat-select>
-      </mat-form-field>
-      <button
-        mat-stroked-button
-        type="button"
-        [disabled]="batchCategoryId.value == null || productService.batchLoading()"
-        (click)="assignSelectedCategory()"
-      >
-        批次指定類別
-      </button>
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>指定類別</mat-label>
+          <mat-select [formControl]="batchCategoryId">
+            @for (category of references.categories(); track category.id) {
+              <mat-option [value]="category.id">{{ category.label }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+        <button
+          mat-stroked-button
+          type="button"
+          [disabled]="batchCategoryId.value == null || productService.batchLoading()"
+          (click)="assignSelectedCategory()"
+        >
+          批次指定類別
+        </button>
+      }
 
-      <button
-        mat-stroked-button
-        type="button"
-        class="danger-action"
-        title="僅採購主管與系統管理員可以執行"
-        [disabled]="productService.batchLoading()"
-        (click)="disableSelected()"
-      >
-        批次停用
-      </button>
+      @if (canDelete()) {
+        <button
+          mat-stroked-button
+          type="button"
+          class="danger-action"
+          [disabled]="productService.batchLoading()"
+          (click)="disableSelected()"
+        >
+          批次停用
+        </button>
+      }
     </section>
   }
 
@@ -173,6 +186,7 @@
               aria-label="選取本頁全部品項"
               [checked]="isAllSelected()"
               [indeterminate]="isPartiallySelected()"
+              [disabled]="!canSelect()"
               (change)="toggleAllRows()"
             ></mat-checkbox>
           </th>
@@ -180,7 +194,7 @@
             <mat-checkbox
               [attr.aria-label]="'選取' + (product.name ?? '品項')"
               [checked]="product.id != null && selection.isSelected(product.id)"
-              [disabled]="product.id == null"
+              [disabled]="product.id == null || !canSelect()"
               (click)="$event.stopPropagation()"
               (change)="toggleRow(product.id)"
             ></mat-checkbox>
@@ -296,13 +310,41 @@
         <ng-container matColumnDef="actions">
           <th mat-header-cell *matHeaderCellDef>操作</th>
           <td mat-cell *matCellDef="let product">
-            <a
+            <button
               mat-button
-              [routerLink]="['/products', product.id, 'edit']"
-              [attr.aria-label]="'編輯' + (product.name ?? '品項')"
+              type="button"
+              [matMenuTriggerFor]="productActions"
+              [attr.aria-label]="'開啟' + (product.name ?? '品項') + '操作選單'"
             >
-              編輯
-            </a>
+              ⋯
+            </button>
+            <mat-menu #productActions="matMenu">
+              @if (canEdit()) {
+                <a mat-menu-item [routerLink]="['/products', product.id, 'edit']">編輯</a>
+              }
+              @for (transition of statusTransitions(product); track transition.value) {
+                <button
+                  mat-menu-item
+                  type="button"
+                  (click)="changeProductStatus(product, transition)"
+                >
+                  {{ transition.label }}
+                </button>
+              }
+              @if (canDelete()) {
+                <button
+                  mat-menu-item
+                  type="button"
+                  class="danger-menu-item"
+                  (click)="deleteProduct(product)"
+                >
+                  刪除
+                </button>
+              }
+              @if (!canEdit() && !canDelete() && statusTransitions(product).length === 0) {
+                <span class="empty-menu-item">沒有可執行的操作</span>
+              }
+            </mat-menu>
           </td>
         </ng-container>
 

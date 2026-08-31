@@ -15,6 +15,8 @@ import {
   ProductBatchCategoryResponse,
   ProductBatchDisableResponse,
   ProductListItemResponse,
+  ProductStatusUpdateRequest,
+  ProductStatusUpdateResponse,
 } from '../../api/model/models';
 import { ProductControllerService } from '../../api/api/productController.service';
 import { SearchRequestParams } from '../../api/api/productController.serviceInterface';
@@ -131,6 +133,40 @@ export class ProductService {
         tap((result) => {
           this.batchMessage.set(`已停用 ${result.disabledCount ?? productIds.length} 筆品項`);
         }),
+        this.handleBatchError(),
+        finalize(() => this.batchLoading.set(false)),
+      );
+  }
+
+  deleteProduct(productId: number): Observable<void> {
+    this.startBatchAction();
+
+    return this.api._delete({ id: productId }).pipe(
+      map((response) => {
+        if (!response.success) {
+          throw new Error(response.error?.message ?? '刪除品項失敗');
+        }
+      }),
+      tap(() => this.batchMessage.set('品項已刪除')),
+      this.handleBatchError(),
+      finalize(() => this.batchLoading.set(false)),
+    );
+  }
+
+  changeStatus(
+    productId: number,
+    request: ProductStatusUpdateRequest,
+  ): Observable<ProductStatusUpdateResponse> {
+    this.startBatchAction();
+
+    return this.api
+      .changeStatus({
+        id: productId,
+        productStatusUpdateRequest: request,
+      })
+      .pipe(
+        map((response) => unwrapResponse(response, '變更品項狀態失敗')),
+        tap(() => this.batchMessage.set('品項狀態已更新')),
         this.handleBatchError(),
         finalize(() => this.batchLoading.set(false)),
       );

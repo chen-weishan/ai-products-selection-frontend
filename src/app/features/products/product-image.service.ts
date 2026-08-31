@@ -26,6 +26,17 @@ export interface ProductImageView extends ProductImageResponse {
   previewUrl?: string;
 }
 
+export class ProductImageUploadError extends Error {
+  constructor(
+    message: string,
+    readonly uploadedCount: number,
+    override readonly cause?: unknown,
+  ) {
+    super(message);
+    this.name = 'ProductImageUploadError';
+  }
+}
+
 @Injectable({ providedIn: 'root' })
 export class ProductImageService {
   private readonly http = inject(HttpClient);
@@ -67,19 +78,26 @@ export class ProductImageService {
   uploadFiles(productId: number, files: readonly File[]): Observable<readonly ProductImageView[]> {
     this.loading.set(true);
     this.error.set(null);
+    let uploadedCount = 0;
 
     return of(...files).pipe(
       concatMap((file) => {
         const formData = new FormData();
         formData.append('file', file, file.name);
-        return this.http.post<ApiResponse<ProductImageResponse>>(
-          `${this.baseUrl}/${productId}/images`,
-          formData,
-        );
+        return this.http
+          .post<ApiResponse<ProductImageResponse>>(`${this.baseUrl}/${productId}/images`, formData)
+          .pipe(
+            map((response) => unwrap(response, `上傳「${file.name}」失敗`)),
+            tap(() => uploadedCount++),
+          );
       }),
       toArray(),
       switchMap(() => this.load(productId)),
-      this.handleError(),
+      catchError((error: unknown) => {
+        const message = toErrorMessage(error);
+        this.error.set(message);
+        return throwError(() => new ProductImageUploadError(message, uploadedCount, error));
+      }),
       finalize(() => this.loading.set(false)),
     );
   }

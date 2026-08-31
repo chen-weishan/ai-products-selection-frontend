@@ -7,6 +7,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
+import { MatMenuModule } from '@angular/material/menu';
 import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSortModule, Sort, SortDirection } from '@angular/material/sort';
@@ -24,6 +25,9 @@ import {
   tap,
 } from 'rxjs';
 import { DialogService } from '../../../services/dialog-service';
+import { AccessControlService } from '../../../core/auth/access-control.service';
+import { UserRole } from '../../../core/models/auth-model';
+import { ProductListItemResponse, ProductStatusUpdateRequest } from '../../../api/model/models';
 import { ProductReferenceService } from '../product-reference.service';
 import { ProductSearchCriteria, ProductService } from '../product.service';
 
@@ -60,6 +64,16 @@ const SORT_FIELDS = new Set([
   'updatedAt',
 ]);
 const DEFAULT_SORT = 'latestScore,desc';
+const TRACK_B_DEFAULT_SORT = 'timeGapDays,asc';
+const EDIT_ROLES: readonly UserRole[] = ['BUYER', 'BUYER_LEAD', 'DATA_ADMIN', 'SYS_ADMIN'];
+const DECISION_ROLES: readonly UserRole[] = ['BUYER', 'BUYER_LEAD', 'SYS_ADMIN'];
+const DELETE_ROLES: readonly UserRole[] = ['BUYER_LEAD', 'SYS_ADMIN'];
+const IMPORT_ROLES: readonly UserRole[] = ['BUYER_LEAD', 'DATA_ADMIN', 'SYS_ADMIN'];
+
+interface StatusTransition {
+  value: ProductStatusUpdateRequest.TargetStatusEnum;
+  label: string;
+}
 
 const SOURCING_STATUS_LABELS: Record<SourcingStatus, string> = {
   PENDING: '待評估',
@@ -89,6 +103,7 @@ const PRODUCT_STATUS_LABELS: Record<ProductStatus, string> = {
     MatCheckboxModule,
     MatFormFieldModule,
     MatInputModule,
+    MatMenuModule,
     MatPaginatorModule,
     MatSelectModule,
     MatSortModule,
@@ -104,6 +119,7 @@ export class ProductListComponent implements OnInit {
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
   private readonly dialogService = inject(DialogService);
+  private readonly accessControl = inject(AccessControlService);
 
   readonly pageSizes = PAGE_SIZES;
   readonly trackTypes = TRACK_TYPES;
@@ -117,6 +133,12 @@ export class ProductListComponent implements OnInit {
   });
   readonly selection = new SelectionModel<number>(true);
   readonly batchCategoryId = new FormControl<number | null>(null);
+  readonly selectionNotice = signal<string | null>(null);
+  readonly canEdit = computed(() => this.accessControl.hasRole(EDIT_ROLES));
+  readonly canDecide = computed(() => this.accessControl.hasRole(DECISION_ROLES));
+  readonly canDelete = computed(() => this.accessControl.hasRole(DELETE_ROLES));
+  readonly canImport = computed(() => this.accessControl.hasRole(IMPORT_ROLES));
+  readonly canSelect = computed(() => this.canEdit() || this.canDelete());
 
   readonly filterForm = new FormGroup({
     keyword: new FormControl('', { nonNullable: true }),
@@ -179,12 +201,13 @@ export class ProductListComponent implements OnInit {
       .pipe(debounceTime(300), takeUntilDestroyed(this.destroyRef))
       .subscribe(() => {
         const trackType = this.filterForm.controls.trackType.value;
-        this.configureScoreControls(trackType, true);
+        this.configureTrackFilters(trackType, true);
         this.navigateToCriteria(this.criteriaFromForm(), true);
       });
   }
 
   clearFilters(): void {
+    this.filterForm.controls.grade.enable({ emitEvent: false });
     this.filterForm.controls.minScore.enable({ emitEvent: false });
     this.filterForm.controls.maxScore.enable({ emitEvent: false });
     this.filterForm.reset({
@@ -259,10 +282,23 @@ export class ProductListComponent implements OnInit {
   }
 
   analyzeSelected(): void {
-    const productIds = [...this.selection.selected];
+    const selectedIds = [...this.selection.selected];
+    const productIds = this.productService
+      .products()
+      .filter((product) => product.id != null && selectedIds.includes(product.id))
+      .filter((product) => this.isScorable(product))
+      .map((product) => product.id!);
+    const skippedCount = selectedIds.length - productIds.length;
     if (productIds.length === 0 || this.productService.batchLoading()) {
+      if (selectedIds.length > 0) {
+        this.selectionNotice.set('所選品項皆不符合評分條件；僅 A 軌且非草稿／已淘汰品項可加入。');
+      }
       return;
     }
+
+    this.selectionNotice.set(
+      skippedCount > 0 ? `已略過 ${skippedCount} 筆不符合評分條件的品項。` : null,
+    );
 
     this.productService
       .analyzeBatch(productIds)
@@ -307,6 +343,98 @@ export class ProductListComponent implements OnInit {
       .subscribe({ error: () => undefined });
   }
 
+  deleteProduct(product: ProductListItemResponse): void {
+    if (product.id == null || !this.canDelete() || this.productService.batchLoading()) return;
+
+    this.dialogService
+      .Confirm({
+        title: '刪除品項',
+        message: `確定要刪除「${product.name ?? '此品項'}」嗎？歷史評分與決策紀錄仍會保留。`,
+        confirmText: '確認刪除',
+        cancelText: '取消',
+        isDanger: true,
+      })
+      .pipe(
+        filter(Boolean),
+        switchMap(() => this.productService.deleteProduct(product.id!)),
+        switchMap(() => this.productService.load(this.criteria())),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe({ error: () => undefined });
+  }
+
+  changeProductStatus(product: ProductListItemResponse, transition: StatusTransition): void {
+    if (product.id == null || this.productService.batchLoading()) return;
+
+    this.dialogService
+      .ChangeProductStatus({
+        productName: product.name ?? '此品項',
+        targetStatus: transition.value,
+        targetStatusLabel: transition.label,
+      })
+      .pipe(
+        filter((result) => result != null),
+        switchMap((result) =>
+          this.productService.changeStatus(product.id!, {
+            targetStatus: result.targetStatus,
+            rejectReason: result.rejectReason,
+          }),
+        ),
+        switchMap(() => this.productService.load(this.criteria())),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe({ error: () => undefined });
+  }
+
+  statusTransitions(product: ProductListItemResponse): readonly StatusTransition[] {
+    if (!product.status) return [];
+    if (product.trackType === 'B') {
+      return product.status === 'DRAFT' && this.canEdit()
+        ? [{ value: 'EVALUATING', label: '送出評估' }]
+        : [];
+    }
+
+    switch (product.status) {
+      case 'DRAFT':
+        return this.canEdit() ? [{ value: 'EVALUATING', label: '送出評估' }] : [];
+      case 'EVALUATING':
+        return this.canDecide()
+          ? [
+              { value: 'WATCHING', label: '轉為觀察中' },
+              { value: 'ADOPTED', label: '採納' },
+              { value: 'REJECTED', label: '淘汰' },
+            ]
+          : [];
+      case 'WATCHING':
+        return this.canDecide()
+          ? [
+              { value: 'ADOPTED', label: '採納' },
+              { value: 'REJECTED', label: '淘汰' },
+            ]
+          : [];
+      case 'ADOPTED':
+        return this.canEdit() ? [{ value: 'LISTED', label: '標記已上架' }] : [];
+      case 'REJECTED':
+        return this.accessControl.hasRole(DELETE_ROLES)
+          ? [{ value: 'EVALUATING', label: '重新評估' }]
+          : [];
+      default:
+        return [];
+    }
+  }
+
+  isScorable(product: ProductListItemResponse): boolean {
+    return product.trackType === 'A' && product.status !== 'DRAFT' && product.status !== 'REJECTED';
+  }
+
+  scorableSelectedCount(): number {
+    const selectedIds = new Set(this.selection.selected);
+    return this.productService
+      .products()
+      .filter((product) => product.id != null && selectedIds.has(product.id))
+      .filter((product) => this.isScorable(product)).length;
+  }
+
   sourcingStatusLabel(status: SourcingStatus): string {
     return SOURCING_STATUS_LABELS[status];
   }
@@ -342,31 +470,39 @@ export class ProductListComponent implements OnInit {
       },
       { emitEvent: false },
     );
-    this.configureScoreControls(criteria.trackType ?? null, true);
+    this.configureTrackFilters(criteria.trackType ?? null, true);
   }
 
-  private configureScoreControls(trackType: TrackType | null, clear: boolean): void {
+  private configureTrackFilters(trackType: TrackType | null, clear: boolean): void {
     const minScore = this.filterForm.controls.minScore;
     const maxScore = this.filterForm.controls.maxScore;
+    const grade = this.filterForm.controls.grade;
 
     if (trackType === 'B') {
       if (clear) {
         minScore.setValue(null, { emitEvent: false });
         maxScore.setValue(null, { emitEvent: false });
+        grade.setValue(null, { emitEvent: false });
       }
       minScore.disable({ emitEvent: false });
       maxScore.disable({ emitEvent: false });
+      grade.disable({ emitEvent: false });
       return;
     }
 
     minScore.enable({ emitEvent: false });
     maxScore.enable({ emitEvent: false });
+    grade.enable({ emitEvent: false });
   }
 
   private criteriaFromForm(): ProductSearchCriteria {
     const value = this.filterForm.getRawValue();
     const trackB = value.trackType === 'B';
     const keyword = value.keyword.trim();
+
+    let sort = this.criteria().sort ?? [DEFAULT_SORT];
+    if (trackB && sort[0] === DEFAULT_SORT) sort = [TRACK_B_DEFAULT_SORT];
+    if (!trackB && sort[0] === TRACK_B_DEFAULT_SORT) sort = [DEFAULT_SORT];
 
     return compactCriteria({
       keyword: keyword || undefined,
@@ -381,7 +517,7 @@ export class ProductListComponent implements OnInit {
       hasRisk: value.hasRisk ? true : undefined,
       page: 0,
       size: this.criteria().size ?? 20,
-      sort: this.criteria().sort ?? [DEFAULT_SORT],
+      sort,
     });
   }
 
@@ -421,6 +557,10 @@ function criteriaFromQueryParams(params: ParamMap): ProductSearchCriteria {
     ? (requestedSize as 20 | 50 | 100)
     : 20;
 
+  let sort = validSort(params.getAll('sort')[0]);
+  if (trackType === 'B' && sort === DEFAULT_SORT) sort = TRACK_B_DEFAULT_SORT;
+  if (trackType !== 'B' && sort === TRACK_B_DEFAULT_SORT) sort = DEFAULT_SORT;
+
   return compactCriteria({
     keyword: params.get('keyword')?.trim() || undefined,
     categoryId: positiveInteger(params.get('categoryId')),
@@ -434,7 +574,7 @@ function criteriaFromQueryParams(params: ParamMap): ProductSearchCriteria {
     hasRisk: params.get('hasRisk') === 'true' ? true : undefined,
     page,
     size,
-    sort: [validSort(params.getAll('sort')[0])],
+    sort: [sort],
   });
 }
 

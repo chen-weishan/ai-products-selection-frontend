@@ -42,11 +42,19 @@ describe('ProductEditorService', () => {
         },
       }),
     );
-    const request = { name: '抹茶餅乾', categoryId: 10 };
+    const request = {
+      name: '抹茶餅乾',
+      categoryId: 10,
+      logisticsConditions: ['NORMAL' as const],
+      keywordIds: [30],
+    };
 
     const result = await firstValueFrom(service.save(null, request));
 
     expect(create).toHaveBeenCalledWith({ productCreateRequest: request });
+    expect(JSON.parse(JSON.stringify(create.mock.calls[0][0].productCreateRequest))).toEqual(
+      expect.objectContaining({ logisticsConditions: ['NORMAL'], keywordIds: [30] }),
+    );
     expect(result.product.id).toBe(101);
     expect(result.warnings).toHaveLength(1);
     expect(service.saving()).toBe(false);

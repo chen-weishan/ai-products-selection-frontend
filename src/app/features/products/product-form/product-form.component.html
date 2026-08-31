@@ -3,14 +3,14 @@
     <div>
       <p class="eyebrow">S-04</p>
       <h1>{{ isEditMode() ? '編輯品項' : '新增品項' }}</h1>
-      <p>品項管理 / {{ isEditMode() ? '編輯' : '新增' }}</p>
+      <p>品項管理/ {{ isEditMode() ? '編輯' : '新增' }}</p>
     </div>
     <div class="header-actions">
       <a mat-stroked-button routerLink="/products">取消</a>
       <button
         mat-stroked-button
         type="button"
-        [disabled]="editor.saving() || images.loading()"
+        [disabled]="editor.saving() || images.loading() || supplements.loading()"
         (click)="save(true)"
       >
         存為草稿
@@ -18,7 +18,7 @@
       <button
         mat-flat-button
         type="button"
-        [disabled]="editor.saving() || images.loading()"
+        [disabled]="editor.saving() || images.loading() || supplements.loading()"
         (click)="save(false)"
       >
         {{ editor.saving() ? '儲存中…' : '儲存並評分' }}
@@ -38,7 +38,9 @@
               <mat-label>品項名稱</mat-label>
               <input matInput formControlName="name" maxlength="100" />
               <mat-hint align="end">{{ form.controls.name.value.length }}/100</mat-hint>
-              @if (form.controls.name.hasError('required')) {
+              @if (
+                form.controls.name.hasError('required') || form.controls.name.hasError('blank')
+              ) {
                 <mat-error>請輸入品項名稱</mat-error>
               }
             </mat-form-field>
@@ -53,15 +55,17 @@
                 </mat-select>
                 <mat-error>請選擇類別</mat-error>
               </mat-form-field>
-              <mat-form-field appearance="outline">
-                <mat-label>供應商（選填）</mat-label>
-                <mat-select formControlName="supplierId">
-                  <mat-option [value]="null">未指定</mat-option>
-                  @for (supplier of references.suppliers(); track supplier.id) {
-                    <mat-option [value]="supplier.id">{{ supplier.name }}</mat-option>
-                  }
-                </mat-select>
-              </mat-form-field>
+              @if (form.controls.trackType.value === 'A') {
+                <mat-form-field appearance="outline">
+                  <mat-label>供應商（選填）</mat-label>
+                  <mat-select formControlName="supplierId">
+                    <mat-option [value]="null">未指定</mat-option>
+                    @for (supplier of references.suppliers(); track supplier.id) {
+                      <mat-option [value]="supplier.id">{{ supplier.name }}</mat-option>
+                    }
+                  </mat-select>
+                </mat-form-field>
+              }
             </div>
 
             <div class="two-columns">
@@ -72,16 +76,6 @@
                   <mat-option value="B">B 軌－尋源中</mat-option>
                 </mat-select>
               </mat-form-field>
-              @if (form.controls.trackType.value === 'B') {
-                <mat-form-field appearance="outline">
-                  <mat-label>尋源狀態</mat-label>
-                  <mat-select formControlName="sourcingStatus">
-                    @for (status of sourcingStatuses; track status.value) {
-                      <mat-option [value]="status.value">{{ status.label }}</mat-option>
-                    }
-                  </mat-select>
-                </mat-form-field>
-              }
             </div>
           </section>
 
@@ -122,10 +116,16 @@
                 <mat-form-field appearance="outline">
                   <mat-label>最小訂購量（選填）</mat-label>
                   <input matInput type="number" min="1" step="1" formControlName="moq" />
+                  @if (form.controls.moq.hasError('integer')) {
+                    <mat-error>請輸入大於 0 的整數</mat-error>
+                  }
                 </mat-form-field>
                 <mat-form-field appearance="outline">
                   <mat-label>效期天數（選填）</mat-label>
                   <input matInput type="number" min="1" step="1" formControlName="shelfLifeDays" />
+                  @if (form.controls.shelfLifeDays.hasError('integer')) {
+                    <mat-error>請輸入大於 0 的整數</mat-error>
+                  }
                 </mat-form-field>
               </div>
             </section>
@@ -135,31 +135,90 @@
             </section>
           }
 
-          <section class="form-card">
-            <h2><span class="step-number">2</span>物流與氣候</h2>
-            <mat-form-field appearance="outline" class="full-width">
-              <mat-label>物流條件（選填）</mat-label>
-              <mat-select formControlName="logisticsConditions" multiple>
-                @for (condition of logisticsConditions; track condition.value) {
-                  <mat-option [value]="condition.value">{{ condition.label }}</mat-option>
-                }
-              </mat-select>
-            </mat-form-field>
-            <div class="two-columns compact-fields">
-              <mat-form-field appearance="outline">
-                <mat-label>適溫下限（°C）</mat-label>
-                <input matInput type="number" step="0.1" formControlName="idealTempMin" />
+          @if (form.controls.trackType.value === 'A') {
+            <section class="form-card">
+              <h2><span class="step-number">2</span>物流與氣候</h2>
+              <mat-form-field appearance="outline" class="full-width">
+                <mat-label>物流條件（選填）</mat-label>
+                <mat-select formControlName="logisticsConditions" multiple>
+                  @for (condition of logisticsConditions; track condition.value) {
+                    <mat-option [value]="condition.value">{{ condition.label }}</mat-option>
+                  }
+                </mat-select>
               </mat-form-field>
-              <mat-form-field appearance="outline">
-                <mat-label>適溫上限（°C）</mat-label>
-                <input matInput type="number" step="0.1" formControlName="idealTempMax" />
-                @if (form.hasError('invalidTemperature')) {
-                  <mat-error>上限不可低於下限</mat-error>
+              <div class="two-columns compact-fields">
+                <mat-form-field appearance="outline">
+                  <mat-label>適溫下限（°C）</mat-label>
+                  <input matInput type="number" step="0.1" formControlName="idealTempMin" />
+                </mat-form-field>
+                <mat-form-field appearance="outline">
+                  <mat-label>適溫上限（°C）</mat-label>
+                  <input matInput type="number" step="0.1" formControlName="idealTempMax" />
+                  @if (form.hasError('incompleteTemperature')) {
+                    <mat-error>適溫上、下限必須一起填寫</mat-error>
+                  } @else if (form.hasError('invalidTemperature')) {
+                    <mat-error>上限不可低於下限</mat-error>
+                  }
+                </mat-form-field>
+              </div>
+              <p class="field-help">未填時沿用所屬品類的預設適溫區間。</p>
+
+              <div class="subsection-heading">
+                <div>
+                  <h3>節慶關聯度</h3>
+                  <p>選填，關聯度請輸入 0–1，供節慶時間窗因子使用。</p>
+                </div>
+                <button
+                  mat-stroked-button
+                  type="button"
+                  [disabled]="festivalAffinities.length >= 50"
+                  (click)="addFestivalAffinity()"
+                >
+                  ＋ 新增節慶
+                </button>
+              </div>
+              <div formArrayName="festivalAffinities" class="affinity-list">
+                @for (group of festivalAffinities.controls; track group; let index = $index) {
+                  <div class="affinity-row" [formGroupName]="index">
+                    <mat-form-field appearance="outline">
+                      <mat-label>節慶</mat-label>
+                      <mat-select formControlName="festivalCode">
+                        @for (festival of supplements.festivals(); track festival.festivalCode) {
+                          <mat-option [value]="festival.festivalCode">
+                            {{ festival.festivalName }}
+                          </mat-option>
+                        }
+                      </mat-select>
+                      <mat-error>請選擇節慶</mat-error>
+                    </mat-form-field>
+                    <mat-form-field appearance="outline">
+                      <mat-label>關聯度（0–1）</mat-label>
+                      <input
+                        matInput
+                        type="number"
+                        min="0"
+                        max="1"
+                        step="0.05"
+                        formControlName="affinity"
+                      />
+                      <mat-error>請輸入 0–1</mat-error>
+                    </mat-form-field>
+                    <button
+                      mat-stroked-button
+                      type="button"
+                      class="remove-affinity"
+                      (click)="removeFestivalAffinity(index)"
+                    >
+                      移除
+                    </button>
+                  </div>
                 }
-              </mat-form-field>
-            </div>
-            <p class="field-help">未填時沿用所屬品類的預設適溫區間。</p>
-          </section>
+              </div>
+              @if (festivalAffinities.hasError('duplicateFestival')) {
+                <p class="inline-error" role="alert">同一個節慶不可重複設定。</p>
+              }
+            </section>
+          }
         </div>
 
         <div class="form-column">
@@ -179,83 +238,127 @@
               }
             </mat-form-field>
             <p class="field-help">用於每日擷取 Google Trends 熱度。</p>
-            <mat-form-field appearance="outline" class="full-width">
-              <mat-label>季節性</mat-label>
-              <mat-select formControlName="season">
-                @for (season of seasons; track season.value) {
-                  <mat-option [value]="season.value">{{ season.label }}</mat-option>
-                }
-              </mat-select>
-            </mat-form-field>
-          </section>
-
-          <section class="form-card image-card">
-            <div class="card-heading">
-              <h2><span class="step-number">4</span>品項圖片</h2>
-              <span>{{ totalImageCount() }}/5 張</span>
-            </div>
-            <label class="upload-zone" [class.disabled]="totalImageCount() >= 5">
-              <input
-                type="file"
-                accept="image/jpeg,image/png"
-                multiple
-                [disabled]="totalImageCount() >= 5"
-                (change)="onFilesSelected($event)"
-              />
-              <strong>選擇 JPG／PNG 圖片</strong>
-              <span>每張不超過 2 MB，最多 5 張</span>
-            </label>
-            @if (fileError()) {
-              <p class="inline-error" role="alert">{{ fileError() }}</p>
-            }
-            @if (!isEditMode() && pendingImages().length > 0) {
-              <p class="field-help pending-help">圖片會在品項建立成功後自動上傳。</p>
-            }
-
-            <div class="image-grid">
-              @for (image of images.images(); track image.id; let index = $index) {
-                <article class="image-tile">
-                  @if (image.previewUrl) {
-                    <img [src]="image.previewUrl" alt="品項圖片" />
-                  } @else {
-                    <div class="image-placeholder">無法預覽</div>
+            @if (form.controls.trackType.value === 'A') {
+              <mat-form-field appearance="outline" class="full-width">
+                <mat-label>季節性</mat-label>
+                <mat-select formControlName="season">
+                  @for (season of seasons; track season.value) {
+                    <mat-option [value]="season.value">{{ season.label }}</mat-option>
                   }
-                  <div class="image-actions">
-                    <button
-                      type="button"
-                      title="往前移"
-                      [disabled]="index === 0 || images.loading()"
-                      (click)="moveImage(index, -1)"
-                    >
-                      ←
-                    </button>
-                    <button
-                      type="button"
-                      title="往後移"
-                      [disabled]="index === images.images().length - 1 || images.loading()"
-                      (click)="moveImage(index, 1)"
-                    >
-                      →
-                    </button>
-                    <button type="button" class="delete-image" (click)="deleteImage(image)">
-                      刪除
-                    </button>
-                  </div>
-                </article>
-              }
-              @for (image of pendingImages(); track image.previewUrl) {
-                <article class="image-tile pending">
-                  <img [src]="image.previewUrl" [alt]="image.file.name" />
-                  <div class="image-actions">
-                    <span>待上傳</span>
-                    <button type="button" class="delete-image" (click)="removePendingImage(image)">
-                      移除
-                    </button>
-                  </div>
-                </article>
-              }
-            </div>
+                </mat-select>
+              </mat-form-field>
+            }
           </section>
+
+          @if (form.controls.trackType.value === 'A') {
+            <section class="form-card image-card">
+              <div class="card-heading">
+                <h2><span class="step-number">4</span>品項圖片</h2>
+                <span>{{ totalImageCount() }}/5 張</span>
+              </div>
+              <label class="upload-zone" [class.disabled]="totalImageCount() >= 5">
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png"
+                  multiple
+                  [disabled]="totalImageCount() >= 5"
+                  (change)="onFilesSelected($event)"
+                />
+                <strong>選擇 JPG／PNG 圖片</strong>
+                <span>每張不超過 2 MB，最多 5 張</span>
+              </label>
+              @if (fileError()) {
+                <p class="inline-error" role="alert">{{ fileError() }}</p>
+              }
+              @if (!isEditMode() && pendingImages().length > 0) {
+                <p class="field-help pending-help">圖片會在品項建立成功後自動上傳。</p>
+              }
+
+              <div class="image-grid">
+                @for (image of images.images(); track image.id; let index = $index) {
+                  <article class="image-tile">
+                    @if (image.previewUrl) {
+                      <img [src]="image.previewUrl" alt="品項圖片" />
+                    } @else {
+                      <div class="image-placeholder">無法預覽</div>
+                    }
+                    <div class="image-actions">
+                      <button
+                        type="button"
+                        title="往前移"
+                        [disabled]="index === 0 || images.loading()"
+                        (click)="moveImage(index, -1)"
+                      >
+                        ←
+                      </button>
+                      <button
+                        type="button"
+                        title="往後移"
+                        [disabled]="index === images.images().length - 1 || images.loading()"
+                        (click)="moveImage(index, 1)"
+                      >
+                        →
+                      </button>
+                      <button type="button" class="delete-image" (click)="deleteImage(image)">
+                        刪除
+                      </button>
+                    </div>
+                  </article>
+                }
+                @for (image of pendingImages(); track image.previewUrl) {
+                  <article class="image-tile pending">
+                    <img [src]="image.previewUrl" [alt]="image.file.name" />
+                    <div class="image-actions">
+                      <span>待上傳</span>
+                      <button
+                        type="button"
+                        class="delete-image"
+                        (click)="removePendingImage(image)"
+                      >
+                        移除
+                      </button>
+                    </div>
+                  </article>
+                }
+              </div>
+            </section>
+
+            <section class="form-card review-card">
+              <div class="card-heading">
+                <h2><span class="step-number">5</span>評論資料來源</h2>
+                <span>單品項補件</span>
+              </div>
+              <label class="upload-zone" [class.disabled]="supplements.loading()">
+                <input
+                  type="file"
+                  accept=".csv,text/csv"
+                  [disabled]="supplements.loading()"
+                  (change)="onReviewFileSelected($event)"
+                />
+                <strong>選擇評論 CSV</strong>
+                <span>最大 2 MB；content 欄位必填</span>
+              </label>
+              <p class="csv-help">
+                支援欄位：content、source、rating（0–5）、reviewed_at（yyyy-MM-dd）。
+              </p>
+              @if (reviewFile(); as file) {
+                <div class="selected-file">
+                  <span>{{ file.name }}（{{ file.size | number }} bytes）</span>
+                  <button mat-button type="button" (click)="removeReviewFile()">移除</button>
+                </div>
+              }
+              @if (reviewFileError()) {
+                <p class="inline-error" role="alert">{{ reviewFileError() }}</p>
+              }
+              @if (supplements.reviewUploadResult(); as result) {
+                <p class="upload-summary">
+                  已新增 {{ result.insertedCount }} 筆，略過
+                  {{ result.duplicateCount }} 筆重複評論； 目前共 {{ result.totalReviewCount }} 筆。
+                </p>
+              }
+              <p class="field-help review-help">評論少於 30 則時，後續 AI 分析會標示低信心度。</p>
+            </section>
+          }
         </div>
       </div>
 
@@ -270,6 +373,9 @@
       }
       @if (images.error()) {
         <p class="form-error" role="alert">{{ images.error() }}</p>
+      }
+      @if (supplements.error()) {
+        <p class="form-error" role="alert">{{ supplements.error() }}</p>
       }
       @if (warnings().length > 0) {
         <div class="warning-panel" role="status">

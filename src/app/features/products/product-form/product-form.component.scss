@@ -104,6 +104,39 @@ h1 {
   font-size: 0.8rem;
   line-height: 1.5;
 }
+.subsection-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 18px;
+  border-top: 1px solid #e2e8f0;
+  padding-top: 18px;
+}
+.subsection-heading h3,
+.subsection-heading p {
+  margin: 0;
+}
+.subsection-heading h3 {
+  font-size: 0.95rem;
+}
+.subsection-heading p,
+.csv-help {
+  margin-top: 4px;
+  color: #64748b;
+  font-size: 0.78rem;
+}
+.affinity-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+.affinity-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(120px, 0.45fr) auto;
+  align-items: start;
+  gap: 10px;
+}
 .pending-help {
   margin-top: 8px;
 }
@@ -145,6 +178,21 @@ h1 {
 }
 .upload-zone span {
   font-size: 0.78rem;
+}
+.selected-file,
+.upload-summary {
+  margin-top: 12px;
+  border-radius: 8px;
+  background: #f0fdfa;
+  padding: 10px 12px;
+  color: #115e59;
+  font-size: 0.82rem;
+}
+.selected-file {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }
 .image-grid {
   display: grid;
@@ -238,6 +286,9 @@ h1 {
     flex-direction: column;
   }
   .two-columns {
+    grid-template-columns: 1fr;
+  }
+  .affinity-row {
     grid-template-columns: 1fr;
   }
 }

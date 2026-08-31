@@ -9,6 +9,8 @@ describe('ProductService', () => {
   const analyzeBatch = vi.fn();
   const assignCategory = vi.fn();
   const disableBatch = vi.fn();
+  const deleteProduct = vi.fn();
+  const changeStatus = vi.fn();
   let service: ProductService;
 
   beforeEach(() => {
@@ -16,12 +18,21 @@ describe('ProductService', () => {
     analyzeBatch.mockReset();
     assignCategory.mockReset();
     disableBatch.mockReset();
+    deleteProduct.mockReset();
+    changeStatus.mockReset();
     TestBed.configureTestingModule({
       providers: [
         ProductService,
         {
           provide: ProductControllerService,
-          useValue: { search, analyzeBatch, assignCategory, disableBatch },
+          useValue: {
+            search,
+            analyzeBatch,
+            assignCategory,
+            disableBatch,
+            _delete: deleteProduct,
+            changeStatus,
+          },
         },
       ],
     });
@@ -115,5 +126,36 @@ describe('ProductService', () => {
 
     expect(service.batchError()).toBe('沒有批次停用權限');
     expect(service.batchLoading()).toBe(false);
+  });
+
+  it('deletes one product through the generated API client', async () => {
+    deleteProduct.mockReturnValue(of({ success: true, data: null }));
+
+    await firstValueFrom(service.deleteProduct(101));
+
+    expect(deleteProduct).toHaveBeenCalledWith({ id: 101 });
+    expect(service.batchMessage()).toBe('品項已刪除');
+  });
+
+  it('changes product status with an optional rejection reason', async () => {
+    changeStatus.mockReturnValue(
+      of({
+        success: true,
+        data: { productId: 101, previousStatus: 'EVALUATING', status: 'REJECTED' },
+      }),
+    );
+
+    await firstValueFrom(
+      service.changeStatus(101, { targetStatus: 'REJECTED', rejectReason: '毛利不足，不予採納' }),
+    );
+
+    expect(changeStatus).toHaveBeenCalledWith({
+      id: 101,
+      productStatusUpdateRequest: {
+        targetStatus: 'REJECTED',
+        rejectReason: '毛利不足，不予採納',
+      },
+    });
+    expect(service.batchMessage()).toBe('品項狀態已更新');
   });
 });
