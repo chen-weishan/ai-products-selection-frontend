@@ -1,1 +1,217 @@
-<p>weights works!</p>
+<section class="weights">
+  <header class="head">
+    <div>
+      <h2>情境權重組</h2>
+      <p class="sub">FR-08 · S-09</p>
+    </div>
+    @if (current(); as cur) {
+      <p class="current">
+        目前生效：<strong>{{ cur.versionNo }}</strong>
+        @if (cur.effectiveFrom) { · {{ cur.effectiveFrom }} 起 }
+      </p>
+    } @else {
+      <p class="current muted">目前沒有生效中的版本</p>
+    }
+  </header>
+
+  @if (errorMessage(); as msg) {
+    <p class="alert error">{{ msg }}</p>
+  }
+  @if (successMessage(); as msg) {
+    <p class="alert ok">{{ msg }}</p>
+  }
+  @if (loading()) {
+    <p class="alert">處理中…</p>
+  }
+
+  <!-- ── 版本歷程 ─────────────────────────────────────────── -->
+  <h3>版本歷程</h3>
+  <table class="grid">
+    <thead>
+      <tr>
+        <th>版本</th><th>名稱</th><th>生效日</th><th>變更內容</th><th>狀態</th><th></th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (v of versions(); track v.id) {
+        <tr [class.active]="selected()?.id === v.id">
+          <td>{{ v.versionNo }}</td>
+          <td>{{ v.name }}</td>
+          <td>{{ v.effectiveFrom ?? '—' }}</td>
+          <td class="note">{{ v.changeNote ?? '—' }}</td>
+          <td>
+            {{ statusLabels[v.status] }}
+            @if (v.isCurrent) { <span class="badge">生效中</span> }
+          </td>
+          <td><button type="button" (click)="select(v.id)">檢視</button></td>
+        </tr>
+      } @empty {
+        <tr><td colspan="6" class="muted">沒有任何版本</td></tr>
+      }
+    </tbody>
+  </table>
+
+  <p class="actions">
+    <button type="button" (click)="startCreate()">建立新版本</button>
+    @if (selected(); as sel) {
+      @if (sel.status === 'DRAFT') {
+        <button type="button" (click)="startEdit()">編輯這個草稿</button>
+      }
+    }
+  </p>
+
+  <!-- ── 檢視模式 ─────────────────────────────────────────── -->
+  @if (mode() === 'view' && selected(); as detail) {
+    <h3>{{ detail.versionNo }}　{{ detail.name }}</h3>
+    <p class="meta">
+      狀態：{{ statusLabels[detail.status] }}
+      @if (detail.isCurrent) { <span class="badge">生效中</span> }
+      　生效日：{{ detail.effectiveFrom ?? '—' }}
+      　建立於：{{ detail.createdAt }}
+      　核准於：{{ detail.approvedAt ?? '—' }}
+    </p>
+
+    <table class="grid">
+      <thead>
+        <tr>
+          <th>權重組</th>
+          @for (code of factorCodes; track code) { <th>{{ factorLabels[code] }}</th> }
+          <th>合計</th>
+          <th>A 級門檻</th>
+          <th>B 級門檻</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (group of detail.sceneGroups; track group.sceneType) {
+          <tr>
+            <td>{{ sceneLabels[group.sceneType] }}</td>
+            @for (code of factorCodes; track code) {
+              <td class="num">{{ group.weights[code] }}</td>
+            }
+            <td class="num sum">{{ group.weightSum }}</td>
+            <td class="num">{{ group.gradeAMin }}</td>
+            <td class="num">{{ group.gradeBMin }}</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+
+    @if (detail.status === 'DRAFT') {
+      <div class="approve">
+        <h4>核准生效</h4>
+        <p class="warn">
+          核准後這個版本成為唯一生效版本，原本生效中的版本會退為「已停用」。
+          這會影響全組共用的評分基準。
+        </p>
+        <label>
+          生效日期
+          <input
+            type="date"
+            [value]="effectiveFrom()"
+            (input)="setEffectiveFrom($any($event.target).value)" />
+        </label>
+        <button type="button" (click)="approve()">核准生效</button>
+      </div>
+    }
+  }
+
+  <!-- ── 建立 / 編輯表單 ──────────────────────────────────── -->
+  @if (mode() !== 'view') {
+    <h3>{{ mode() === 'create' ? '建立新版本' : '編輯草稿' }}</h3>
+
+    <div class="fields">
+      <label>
+        版本號
+        <input
+          type="text"
+          maxlength="16"
+          [value]="form().versionNo"
+          (input)="setField('versionNo', $any($event.target).value)" />
+      </label>
+      <label>
+        名稱
+        <input
+          type="text"
+          maxlength="80"
+          [value]="form().name"
+          (input)="setField('name', $any($event.target).value)" />
+      </label>
+      <label class="wide">
+        變更說明
+        <input
+          type="text"
+          maxlength="512"
+          [value]="form().changeNote"
+          (input)="setField('changeNote', $any($event.target).value)" />
+      </label>
+    </div>
+
+    <table class="grid">
+      <thead>
+        <tr>
+          <th>權重組</th>
+          @for (code of factorCodes; track code) { <th>{{ factorLabels[code] }}</th> }
+          <th>合計</th>
+          <th>A 級門檻</th>
+          <th>B 級門檻</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (scene of sceneTypes; track scene) {
+          <tr>
+            <td>{{ sceneLabels[scene] }}</td>
+            @for (code of factorCodes; track code) {
+              <td>
+                <input
+                  class="cell"
+                  type="number"
+                  step="0.001"
+                  min="0"
+                  max="1"
+                  [value]="form().weights[scene][code]"
+                  (input)="setWeight(scene, code, $any($event.target).value)" />
+              </td>
+            }
+            <td class="num sum" [class.bad]="formSums()[scene] !== 1">
+              {{ formSums()[scene].toFixed(3) }}
+            </td>
+            <td>
+              <input
+                class="cell"
+                type="number"
+                step="0.01"
+                [value]="form().thresholds[scene].gradeAMin"
+                (input)="setThreshold(scene, 'gradeAMin', $any($event.target).value)" />
+            </td>
+            <td>
+              <input
+                class="cell"
+                type="number"
+                step="0.01"
+                [value]="form().thresholds[scene].gradeBMin"
+                (input)="setThreshold(scene, 'gradeBMin', $any($event.target).value)" />
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+
+    <p class="hint">
+      每一榜的六個因子加總必須剛好是 1.000，A 級門檻必須大於 B 級門檻。
+      不符合時後端會擋下並回傳原因。
+    </p>
+
+    <p class="actions">
+      <button type="button" (click)="submit()" [disabled]="!canSubmit()">
+        {{ mode() === 'create' ? '建立草稿' : '儲存' }}
+      </button>
+      <button type="button" (click)="cancel()">取消</button>
+      @if (!canSubmit()) { <span class="muted">四榜加總都等於 1.000 才能送出</span> }
+    </p>
+  }
+
+  <footer class="todo">
+    尚未實作：AI 選組規則、風險扣分規則、每組品項數、本季判定統計。
+    這四個區塊在畫面示意圖中有，但後端尚無對應端點，故不呈現。
+  </footer>
+</section>

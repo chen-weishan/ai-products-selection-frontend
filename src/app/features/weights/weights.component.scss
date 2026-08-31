@@ -1,0 +1,108 @@
+// S-09 最小樣式：只求看得懂、對得齊，美化由前端負責同學接手。
+
+.weights {
+  padding: 16px;
+  font-size: 14px;
+}
+
+.head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+
+  h2 { margin: 0; }
+  .sub { margin: 2px 0 0; font-size: 12px; opacity: 0.6; }
+  .current { margin: 0; }
+}
+
+h3 { margin: 20px 0 8px; }
+h4 { margin: 0 0 6px; }
+
+.alert {
+  margin: 8px 0;
+  padding: 8px 10px;
+  border-radius: 4px;
+  border: 1px solid currentColor;
+
+  &.error { color: #b00020; }
+  &.ok { color: #1b6b2f; }
+}
+
+.grid {
+  width: 100%;
+  border-collapse: collapse;
+
+  th, td {
+    border: 1px solid #ddd;
+    padding: 6px 8px;
+    text-align: left;
+    vertical-align: middle;
+  }
+
+  th { background: #f5f5f5; font-weight: 600; }
+  tr.active > td { background: #eef4ff; }
+
+  .num { text-align: right; font-variant-numeric: tabular-nums; }
+  .sum { font-weight: 600; }
+  .sum.bad { color: #b00020; }
+  .note { max-width: 320px; }
+}
+
+.badge {
+  margin-left: 6px;
+  padding: 1px 6px;
+  border: 1px solid currentColor;
+  border-radius: 10px;
+  font-size: 12px;
+}
+
+.meta { margin: 4px 0 10px; font-size: 13px; opacity: 0.85; }
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 12px 0;
+}
+
+.fields {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+
+  label { display: flex; flex-direction: column; gap: 4px; }
+  label.wide { flex: 1 1 320px; }
+  input { padding: 4px 6px; }
+}
+
+.cell {
+  width: 84px;
+  padding: 3px 4px;
+  text-align: right;
+}
+
+.approve {
+  margin-top: 16px;
+  padding: 12px;
+  border: 1px solid #e0c000;
+  border-radius: 4px;
+
+  label { display: inline-flex; flex-direction: column; gap: 4px; margin-right: 8px; }
+  .warn { margin: 0 0 8px; font-size: 13px; }
+}
+
+.hint { font-size: 13px; opacity: 0.75; }
+.muted { opacity: 0.6; }
+
+.todo {
+  margin-top: 24px;
+  padding-top: 10px;
+  border-top: 1px dashed #ccc;
+  font-size: 12px;
+  opacity: 0.7;
+}
