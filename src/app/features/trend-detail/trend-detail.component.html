@@ -1,1 +1,30 @@
-<p>trend-detail works!</p>
+@if (isLoading()) {
+<p></p>
+} @else if (errorMessage()) {
+<div class="error">{{ errorMessage() }}</div>
+
+} @else if (trendData(); as data) {
+<div class="trend-detail">
+    <h2>{{ data.keyword }}</h2>
+    <p>今日熱度: {{ data.heatToday }}</p>
+    <p>7天斜率: {{ data.slope7d }} | 30天斜率: {{ data.slope30d }}</p>
+    <p>生命週期階段: {{ data.stage }} (第 {{ data.stageWeeks }} 週)</p>
+    <p>折線圖數據筆數: {{ data.points?.length ?? 0 }}</p>
+
+    <button (click)="goBack()">返回列表</button>
+</div>
+}
+
+
+
+<!-- //   keywordId?: number;
+//       keyword?: string;
+//       points?: Array<Point>;
+//       heatToday?: number;
+//       slope7d?: number;
+//       slope30d?: number;
+//       stage?: string;
+//       stageWeeks?: number;
+//       estimatedLifespanDays?: number;
+//       divergenceFlag?: boolean;
+//       sourceDetails?: Array<SourceDetail>; -->
