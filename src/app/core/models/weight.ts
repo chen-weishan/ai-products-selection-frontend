@@ -102,6 +102,14 @@ export const SCENE_LABELS: Record<SceneType, string> = {
   SEASONAL: '季節導向型',
 };
 
+/** 門檻卡用的短名：「話題爆款榜門檻」。 */
+export const SCENE_SHORT_LABELS: Record<SceneType, string> = {
+  VIRAL: '話題爆款',
+  FESTIVAL: '節慶檔期',
+  REPLENISHMENT: '常態補貨',
+  SEASONAL: '季節導向',
+};
+
 export const FACTOR_LABELS: Record<FactorCode, string> = {
   TREND: '熱度斜率',
   MARGIN: '毛利率',

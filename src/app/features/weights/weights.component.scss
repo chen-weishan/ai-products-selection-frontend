@@ -1,108 +1,315 @@
-// S-09 最小樣式：只求看得懂、對得齊，美化由前端負責同學接手。
+// S-09 情境權重組。取自「畫面功能示意圖 v3.0」的樣式系統，
+// 變數定義在 :host 讓元件內全部子元素繼承（不污染全域）。
+:host {
+  --navy: #123a56;
+  --navy-deep: #0e2a3f;
+  --teal: #1e7a9e;
+  --teal-soft: #d8eaf2;
+  --a: #1e7a4d;
+  --b: #b8791a;
+  --c: #8a9299;
+  --risk: #c0392b;
+  --warn: #d68910;
+  --card: #ffffff;
+  --surface: #f4f6f8;
+  --ink: #16232e;
+  --ink-2: #4a5a67;
+  --ink-3: #8a9aa6;
+  --line: #dce3e9;
+  --line-soft: #eaeff3;
+  --sans: 'Noto Sans TC', 'PingFang TC', 'Microsoft JhengHei', sans-serif;
+  --serif: 'Noto Serif TC', 'Songti TC', serif;
+  --mono: 'IBM Plex Mono', ui-monospace, monospace;
 
-.weights {
-  padding: 16px;
-  font-size: 14px;
+  display: block;
+  font-family: var(--sans);
+  color: var(--ink);
+  line-height: 1.6;
+  padding: 18px 20px 22px;
+  background: var(--card);
 }
 
-.head {
+// ── 頁首 ──────────────────────────────────────────────
+.mh {
   display: flex;
+  align-items: center;
   justify-content: space-between;
-  align-items: flex-end;
-  gap: 16px;
+  gap: 12px;
+  margin-bottom: 14px;
   flex-wrap: wrap;
-  margin-bottom: 12px;
 
-  h2 { margin: 0; }
-  .sub { margin: 2px 0 0; font-size: 12px; opacity: 0.6; }
-  .current { margin: 0; }
+  h3 {
+    font-family: var(--serif);
+    font-size: 17px;
+    font-weight: 600;
+    margin: 0;
+  }
+
+  .sub {
+    font-size: 11.5px;
+    color: var(--ink-3);
+  }
 }
 
-h3 { margin: 20px 0 8px; }
-h4 { margin: 0 0 6px; }
+.tools {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+}
 
-.alert {
-  margin: 8px 0;
-  padding: 8px 10px;
+// ── 通用元件 ──────────────────────────────────────────
+.btn {
+  font-family: var(--sans);
+  font-size: 11.5px;
+  padding: 5px 11px;
+  border-radius: 7px;
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--ink-2);
+  cursor: pointer;
+  white-space: nowrap;
+
+  &.pri {
+    background: var(--teal);
+    border-color: var(--teal);
+    color: #fff;
+    font-weight: 500;
+  }
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+}
+
+.sel {
+  font-size: 11.5px;
+  padding: 5px 9px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  color: var(--ink-2);
+  background: #fff;
+}
+
+.inp {
+  font-size: 11.5px;
+  padding: 5px 9px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  color: var(--ink);
+  background: #fff;
+  min-width: 120px;
+  font-family: var(--sans);
+}
+
+.tag {
+  font-size: 10.5px;
+  padding: 2px 7px;
   border-radius: 4px;
-  border: 1px solid currentColor;
+  background: var(--surface);
+  color: var(--ink-2);
+  border: 1px solid var(--line-soft);
+  white-space: nowrap;
 
-  &.error { color: #b00020; }
-  &.ok { color: #1b6b2f; }
+  &.teal { background: var(--teal-soft); color: #155f7c; border-color: #bedce8; }
+  &.red { background: #fbe9e7; color: var(--risk); border-color: #f3cfcb; }
+  &.amber { background: #fdf3e2; color: var(--b); border-color: #f2e0c0; }
+  &.green { background: #e4f3eb; color: var(--a); border-color: #c9e6d6; }
 }
 
-.grid {
+.mini { font-size: 10.5px; color: var(--ink-3); }
+
+.card {
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  padding: 13px;
+  background: #fff;
+
+  &.soft { background: var(--surface); }
+
+  h5 {
+    font-size: 12px;
+    font-weight: 700;
+    margin: 0 0 9px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+}
+
+.mk {
+  width: 17px;
+  height: 17px;
+  border-radius: 50%;
+  background: var(--teal);
+  color: #fff;
+  font-size: 10px;
+  font-family: var(--mono);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  font-weight: 500;
+}
+
+// ── 權重矩陣 ──────────────────────────────────────────
+.wgrid {
+  display: grid;
+  grid-template-columns: 1.3fr repeat(6, 1fr) 0.9fr;
+  gap: 6px;
+  font-size: 11.5px;
+  align-items: center;
+  margin-bottom: 6px;
+
+  .h {
+    font-size: 10.5px;
+    color: var(--ink-3);
+
+    &.c { text-align: center; }
+  }
+
+  .rowname { font-weight: 500; }
+
+  .cell {
+    background: var(--surface);
+    border: 1px solid var(--line-soft);
+    border-radius: 5px;
+    padding: 4px 0;
+    text-align: center;
+    font-family: var(--mono);
+
+    &.hi {
+      background: var(--teal-soft);
+      border-color: #bedce8;
+      color: #12556f;
+      font-weight: 500;
+    }
+
+    &.sum { background: #fff; border-color: var(--line); font-weight: 500; }
+    &.bad { background: #fbe9e7; border-color: #f3cfcb; color: var(--risk); }
+  }
+
+  // 表單用的輸入格，沿用 cell 外觀
+  input.cell {
+    width: 100%;
+    font-size: 11.5px;
+    color: var(--ink);
+    padding: 4px 6px;
+
+    &:focus { outline: 1px solid var(--teal); }
+  }
+}
+
+// ── 四榜門檻卡 ────────────────────────────────────────
+.thresholds {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-bottom: 14px;
+
+  .card { padding: 9px 11px; }
+
+  .v {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--navy);
+  }
+}
+
+// ── 表格 ──────────────────────────────────────────────
+table {
   width: 100%;
   border-collapse: collapse;
+  font-size: 12px;
 
-  th, td {
-    border: 1px solid #ddd;
-    padding: 6px 8px;
+  th {
     text-align: left;
+    font-size: 10.5px;
+    color: var(--ink-3);
+    font-weight: 500;
+    padding: 7px 8px;
+    border-bottom: 1px solid var(--line);
+    white-space: nowrap;
+  }
+
+  td {
+    padding: 8px;
+    border-bottom: 1px solid var(--line-soft);
     vertical-align: middle;
   }
 
-  th { background: #f5f5f5; font-weight: 600; }
-  tr.active > td { background: #eef4ff; }
-
-  .num { text-align: right; font-variant-numeric: tabular-nums; }
-  .sum { font-weight: 600; }
-  .sum.bad { color: #b00020; }
-  .note { max-width: 320px; }
+  tr:last-child td { border-bottom: none; }
+  td.num { font-family: var(--mono); font-weight: 500; }
+  tr.on td { background: rgba(30, 122, 158, 0.06); }
+  tr.pick { cursor: pointer; }
+  tr.pick:hover td { background: rgba(30, 122, 158, 0.04); }
 }
 
-.badge {
-  margin-left: 6px;
-  padding: 1px 6px;
-  border: 1px solid currentColor;
-  border-radius: 10px;
-  font-size: 12px;
+// ── 訊息 ──────────────────────────────────────────────
+.alert {
+  font-size: 11.5px;
+  padding: 8px 11px;
+  border-radius: 8px;
+  margin-bottom: 12px;
+
+  &.error { background: #fbe9e7; color: var(--risk); border: 1px solid #f3cfcb; }
+  &.ok { background: #e4f3eb; color: var(--a); border: 1px solid #c9e6d6; }
+  &.busy { background: var(--surface); color: var(--ink-3); border: 1px solid var(--line-soft); }
 }
 
-.meta { margin: 4px 0 10px; font-size: 13px; opacity: 0.85; }
-
-.actions {
+// ── 表單 ──────────────────────────────────────────────
+.form-head {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-  margin: 12px 0;
-}
-
-.fields {
-  display: flex;
-  gap: 12px;
+  gap: 10px;
   flex-wrap: wrap;
   margin-bottom: 12px;
 
-  label { display: flex; flex-direction: column; gap: 4px; }
-  label.wide { flex: 1 1 320px; }
-  input { padding: 4px 6px; }
+  label {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 10.5px;
+    color: var(--ink-3);
+  }
+
+  label.wide { flex: 1 1 300px; }
+  label.wide .inp { width: 100%; }
 }
 
-.cell {
-  width: 84px;
-  padding: 3px 4px;
-  text-align: right;
-}
-
+// ── 核准區 ────────────────────────────────────────────
 .approve {
-  margin-top: 16px;
+  margin-top: 12px;
+  background: #fdf6f5;
+  border: 1px solid #f3cfcb;
+  border-radius: 9px;
   padding: 12px;
-  border: 1px solid #e0c000;
-  border-radius: 4px;
 
-  label { display: inline-flex; flex-direction: column; gap: 4px; margin-right: 8px; }
-  .warn { margin: 0 0 8px; font-size: 13px; }
+  h5 { color: var(--risk); font-size: 12px; font-weight: 700; margin: 0 0 6px; }
+  .row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+  label { font-size: 10.5px; color: var(--ink-3); display: flex; flex-direction: column; gap: 4px; }
 }
 
-.hint { font-size: 13px; opacity: 0.75; }
-.muted { opacity: 0.6; }
+.sect {
+  font-size: 12px;
+  font-weight: 700;
+  margin: 16px 0 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
 
 .todo {
-  margin-top: 24px;
+  margin-top: 18px;
   padding-top: 10px;
-  border-top: 1px dashed #ccc;
-  font-size: 12px;
-  opacity: 0.7;
+  border-top: 1px dashed var(--line);
+  font-size: 10.5px;
+  color: var(--ink-3);
+}
+
+.empty {
+  text-align: center;
+  padding: 28px 20px;
+  color: var(--ink-3);
+  font-size: 11.5px;
 }

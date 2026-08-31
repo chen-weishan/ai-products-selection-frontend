@@ -7,23 +7,23 @@ import {
   FACTOR_LABELS,
   FactorCode,
   SCENE_LABELS,
+  SCENE_SHORT_LABELS,
   SCENE_TYPES,
   SceneGroupRequest,
   SceneType,
   STATUS_LABELS,
   WeightVersionDetail,
+  WeightVersionStatus,
   WeightVersionSummary,
 } from '../../core/models/weight';
 
 type Mode = 'view' | 'create' | 'edit';
 
 /**
- * S-09 情境權重組（FR-08）。
+ * S-09 情境權重組（FR-08）。版面依「畫面功能示意圖 v3.0」。
  *
- * 最小可行版本：功能完整、樣式從簡，之後由前端負責同學美化。
- *
- * 畫面示意圖裡的「AI 選組規則」「風險扣分規則」「每組品項數」「本季判定統計」
- * 四個區塊後端沒有對應端點，故不呈現，僅於頁尾標示尚未實作。
+ * 示意圖中的「AI 選組規則」「風險扣分規則」「每組品項數」「本季判定統計」
+ * 後端尚無對應端點，故不呈現，於頁尾標示尚未實作而非填假資料。
  */
 @Component({
   selector: 'app-weights',
@@ -37,6 +37,7 @@ export class WeightsComponent implements OnInit {
   readonly sceneTypes = SCENE_TYPES;
   readonly factorCodes = FACTOR_CODES;
   readonly sceneLabels = SCENE_LABELS;
+  readonly sceneShortLabels = SCENE_SHORT_LABELS;
   readonly factorLabels = FACTOR_LABELS;
   readonly statusLabels = STATUS_LABELS;
 
@@ -50,11 +51,25 @@ export class WeightsComponent implements OnInit {
   /** 核准用的生效日，預設今天。 */
   readonly effectiveFrom = signal(new Date().toISOString().slice(0, 10));
 
-  /** 編輯／建立表單。權重以字串保存，避免輸入過程中被 number 轉型吃掉小數點。 */
+  /** 建立／編輯表單。權重以字串保存，避免輸入過程被 number 轉型吃掉小數點。 */
   readonly form = signal<FormState>(blankForm());
 
-  /** 目前生效中的版本，用於頁首摘要。 */
   readonly current = computed(() => this.versions().find((v) => v.isCurrent) ?? null);
+
+  /**
+   * 每一榜的最高權重值，用於在矩陣上加深標示（示意圖的 .cell.hi）。
+   * 存值而非因子代碼：同一榜可能有兩個因子並列最高（常態補貨型的毛利率與轉換率
+   * 都是 0.30），並列時應該一起標示。
+   */
+  readonly peakValues = computed(() => {
+    const detail = this.selected();
+    const peaks = {} as Record<SceneType, number>;
+    if (!detail) return peaks;
+    for (const group of detail.sceneGroups) {
+      peaks[group.sceneType] = Math.max(...FACTOR_CODES.map((c) => group.weights[c] ?? 0));
+    }
+    return peaks;
+  });
 
   /** 表單四榜的即時加總，讓使用者存檔前就看得到是不是 1.000。 */
   readonly formSums = computed(() => {
@@ -74,6 +89,8 @@ export class WeightsComponent implements OnInit {
   ngOnInit(): void {
     this.reload();
   }
+
+  // ── 讀取 ────────────────────────────────────────────────────
 
   reload(selectId?: number): void {
     this.loading.set(true);
@@ -103,7 +120,12 @@ export class WeightsComponent implements OnInit {
     });
   }
 
-  // ── 建立 / 編輯 ──────────────────────────────────────────────
+  onSelectChange(value: string): void {
+    const id = Number(value);
+    if (Number.isFinite(id)) this.select(id);
+  }
+
+  // ── 建立 / 編輯 ─────────────────────────────────────────────
 
   startCreate(): void {
     this.clearMessages();
@@ -146,10 +168,7 @@ export class WeightsComponent implements OnInit {
     this.clearMessages();
     const body = toRequest(this.form());
     const editing = this.mode() === 'edit' ? this.selected() : null;
-
-    const call = editing
-      ? this.service.update(editing.id, body)
-      : this.service.create(body);
+    const call = editing ? this.service.update(editing.id, body) : this.service.create(body);
 
     this.loading.set(true);
     call.subscribe({
@@ -172,9 +191,7 @@ export class WeightsComponent implements OnInit {
     this.service.approve(detail.id, { effectiveFrom: this.effectiveFrom() }).subscribe({
       next: (result) => {
         this.loading.set(false);
-        this.successMessage.set(
-          `${result.versionNo} 已核准生效，原生效版本已退為停用。`,
-        );
+        this.successMessage.set(`${result.versionNo} 已核准生效，原生效版本已退為停用。`);
         this.reload(result.id);
       },
       error: (err) => this.fail(err),
@@ -185,6 +202,28 @@ export class WeightsComponent implements OnInit {
     this.effectiveFrom.set(value);
   }
 
+  // ── 顯示格式 ────────────────────────────────────────────────
+
+  /** 0.075 → "7.5%"。用四捨五入避開浮點誤差（0.08 * 100 = 8.000000000000002）。 */
+  percent(value: number | null | undefined): string {
+    if (value == null) return '—';
+    const n = Math.round(value * 1000) / 10;
+    return `${n}%`;
+  }
+
+  /** 版本歷程的狀態標籤配色：生效中綠、草稿琥珀、其餘灰。 */
+  statusTagClass(v: { status: WeightVersionStatus; isCurrent: boolean }): string {
+    if (v.isCurrent) return 'tag green';
+    if (v.status === 'DRAFT') return 'tag amber';
+    return 'tag';
+  }
+
+  statusText(v: { status: WeightVersionStatus; isCurrent: boolean }): string {
+    if (v.isCurrent) return '生效中';
+    if (v.status === 'DRAFT') return '待審核';
+    return this.statusLabels[v.status];
+  }
+
   // ── 共用 ────────────────────────────────────────────────────
 
   private clearMessages(): void {
@@ -192,12 +231,11 @@ export class WeightsComponent implements OnInit {
     this.successMessage.set(null);
   }
 
-  /** 後端的統一錯誤封套（§8.1）：優先顯示 error.message，其次列出欄位錯誤。 */
+  /** 後端統一錯誤封套（§8.1）：優先顯示 error.message，其次列出欄位錯誤。 */
   private fail(err: unknown): void {
     this.loading.set(false);
     if (err instanceof HttpErrorResponse) {
-      const body = err.error;
-      const apiError = body?.error;
+      const apiError = err.error?.error;
       if (apiError) {
         const fields = (apiError.fieldErrors ?? [])
           .map((f: { field: string; message: string }) => `${f.field}：${f.message}`)
