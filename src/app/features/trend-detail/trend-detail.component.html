@@ -1,30 +1,109 @@
-@if (isLoading()) {
-<p></p>
-} @else if (errorMessage()) {
-<div class="error">{{ errorMessage() }}</div>
+<div class="detail-container">
+  <!-- 返回按鈕 -->
+  <div class="header-bar">
+    <button class="back-btn" (click)="goBack()">
+      ← 返回列表
+    </button>
+  </div>
 
-} @else if (trendData(); as data) {
-<div class="trend-detail">
-    <h2>{{ data.keyword }}</h2>
-    <p>今日熱度: {{ data.heatToday }}</p>
-    <p>7天斜率: {{ data.slope7d }} | 30天斜率: {{ data.slope30d }}</p>
-    <p>生命週期階段: {{ data.stage }} (第 {{ data.stageWeeks }} 週)</p>
-    <p>折線圖數據筆數: {{ data.points?.length ?? 0 }}</p>
+  <!-- 載入中狀態 -->
+  @if (isLoading()) {
+    <div class="state-container loading">
+      <div class="spinner"></div>
+      <p>資料載入中...</p>
+    </div>
+  }
 
-    <button (click)="goBack()">返回列表</button>
+  <!-- 錯誤狀態 -->
+  @else if (errorMessage()) {
+    <div class="state-container error">
+      <p>{{ errorMessage() }}</p>
+      <button class="retry-btn" (click)="loadTrendDetail()">重試</button>
+    </div>
+  }
+
+  <!-- 資料展示區塊 -->
+  @else if (trendData(); as data) {
+    <!-- 關鍵字標題與狀態標籤 -->
+    <div class="keyword-header">
+      <div class="title-wrap">
+        <h2>{{ data.keyword }}</h2>
+        @if (data.stage) {
+          <span class="badge stage-badge">{{ data.stage }} (第 {{ data.stageWeeks }} 週)</span>
+        }
+        @if (data.divergenceFlag) {
+          <span class="badge warning-badge">異動警示</span>
+        }
+      </div>
+    </div>
+
+    <!-- 核心數據指標卡片 -->
+    <div class="metrics-grid">
+      <div class="metric-card">
+        <span class="metric-label">今日熱度</span>
+        <span class="metric-value highlight">{{ data.heatToday ?? '-' }}</span>
+      </div>
+      <div class="metric-card">
+        <span class="metric-label">7 天斜率</span>
+        <span class="metric-value" [class.positive]="(data.slope7d ?? 0) > 0" [class.negative]="(data.slope7d ?? 0) < 0">
+          {{ data.slope7d ? ((data.slope7d > 0 ? '+' : '') + data.slope7d) : '-' }}
+        </span>
+      </div>
+      <div class="metric-card">
+        <span class="metric-label">30 天斜率</span>
+        <span class="metric-value" [class.positive]="(data.slope30d ?? 0) > 0" [class.negative]="(data.slope30d ?? 0) < 0">
+          {{ data.slope30d ? ((data.slope30d > 0 ? '+' : '') + data.slope30d) : '-' }}
+        </span>
+      </div>
+      <div class="metric-card">
+        <span class="metric-label">預估生命週期</span>
+        <span class="metric-value">{{ data.estimatedLifespanDays ? (data.estimatedLifespanDays + ' 天') : '-' }}</span>
+      </div>
+    </div>
+
+    <!-- 圖表區塊 -->
+    <div class="chart-section">
+      <div class="chart-header">
+        <h3>歷史趨勢圖</h3>
+        <!-- 時間區間切換按鈕 -->
+        <div class="range-tabs">
+          @for (option of dateRangeOptions; track option.value) {
+            <button
+              class="tab-btn"
+              [class.active]="selectedRange() === option.value"
+              (click)="onRangeChange(option.value)"
+            >
+              {{ option.label }}
+            </button>
+          }
+        </div>
+      </div>
+
+      <!-- Canvas 繪圖區 -->
+      <div class="canvas-wrapper">
+        <canvas #chartCanvas></canvas>
+      </div>
+    </div>
+
+    <!-- 管道來源分析 -->
+    @if (data.sourceDetails && data.sourceDetails.length > 0) {
+      <div class="sources-section">
+        <h3>各管道來源分析</h3>
+        <div class="sources-grid">
+          @for (src of data.sourceDetails; track src.sourceName) {
+            <div class="source-item">
+              <div class="src-header">
+                <strong>{{ src.sourceName }}</strong>
+                <span class="src-status">{{ src.status }}</span>
+              </div>
+              <div class="src-meta">
+                <span>分位數: {{ src.percentile }}%</span>
+                <span>權重: {{ src.appliedWeight }}</span>
+              </div>
+            </div>
+          }
+        </div>
+      </div>
+    }
+  }
 </div>
-}
-
-
-
-<!-- //   keywordId?: number;
-//       keyword?: string;
-//       points?: Array<Point>;
-//       heatToday?: number;
-//       slope7d?: number;
-//       slope30d?: number;
-//       stage?: string;
-//       stageWeeks?: number;
-//       estimatedLifespanDays?: number;
-//       divergenceFlag?: boolean;
-//       sourceDetails?: Array<SourceDetail>; -->

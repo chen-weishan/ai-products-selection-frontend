@@ -1,0 +1,240 @@
+.detail-container {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 24px 16px;
+}
+
+.header-bar {
+  margin-bottom: 16px;
+
+  .back-btn {
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    color: #475569;
+    padding: 8px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.2s;
+
+    &:hover {
+      background: #f8fafc;
+      border-color: #94a3b8;
+    }
+  }
+}
+
+.keyword-header {
+  margin-bottom: 24px;
+
+  .title-wrap {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+
+    h2 {
+      font-size: 28px;
+      font-weight: 700;
+      color: #0f172a;
+      margin: 0;
+    }
+  }
+
+  .badge {
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 500;
+
+    &.stage-badge {
+      background: #e0f2fe;
+      color: #0369a1;
+    }
+
+    &.warning-badge {
+      background: #fee2e2;
+      color: #b91c1c;
+    }
+  }
+}
+
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+
+  .metric-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 16px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+
+    .metric-label {
+      font-size: 13px;
+      color: #64748b;
+    }
+
+    .metric-value {
+      font-size: 22px;
+      font-weight: 700;
+      color: #1e293b;
+
+      &.highlight {
+        color: #2563eb;
+      }
+      &.positive {
+        color: #16a34a;
+      }
+      &.negative {
+        color: #dc2626;
+      }
+    }
+  }
+}
+
+.chart-section {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 24px;
+  margin-bottom: 24px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+
+  .chart-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+
+    h3 {
+      font-size: 18px;
+      font-weight: 600;
+      color: #1e293b;
+      margin: 0;
+    }
+  }
+
+  .range-tabs {
+    display: flex;
+    background: #f1f5f9;
+    padding: 4px;
+    border-radius: 8px;
+    gap: 4px;
+
+    .tab-btn {
+      border: none;
+      background: transparent;
+      padding: 6px 14px;
+      border-radius: 6px;
+      font-size: 13px;
+      color: #64748b;
+      cursor: pointer;
+      font-weight: 500;
+      transition: all 0.2s;
+
+      &.active {
+        background: #ffffff;
+        color: #2563eb;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+      }
+
+      &:hover:not(.active) {
+        color: #1e293b;
+      }
+    }
+  }
+
+  .canvas-wrapper {
+    position: relative;
+    height: 360px;
+    width: 100%;
+  }
+}
+
+.sources-section {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 24px;
+
+  h3 {
+    font-size: 16px;
+    font-weight: 600;
+    margin: 0 0 16px 0;
+  }
+
+  .sources-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 12px;
+  }
+
+  .source-item {
+    background: #f8fafc;
+    border-radius: 8px;
+    padding: 12px 16px;
+
+    .src-header {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 6px;
+
+      strong {
+        color: #1e293b;
+      }
+
+      .src-status {
+        font-size: 12px;
+        color: #64748b;
+      }
+    }
+
+    .src-meta {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      color: #94a3b8;
+    }
+  }
+}
+
+.state-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 240px;
+  color: #64748b;
+
+  .spinner {
+    width: 36px;
+    height: 36px;
+    border: 3px solid #e2e8f0;
+    border-top-color: #3b82f6;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin-bottom: 12px;
+  }
+
+  .retry-btn {
+    margin-top: 12px;
+    padding: 6px 16px;
+    background: #3b82f6;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
