@@ -4,16 +4,22 @@ $accent-blue: #1E7A9E;
 $bg-page: #F4F6F8;
 
 :host {
-  display: block;
+  display: flex;
+  flex-direction: column;
   width: 100vw;
   height: 100vh;
   overflow: hidden;
 }
 
+.app-header {
+  flex-shrink: 0;
+}
+
 // 撐滿整個視窗高度
 .layout-container {
+  flex: 1;
+  min-height: 0;
   width: 100%;
-  height: 100%;
 
 }
 
@@ -26,43 +32,45 @@ $bg-page: #F4F6F8;
   transition: width 0.25s ease-in-out;
 
 
-  &.is-collapsed{
+  &.is-collapsed {
     width: 68px;
 
-    .brand-header{
+    .brand-header {
       justify-content: center;
       padding: 16px 0;
     }
 
-    .nav-link-item{
+    .nav-link-item {
       justify-content: center;
-      padding:0 ;
+      padding: 0;
 
-      .menu-icon{
-        margin-right:0;
+      .menu-icon {
+        margin-right: 0;
       }
     }
   }
 
-  .brand-header{
+  .brand-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding:16px;
+    padding: 16px;
     box-sizing: border-box;
 
-    .brand-title{
-      color:white !important;
-      font-size:16px;
-      font-weight:700;
+    .brand-title {
+      color: white !important;
+      font-size: 16px;
+      font-weight: 700;
       white-space: nowrap;
     }
-      .toggle-btn{
-        color:rgb(246, 241, 241);
-        &:hover{
-          color:white;
-        }
+
+    .toggle-btn {
+      color: rgb(246, 241, 241);
+
+      &:hover {
+        color: white;
       }
+    }
 
   }
 
@@ -95,5 +103,6 @@ $bg-page: #F4F6F8;
   background-color: $bg-page;
   padding: 24px;
   height: 100%;
+  overflow-y: auto;
   box-sizing: border-box;
 }

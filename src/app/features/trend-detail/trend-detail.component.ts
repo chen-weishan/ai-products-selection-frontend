@@ -7,6 +7,7 @@ import {
   ViewChild,
   OnInit,
   OnDestroy,
+  computed,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -190,4 +191,9 @@ export class TrendDetailComponent implements OnInit, OnDestroy {
   goBack(): void {
     this.router.navigate(['/trends']);
   }
+
+  latesDate = computed(() => {
+    const date = this.trendData()?.points;
+    return date && date.length > 0 ? date[date.length - 1].date : '無';
+  })
 }
