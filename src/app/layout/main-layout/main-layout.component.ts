@@ -30,7 +30,7 @@ export class MainLayoutComponent {
     { label: 'S-02 儀表板', path: '/dashboard', icon: 'dashboard' },
     { label: 'S-03 品項清單', path: '/products', icon: 'inventory_2' },
     { label: 'S-05 選品排行', path: '/ranking', icon: 'leaderboard' },
-    { label: 'S-06 趨勢分析', path: '/trends', icon: 'trending_up' },
+    { label: 'S-07 趨勢分析', path: '/trends', icon: 'trending_up' },
     { label: 'S-15 熱度標記', path: '/heat-tags', icon: 'local_fire_department' },
     { label: 'S-17 尋源探索', path: '/sourcing', icon: 'travel_explore' },
     { label: 'S-08 AI任務', path: '/ai-tasks', icon: 'smart_toy' },

@@ -4,6 +4,7 @@ $accent-blue: #1E7A9E;
 $bg-page: #F4F6F8;
 
 :host {
+  //讓layout-container高度撐滿
   display: flex;
   flex-direction: column;
   width: 100vw;

@@ -3,6 +3,12 @@ import { MainLayoutComponent } from './layout/main-layout/main-layout.component'
 import { HeaderComponent } from './layout/header/header.component';
 import { TrendDetailComponent } from './features/trend-detail/trend-detail.component';
 export const routes: Routes = [
+
+  {
+    path: 'login', loadComponent: () =>
+      import('./features/auth/login/login.component').then(m => m.LoginComponent)
+  },
+
   {
     path: '', component: MainLayoutComponent,
     children: [

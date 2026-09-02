@@ -1,3 +1,4 @@
+//改用generate 這個先放著
 export interface TrendChartPoint {
     "date": string;
     "heatScore": number;
