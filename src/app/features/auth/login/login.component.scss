@@ -27,7 +27,8 @@
         margin-bottom: -5px;
     }
 
-    input {
+    input[type="text"],
+    input[type="password"] {
         width: 200px;
         height: 20px;
         border-radius: 10px;
@@ -37,22 +38,70 @@
         outline: none;
     }
 
-    button {
+    .password-group {
+        display: flex;
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
         width: 220px;
-        height: 30px;
-        border-radius: 10px;
-        border: none;
-        margin: 10px;
-        cursor: pointer;
-        outline: none;
-        background-color: rgb(40, 30, 197);
+        height: 50px;
 
-        &:hover {
-            background-color: rgb(34, 25, 165);
+        .checkbox-group {
+            display: flex;
+            color: black;
+            font-size: 14px;
+            font-weight: 500;
+
         }
 
-        &:active {
-            transform: scale(0.9);
+        input[type="checkbox"] {
+            width: auto;
+            margin: 0;
+            padding: 0;
+            cursor: pointer;
+        }
+
+
+        label {
+            width: auto;
+            margin: 0;
+            padding: 0;
+            cursor: pointer;
+        }
+
+        .forget-password {
+            font-size: 14px;
+            font-weight: 500;
+            color: #2879f3;
+            text-decoration: none;
         }
     }
+
+    .sign-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+        button {
+            width: 220px;
+            height: 30px;
+            border-radius: 10px;
+            border: none;
+            margin: 10px;
+            cursor: pointer;
+            outline: none;
+            background-color: rgb(30, 94, 197);
+            transition: all 0.2s;
+
+            &:hover {
+                background-color: rgb(42, 32, 192);
+            }
+
+            &:active {
+                transform: scale(0.9);
+            }
+        }
+    }
+
+
 }
