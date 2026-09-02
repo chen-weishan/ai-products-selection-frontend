@@ -1,6 +1,6 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { Injectable, inject, signal } from '@angular/core';
-import { catchError, finalize, forkJoin, map, Observable, tap, throwError } from 'rxjs';
+import { Injectable, computed, inject, signal } from '@angular/core';
+import { catchError, defer, finalize, forkJoin, map, Observable, tap, throwError } from 'rxjs';
 import { ProductReferenceControllerService } from '../../api/api/productReferenceController.service';
 import {
   CategoryTreeResponse,
@@ -13,67 +13,143 @@ export interface CategoryOption {
   label: string;
 }
 
+export interface CategoryMarginMedian {
+  categoryId: number;
+  categoryName: string;
+  medianMarginRate: number | null;
+  sampleCount: number;
+}
+
 @Injectable({
   providedIn: 'root',
 })
 export class ProductReferenceService {
   private readonly api = inject(ProductReferenceControllerService);
+  private readonly pendingOperations = signal(0);
 
   readonly categories = signal<readonly CategoryOption[]>([]);
   readonly suppliers = signal<readonly SupplierResponse[]>([]);
   readonly trendKeywords = signal<readonly TrendKeywordResponse[]>([]);
-  readonly loading = signal(false);
+  readonly categoryMarginMedian = signal<CategoryMarginMedian | null>(null);
+  readonly categoryMarginMedianError = signal<string | null>(null);
+  readonly categoryError = signal<string | null>(null);
+  readonly supplierError = signal<string | null>(null);
+  readonly trendKeywordError = signal<string | null>(null);
+  readonly loading = computed(() => this.pendingOperations() > 0);
   readonly error = signal<string | null>(null);
 
   load(): Observable<void> {
-    this.loading.set(true);
     this.error.set(null);
-
     return forkJoin({
-      categories: this.api.getCategories(),
-      suppliers: this.api.getSuppliers({}),
+      categories: this.loadCategories(),
+      suppliers: this.loadSuppliers(),
     }).pipe(
-      map(({ categories, suppliers }) => {
-        if (!categories.success || !categories.data) {
-          throw new Error(categories.error?.message ?? '取得品項類別失敗');
-        }
-        if (!suppliers.success || !suppliers.data) {
-          throw new Error(suppliers.error?.message ?? '取得供應商失敗');
-        }
-
-        return {
-          categories: flattenCategories(categories.data),
-          suppliers: suppliers.data,
-        };
-      }),
-      tap(({ categories, suppliers }) => {
-        this.categories.set(categories);
-        this.suppliers.set(suppliers);
-      }),
       map(() => undefined),
       catchError((error: unknown) => {
         this.error.set(toErrorMessage(error));
         return throwError(() => error);
       }),
-      finalize(() => this.loading.set(false)),
+    );
+  }
+
+  loadCategories(): Observable<readonly CategoryOption[]> {
+    this.categoryError.set(null);
+    return this.track(
+      this.api.getCategories().pipe(
+        map((response) => {
+          if (!response.success || !response.data) {
+            throw new Error(response.error?.message ?? '取得品項類別失敗');
+          }
+          return flattenCategories(response.data);
+        }),
+        tap((categories) => this.categories.set(categories)),
+        catchError((error: unknown) => {
+          const message = toErrorMessage(error);
+          this.categoryError.set(message);
+          this.error.set(message);
+          return throwError(() => error);
+        }),
+      ),
+    );
+  }
+
+  loadSuppliers(): Observable<readonly SupplierResponse[]> {
+    this.supplierError.set(null);
+    return this.track(
+      this.api.getSuppliers({}).pipe(
+        map((response) => {
+          if (!response.success || !response.data) {
+            throw new Error(response.error?.message ?? '取得供應商失敗');
+          }
+          return response.data;
+        }),
+        tap((suppliers) => this.suppliers.set(suppliers)),
+        catchError((error: unknown) => {
+          this.supplierError.set(toErrorMessage(error));
+          return throwError(() => error);
+        }),
+      ),
     );
   }
 
   loadTrendKeywords(): Observable<void> {
-    return this.api.getTrendKeywords({ enabled: true }).pipe(
+    this.trendKeywordError.set(null);
+    return this.track(
+      this.api.getTrendKeywords({ enabled: true }).pipe(
+        map((response) => {
+          if (!response.success || !response.data) {
+            throw new Error(response.error?.message ?? '取得趨勢關鍵字失敗');
+          }
+          return response.data;
+        }),
+        tap((keywords) => this.trendKeywords.set(keywords)),
+        map(() => undefined),
+        catchError((error: unknown) => {
+          const message = toErrorMessage(error);
+          this.trendKeywordError.set(message);
+          this.error.set(message);
+          return throwError(() => error);
+        }),
+      ),
+    );
+  }
+
+  loadCategoryMarginMedian(categoryId: number): Observable<CategoryMarginMedian> {
+    this.categoryMarginMedianError.set(null);
+    return this.api.getCategoryMarginMedian({ categoryId }).pipe(
       map((response) => {
-        if (!response.success || !response.data) {
-          throw new Error(response.error?.message ?? '取得趨勢關鍵字失敗');
+        const data = response.data;
+        if (!response.success || !data || data.categoryId == null || !data.categoryName) {
+          throw new Error(response.error?.message ?? '取得類別毛利率中位數失敗');
         }
-        return response.data;
+        return {
+          categoryId: data.categoryId,
+          categoryName: data.categoryName,
+          medianMarginRate: data.medianMarginRate ?? null,
+          sampleCount: data.sampleCount ?? 0,
+        };
       }),
-      tap((keywords) => this.trendKeywords.set(keywords)),
-      map(() => undefined),
+      tap((statistics) => this.categoryMarginMedian.set(statistics)),
       catchError((error: unknown) => {
-        this.error.set(toErrorMessage(error));
+        this.categoryMarginMedian.set(null);
+        this.categoryMarginMedianError.set(toErrorMessage(error));
         return throwError(() => error);
       }),
     );
+  }
+
+  clearCategoryMarginMedian(): void {
+    this.categoryMarginMedian.set(null);
+    this.categoryMarginMedianError.set(null);
+  }
+
+  private track<T>(source: Observable<T>): Observable<T> {
+    return defer(() => {
+      this.pendingOperations.update((count) => count + 1);
+      return source.pipe(
+        finalize(() => this.pendingOperations.update((count) => Math.max(0, count - 1))),
+      );
+    });
   }
 }
 

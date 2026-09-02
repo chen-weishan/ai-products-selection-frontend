@@ -98,6 +98,16 @@ h1 {
   background: #f0f9ff;
   color: #075985;
 }
+.track-reminder {
+  margin: 4px 0 0;
+  border: 1px solid #bae6fd;
+  border-radius: 8px;
+  background: #f0f9ff;
+  padding: 10px 12px;
+  color: #075985;
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
 .field-help {
   margin: -10px 0 12px;
   color: #64748b;
@@ -164,6 +174,11 @@ h1 {
 .upload-zone:hover {
   border-color: #087f8c;
   background: #f0fdfa;
+}
+.upload-zone.drag-active {
+  border-color: #087f8c;
+  background: #ccfbf1;
+  box-shadow: 0 0 0 3px rgb(8 127 140 / 12%);
 }
 .upload-zone.disabled {
   cursor: not-allowed;
@@ -272,6 +287,12 @@ h1 {
 }
 .warning-panel p {
   margin: 0;
+}
+.margin-comparison {
+  margin: -4px 0 16px;
+}
+.supplemental-errors p {
+  margin: 6px 0 0;
 }
 @media (max-width: 960px) {
   .form-grid {

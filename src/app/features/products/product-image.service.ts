@@ -96,7 +96,14 @@ export class ProductImageService {
       catchError((error: unknown) => {
         const message = toErrorMessage(error);
         this.error.set(message);
-        return throwError(() => new ProductImageUploadError(message, uploadedCount, error));
+        const uploadError = new ProductImageUploadError(message, uploadedCount, error);
+        if (uploadedCount === 0) {
+          return throwError(() => uploadError);
+        }
+        return this.load(productId).pipe(
+          catchError(() => of(this.images())),
+          switchMap(() => throwError(() => uploadError)),
+        );
       }),
       finalize(() => this.loading.set(false)),
     );

@@ -1,4 +1,5 @@
 import { DecimalPipe, Location, PercentPipe } from '@angular/common';
+import { HttpErrorResponse } from '@angular/common/http';
 import { Component, DestroyRef, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import {
@@ -16,8 +17,22 @@ import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { catchError, EMPTY, filter, forkJoin, map, Observable, of, switchMap, tap } from 'rxjs';
+import {
+  catchError,
+  debounceTime,
+  distinctUntilChanged,
+  EMPTY,
+  filter,
+  forkJoin,
+  map,
+  Observable,
+  of,
+  switchMap,
+  tap,
+} from 'rxjs';
 import { ProductResponse } from '../../../api/model/models';
+import { AccessControlService } from '../../../core/auth/access-control.service';
+import { UserRole } from '../../../core/models/auth-model';
 import { DialogService } from '../../../services/dialog-service';
 import { ProductEditorService, ProductSaveRequest } from '../product-editor.service';
 import {
@@ -27,6 +42,7 @@ import {
 } from '../product-image.service';
 import { ProductReferenceService } from '../product-reference.service';
 import { ProductFestivalAffinity, ProductSupplementService } from '../product-supplement.service';
+import { ProductService } from '../product.service';
 
 type TrackType = 'A' | 'B';
 type Season = 'ALL' | 'SPRING' | 'SUMMER' | 'AUTUMN' | 'WINTER' | 'FESTIVAL';
@@ -36,6 +52,14 @@ type LogisticsCondition = 'NORMAL' | 'CHILLED' | 'FROZEN' | 'FRAGILE' | 'MELTABL
 interface PendingImage {
   file: File;
   previewUrl: string;
+}
+
+type SupplementOperation = '圖片' | '節慶關聯度' | '評論 CSV' | '評分排程';
+
+interface SupplementSaveOutcome {
+  operation: SupplementOperation;
+  success: boolean;
+  error?: unknown;
 }
 
 type FestivalAffinityGroup = FormGroup<{
@@ -70,6 +94,7 @@ const MAX_IMAGES = 5;
 const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
 const IMAGE_TYPES = new Set(['image/jpeg', 'image/png']);
 const MAX_REVIEW_CSV_BYTES = 2 * 1024 * 1024;
+const REVIEW_IMPORT_ROLES: readonly UserRole[] = ['BUYER_LEAD', 'DATA_ADMIN', 'SYS_ADMIN'];
 
 @Component({
   selector: 'app-product-form',
@@ -92,21 +117,35 @@ export class ProductFormComponent implements OnInit, OnDestroy {
   readonly images = inject(ProductImageService);
   readonly references = inject(ProductReferenceService);
   readonly supplements = inject(ProductSupplementService);
+  readonly products = inject(ProductService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
   private readonly snackBar = inject(MatSnackBar);
   private readonly dialogService = inject(DialogService);
   private readonly location = inject(Location);
+  private readonly accessControl = inject(AccessControlService);
 
   readonly productId = signal<number | null>(null);
+  readonly persistedStatus = signal<string | null>(null);
   readonly isEditMode = computed(() => this.productId() != null);
+  readonly canSaveAsDraft = computed(
+    () => !this.isEditMode() || this.persistedStatus() === 'DRAFT',
+  );
+  readonly canImportReviews = computed(() => this.accessControl.hasRole(REVIEW_IMPORT_ROLES));
   readonly submittingDraft = signal(false);
   readonly pendingImages = signal<readonly PendingImage[]>([]);
   readonly fileError = signal<string | null>(null);
   readonly warnings = signal<readonly string[]>([]);
   readonly reviewFile = signal<File | null>(null);
   readonly reviewFileError = signal<string | null>(null);
+  readonly reviewDragActive = signal(false);
+  readonly supplementalSaveErrors = signal<readonly string[]>([]);
+  readonly supplementFailureRetainedAsDraft = signal(false);
+  readonly festivalsLoaded = signal(false);
+  readonly affinitiesLoaded = signal(false);
+  readonly imagesLoaded = signal(false);
+  readonly reviewSummaryLoaded = signal(false);
   readonly seasons = SEASONS;
   readonly sourcingStatuses = SOURCING_STATUSES;
   readonly logisticsConditions = LOGISTICS_CONDITIONS;
@@ -141,6 +180,25 @@ export class ProductFormComponent implements OnInit, OnDestroy {
   );
 
   readonly marginRate = signal<number | null>(null);
+  readonly marginComparison = computed(() => {
+    const margin = this.marginRate();
+    const statistics = this.references.categoryMarginMedian();
+    if (
+      margin == null ||
+      !statistics ||
+      statistics.medianMarginRate == null ||
+      statistics.sampleCount === 0
+    ) {
+      return null;
+    }
+    const difference = margin - statistics.medianMarginRate;
+    return {
+      categoryName: statistics.categoryName,
+      median: statistics.medianMarginRate,
+      sampleCount: statistics.sampleCount,
+      difference,
+    };
+  });
   readonly totalImageCount = computed(
     () => this.images.images().length + this.pendingImages().length,
   );
@@ -160,29 +218,48 @@ export class ProductFormComponent implements OnInit, OnDestroy {
     this.productId.set(productId);
     this.configureTrackControls(this.form.controls.trackType.value);
 
-    forkJoin([
-      this.references.load(),
-      this.references.loadTrendKeywords(),
-      this.supplements.loadFestivals(),
-    ])
+    this.references
+      .loadCategories()
       .pipe(
-        switchMap(() => (productId == null ? of(null) : this.editor.load(productId))),
-        tap((product) => {
-          if (product) this.patchProduct(product);
-        }),
-        switchMap(() =>
-          productId == null
-            ? of({ images: [] as readonly ProductImageView[], affinities: [] })
-            : forkJoin({
-                images: this.images.load(productId),
-                affinities: this.supplements.loadAffinities(productId),
-              }),
-        ),
-        tap(({ affinities }) => this.patchFestivalAffinities(affinities)),
         catchError(() => EMPTY),
         takeUntilDestroyed(this.destroyRef),
       )
       .subscribe();
+    this.references
+      .loadTrendKeywords()
+      .pipe(
+        catchError(() => EMPTY),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe();
+    if (productId != null) {
+      this.editor
+        .load(productId)
+        .pipe(
+          tap((product) => this.patchProduct(product)),
+          catchError(() => EMPTY),
+          takeUntilDestroyed(this.destroyRef),
+        )
+        .subscribe();
+    }
+
+    this.references
+      .loadSuppliers()
+      .pipe(
+        catchError(() => EMPTY),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe();
+    this.loadFestivalOptions();
+    if (productId == null) {
+      this.affinitiesLoaded.set(true);
+      this.imagesLoaded.set(true);
+      this.reviewSummaryLoaded.set(true);
+    } else {
+      this.loadExistingAffinities(productId);
+      this.loadExistingImages(productId);
+      this.loadExistingReviewSummary(productId);
+    }
 
     this.form.controls.trackType.valueChanges
       .pipe(takeUntilDestroyed(this.destroyRef))
@@ -190,6 +267,23 @@ export class ProductFormComponent implements OnInit, OnDestroy {
         this.configureTrackControls(trackType);
         this.form.updateValueAndValidity({ emitEvent: false });
       });
+
+    this.form.controls.categoryId.valueChanges
+      .pipe(
+        debounceTime(150),
+        distinctUntilChanged(),
+        switchMap((categoryId) => {
+          if (categoryId == null) {
+            this.references.clearCategoryMarginMedian();
+            return of(null);
+          }
+          return this.references
+            .loadCategoryMarginMedian(categoryId)
+            .pipe(catchError(() => of(null)));
+        }),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe();
 
     this.form.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
       this.updateMarginRate();
@@ -201,11 +295,14 @@ export class ProductFormComponent implements OnInit, OnDestroy {
     this.pendingImages().forEach((image) => URL.revokeObjectURL(image.previewUrl));
     this.images.clear();
     this.supplements.clear();
+    this.references.clearCategoryMarginMedian();
   }
 
   save(saveAsDraft: boolean): void {
     this.submittingDraft.set(saveAsDraft);
     this.warnings.set([]);
+    this.supplementalSaveErrors.set([]);
+    this.supplementFailureRetainedAsDraft.set(false);
     this.form.markAllAsTouched();
     this.form.updateValueAndValidity();
     if (
@@ -216,10 +313,16 @@ export class ProductFormComponent implements OnInit, OnDestroy {
     )
       return;
 
+    const stageUntilSupplementsComplete =
+      !saveAsDraft && (this.productId() == null || this.persistedStatus() === 'DRAFT');
+
     this.editor
-      .save(this.productId(), this.buildRequest(saveAsDraft))
+      .save(this.productId(), this.buildRequest(stageUntilSupplementsComplete ? true : saveAsDraft))
       .pipe(
-        tap((result) => this.warnings.set(result.warnings)),
+        tap((result) => {
+          this.warnings.set(result.warnings);
+          this.persistedStatus.set(result.product.status ?? this.persistedStatus());
+        }),
         switchMap((result) => {
           if (this.productId() == null) {
             this.productId.set(result.product.id!);
@@ -227,36 +330,124 @@ export class ProductFormComponent implements OnInit, OnDestroy {
           }
           const productId = result.product.id!;
           const files = this.pendingImages().map((image) => image.file);
-          const actions: Observable<unknown>[] = [];
-          if (files.length > 0) actions.push(this.images.uploadFiles(productId, files));
-          actions.push(
-            this.supplements.saveAffinities(
-              productId,
-              this.form.controls.trackType.value === 'B' ? [] : this.affinityPayload(),
-            ),
-          );
-          const reviewFile = this.reviewFile();
-          if (this.form.controls.trackType.value === 'A' && reviewFile) {
-            actions.push(this.supplements.uploadReviewFile(productId, reviewFile));
+          const actions: Observable<SupplementSaveOutcome>[] = [];
+          if (files.length > 0) {
+            actions.push(
+              this.captureSupplementSave('圖片', this.images.uploadFiles(productId, files)),
+            );
           }
-          return forkJoin(actions).pipe(map(() => result));
+          if (this.affinitiesLoaded()) {
+            actions.push(
+              this.captureSupplementSave(
+                '節慶關聯度',
+                this.supplements.saveAffinities(productId, this.affinityPayload()),
+              ),
+            );
+          }
+          const reviewFile = this.reviewFile();
+          if (this.form.controls.trackType.value === 'A' && this.canImportReviews() && reviewFile) {
+            actions.push(
+              this.captureSupplementSave(
+                '評論 CSV',
+                this.supplements.uploadReviewFile(productId, reviewFile),
+              ),
+            );
+          }
+          const supplements = actions.length > 0 ? forkJoin(actions) : of([]);
+          return supplements.pipe(
+            switchMap((outcomes) => {
+              if (outcomes.some((outcome) => !outcome.success)) {
+                return of({
+                  result,
+                  outcomes,
+                  retainedAsDraft: result.product.status === 'DRAFT',
+                });
+              }
+
+              const activate = stageUntilSupplementsComplete
+                ? this.editor.save(productId, this.buildRequest(false)).pipe(
+                    tap((activationResult) => {
+                      this.persistedStatus.set(
+                        activationResult.product.status ?? this.persistedStatus(),
+                      );
+                      this.warnings.set([
+                        ...new Set([...result.warnings, ...activationResult.warnings]),
+                      ]);
+                    }),
+                    map((activationResult) => ({
+                      result: {
+                        ...activationResult,
+                        warnings: [...new Set([...result.warnings, ...activationResult.warnings])],
+                      },
+                      outcomes,
+                      retainedAsDraft: activationResult.product.status === 'DRAFT',
+                    })),
+                  )
+                : of({
+                    result,
+                    outcomes,
+                    retainedAsDraft: result.product.status === 'DRAFT',
+                  });
+
+              if (saveAsDraft || this.form.controls.trackType.value !== 'A') return activate;
+
+              return activate.pipe(
+                switchMap((activated) =>
+                  this.captureSupplementSave(
+                    '評分排程',
+                    this.products.analyzeBatch([productId]),
+                  ).pipe(
+                    map((analysis) => ({
+                      ...activated,
+                      outcomes: [...activated.outcomes, analysis],
+                    })),
+                  ),
+                ),
+              );
+            }),
+          );
         }),
         takeUntilDestroyed(this.destroyRef),
       )
       .subscribe({
-        next: (result) => {
-          this.clearPendingImages();
-          this.reviewFile.set(null);
-          this.reviewFileError.set(null);
+        next: ({ result, outcomes, retainedAsDraft }) => {
+          const imageOutcome = outcomes.find((outcome) => outcome.operation === '圖片');
+          if (imageOutcome?.success) this.clearPendingImages();
+          if (!imageOutcome?.success && imageOutcome?.error instanceof ProductImageUploadError) {
+            this.removeUploadedPendingImages(imageOutcome.error.uploadedCount);
+          }
+          const reviewOutcome = outcomes.find((outcome) => outcome.operation === '評論 CSV');
+          if (reviewOutcome?.success) {
+            this.reviewFile.set(null);
+            this.reviewFileError.set(null);
+          }
+          const failures = outcomes.filter((outcome) => !outcome.success);
+          if (failures.length > 0) {
+            this.supplementFailureRetainedAsDraft.set(retainedAsDraft);
+            const failedNames = failures.map((outcome) => outcome.operation);
+            this.supplementalSaveErrors.set(
+              failures.map(
+                (outcome) => `${outcome.operation}：${toSupplementErrorMessage(outcome.error)}`,
+              ),
+            );
+            const failurePrefix = retainedAsDraft ? '品項已安全保留為草稿，' : '基本資料已儲存，但';
+            this.snackBar.open(
+              `${failurePrefix}${failedNames.join('、')}失敗；修正後可再次儲存重試`,
+              '關閉',
+              { duration: 7000 },
+            );
+            return;
+          }
           const warningText = result.warnings.length ? `；${result.warnings.join('、')}` : '';
-          this.snackBar.open(`品項已儲存${warningText}`, '關閉', { duration: 5000 });
+          const analysisText = outcomes.some((outcome) => outcome.operation === '評分排程')
+            ? '；已加入評分佇列，分數稍後更新'
+            : '';
+          this.snackBar.open(`品項已儲存${analysisText}${warningText}`, '關閉', {
+            duration: 5000,
+          });
           void this.router.navigate(['/products']);
         },
-        error: (error: unknown) => {
-          if (error instanceof ProductImageUploadError && error.uploadedCount > 0) {
-            this.removeUploadedPendingImages(error.uploadedCount);
-          }
-        },
+        error: () => undefined,
       });
   }
 
@@ -269,10 +460,88 @@ export class ProductFormComponent implements OnInit, OnDestroy {
     this.festivalAffinities.removeAt(index);
   }
 
+  retryFestivalOptions(): void {
+    this.loadFestivalOptions();
+  }
+
+  retryCategories(): void {
+    this.references
+      .loadCategories()
+      .pipe(
+        catchError(() => EMPTY),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe();
+  }
+
+  retryTrendKeywords(): void {
+    this.references
+      .loadTrendKeywords()
+      .pipe(
+        catchError(() => EMPTY),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe();
+  }
+
+  retrySuppliers(): void {
+    this.references
+      .loadSuppliers()
+      .pipe(
+        catchError(() => EMPTY),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe();
+  }
+
+  retryFestivalAffinities(): void {
+    const productId = this.productId();
+    if (productId != null) this.loadExistingAffinities(productId);
+  }
+
+  retryImages(): void {
+    const productId = this.productId();
+    if (productId != null) this.loadExistingImages(productId);
+  }
+
+  retryReviewSummary(): void {
+    const productId = this.productId();
+    if (productId != null) this.loadExistingReviewSummary(productId);
+  }
+
   onReviewFileSelected(event: Event): void {
+    if (!this.canImportReviews()) return;
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0] ?? null;
     input.value = '';
+    this.selectReviewFile(file);
+  }
+
+  onReviewDragOver(event: DragEvent): void {
+    event.preventDefault();
+    if (!this.canImportReviews() || this.supplements.loading()) return;
+    if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy';
+    this.reviewDragActive.set(true);
+  }
+
+  onReviewDragLeave(event: DragEvent): void {
+    event.preventDefault();
+    this.reviewDragActive.set(false);
+  }
+
+  onReviewFileDropped(event: DragEvent): void {
+    event.preventDefault();
+    this.reviewDragActive.set(false);
+    if (!this.canImportReviews() || this.supplements.loading()) return;
+    const files = Array.from(event.dataTransfer?.files ?? []);
+    if (files.length > 1) {
+      this.reviewFileError.set('一次只能選擇一個評論 CSV');
+      return;
+    }
+    this.selectReviewFile(files[0] ?? null);
+  }
+
+  private selectReviewFile(file: File | null): void {
     this.reviewFileError.set(null);
     if (!file) return;
     if (!file.name.toLowerCase().endsWith('.csv')) {
@@ -355,15 +624,10 @@ export class ProductFormComponent implements OnInit, OnDestroy {
     const sourcingStatus = this.form.controls.sourcingStatus;
     const aOnlyControls: readonly AbstractControl[] = [
       this.form.controls.supplierId,
-      this.form.controls.cost,
-      this.form.controls.suggestedPrice,
       this.form.controls.moq,
       this.form.controls.shelfLifeDays,
       this.form.controls.season,
       this.form.controls.logisticsConditions,
-      this.form.controls.idealTempMin,
-      this.form.controls.idealTempMax,
-      this.form.controls.festivalAffinities,
     ];
     if (trackType === 'B') {
       aOnlyControls.forEach((control) => control.disable({ emitEvent: false }));
@@ -371,6 +635,7 @@ export class ProductFormComponent implements OnInit, OnDestroy {
       if (sourcingStatus.value == null) sourcingStatus.setValue('PENDING', { emitEvent: false });
       this.reviewFile.set(null);
       this.reviewFileError.set(null);
+      this.reviewDragActive.set(false);
       return;
     }
     aOnlyControls.forEach((control) => control.enable({ emitEvent: false }));
@@ -391,18 +656,12 @@ export class ProductFormComponent implements OnInit, OnDestroy {
         errors['keywordRequired'] = true;
       }
     }
-    if (
-      value.trackType === 'A' &&
-      value.cost != null &&
-      value.suggestedPrice != null &&
-      value.suggestedPrice <= value.cost
-    ) {
+    if (value.cost != null && value.suggestedPrice != null && value.suggestedPrice <= value.cost) {
       errors['invalidPrice'] = true;
     }
-    if (value.trackType === 'A' && (value.idealTempMin == null) !== (value.idealTempMax == null)) {
+    if ((value.idealTempMin == null) !== (value.idealTempMax == null)) {
       errors['incompleteTemperature'] = true;
     } else if (
-      value.trackType === 'A' &&
       value.idealTempMin != null &&
       value.idealTempMax != null &&
       value.idealTempMin > value.idealTempMax
@@ -428,22 +687,23 @@ export class ProductFormComponent implements OnInit, OnDestroy {
       name: value.name.trim(),
       categoryId: value.categoryId!,
       supplierId: trackB ? undefined : (value.supplierId ?? undefined),
-      cost: trackB ? undefined : (value.cost ?? undefined),
-      suggestedPrice: trackB ? undefined : (value.suggestedPrice ?? undefined),
+      cost: value.cost ?? undefined,
+      suggestedPrice: value.suggestedPrice ?? undefined,
       moq: trackB ? undefined : (value.moq ?? undefined),
       shelfLifeDays: trackB ? undefined : (value.shelfLifeDays ?? undefined),
       season: trackB ? undefined : value.season,
       trackType: value.trackType,
       sourcingStatus: trackB ? (value.sourcingStatus ?? 'PENDING') : undefined,
       logisticsConditions: trackB ? undefined : [...value.logisticsConditions],
-      idealTempMin: trackB ? undefined : (value.idealTempMin ?? undefined),
-      idealTempMax: trackB ? undefined : (value.idealTempMax ?? undefined),
+      idealTempMin: value.idealTempMin ?? undefined,
+      idealTempMax: value.idealTempMax ?? undefined,
       keywordIds: [...value.keywordIds],
       saveAsDraft,
     };
   }
 
   private patchProduct(product: ProductResponse): void {
+    this.persistedStatus.set(product.status ?? null);
     this.form.patchValue(
       {
         name: product.name ?? '',
@@ -465,6 +725,15 @@ export class ProductFormComponent implements OnInit, OnDestroy {
     );
     this.configureTrackControls(product.trackType ?? 'A');
     this.updateMarginRate();
+    if (product.categoryId != null) {
+      this.references
+        .loadCategoryMarginMedian(product.categoryId)
+        .pipe(
+          catchError(() => of(null)),
+          takeUntilDestroyed(this.destroyRef),
+        )
+        .subscribe();
+    }
   }
 
   private patchFestivalAffinities(affinities: readonly ProductFestivalAffinity[]): void {
@@ -477,11 +746,68 @@ export class ProductFormComponent implements OnInit, OnDestroy {
     );
   }
 
+  private loadFestivalOptions(): void {
+    this.festivalsLoaded.set(false);
+    this.supplements
+      .loadFestivals()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => this.festivalsLoaded.set(true),
+        error: () => undefined,
+      });
+  }
+
+  private loadExistingAffinities(productId: number): void {
+    this.affinitiesLoaded.set(false);
+    this.supplements
+      .loadAffinities(productId)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (affinities) => {
+          this.patchFestivalAffinities(affinities);
+          this.affinitiesLoaded.set(true);
+        },
+        error: () => undefined,
+      });
+  }
+
+  private loadExistingImages(productId: number): void {
+    this.imagesLoaded.set(false);
+    this.images
+      .load(productId)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => this.imagesLoaded.set(true),
+        error: () => undefined,
+      });
+  }
+
+  private loadExistingReviewSummary(productId: number): void {
+    this.reviewSummaryLoaded.set(false);
+    this.supplements
+      .loadReviewSummary(productId)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => this.reviewSummaryLoaded.set(true),
+        error: () => this.reviewSummaryLoaded.set(true),
+      });
+  }
+
   private affinityPayload(): readonly Pick<ProductFestivalAffinity, 'festivalCode' | 'affinity'>[] {
     return this.festivalAffinities.getRawValue().map((affinity) => ({
       festivalCode: affinity.festivalCode!,
       affinity: affinity.affinity!,
     }));
+  }
+
+  private captureSupplementSave(
+    operation: SupplementOperation,
+    source: Observable<unknown>,
+  ): Observable<SupplementSaveOutcome> {
+    return source.pipe(
+      map(() => ({ operation, success: true })),
+      catchError((error: unknown) => of({ operation, success: false, error })),
+    );
   }
 
   private clearPendingImages(): void {
@@ -494,6 +820,15 @@ export class ProductFormComponent implements OnInit, OnDestroy {
     current.slice(0, uploadedCount).forEach((image) => URL.revokeObjectURL(image.previewUrl));
     this.pendingImages.set(current.slice(uploadedCount));
   }
+}
+
+function toSupplementErrorMessage(error: unknown): string {
+  if (error instanceof HttpErrorResponse) {
+    const apiMessage = error.error?.error?.message;
+    if (typeof apiMessage === 'string') return apiMessage;
+  }
+  if (error instanceof Error && error.message) return error.message;
+  return '處理失敗，請稍後重試';
 }
 
 function nonBlankValidator(control: AbstractControl): ValidationErrors | null {

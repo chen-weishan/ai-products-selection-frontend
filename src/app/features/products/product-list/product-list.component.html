@@ -96,8 +96,17 @@
     <button mat-stroked-button type="button" (click)="clearFilters()">清除條件</button>
   </form>
 
-  @if (references.error()) {
-    <p class="reference-error" role="alert">{{ references.error() }}</p>
+  @if (references.categoryError()) {
+    <p class="reference-error" role="alert">
+      類別清單載入失敗，類別篩選與批次指定類別暫時無法使用。
+      <button mat-button type="button" (click)="retryCategories()">重新載入類別</button>
+    </p>
+  }
+  @if (references.supplierError()) {
+    <p class="reference-error" role="status">
+      供應商清單載入失敗，其他品項清單功能仍可使用。
+      <button mat-button type="button" (click)="retrySuppliers()">重新載入供應商</button>
+    </p>
   }
 
   @if (productService.batchMessage()) {
@@ -108,6 +117,16 @@
   @if (productService.batchError()) {
     <p class="batch-feedback error-feedback" role="alert">
       {{ productService.batchError() }}
+    </p>
+  }
+  @if (productService.analysisMessage()) {
+    <p class="batch-feedback notice-feedback" role="status">
+      {{ productService.analysisMessage() }}
+    </p>
+  }
+  @if (productService.analysisError()) {
+    <p class="batch-feedback error-feedback" role="alert">
+      {{ productService.analysisError() }}
     </p>
   }
   @if (selectionNotice()) {
@@ -270,33 +289,39 @@
           </td>
         </ng-container>
 
-        <ng-container matColumnDef="gradeOrGap">
-          <th
-            mat-header-cell
-            *matHeaderCellDef
-            [mat-sort-header]="criteria().trackType === 'B' ? 'timeGapDays' : 'grade'"
-          >
-            分級／時效
-          </th>
+        <ng-container matColumnDef="grade">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header="grade">分級</th>
           <td mat-cell *matCellDef="let product">
-            @if (product.trackType === 'B') {
-              {{ product.timeGapDays == null ? '—' : product.timeGapDays + ' 天' }}
-            } @else {
-              {{ product.grade == null ? '未評分' : product.grade + ' 級' }}
-            }
+            {{ product.trackType === 'A' && product.grade != null ? product.grade + ' 級' : '—' }}
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="timeGapDays">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header="timeGapDays">時效差</th>
+          <td mat-cell *matCellDef="let product">
+            {{
+              product.trackType === 'B' && product.timeGapDays != null
+                ? product.timeGapDays + ' 天'
+                : '—'
+            }}
           </td>
         </ng-container>
 
         <ng-container matColumnDef="status">
-          <th
-            mat-header-cell
-            *matHeaderCellDef
-            [mat-sort-header]="criteria().trackType === 'B' ? 'sourcingStatus' : 'status'"
-          >
-            狀態
-          </th>
+          <th mat-header-cell *matHeaderCellDef mat-sort-header="status">品項狀態</th>
           <td mat-cell *matCellDef="let product">
-            {{ statusLabel(product.sourcingStatus ?? product.status) }}
+            {{ product.status ? productStatusLabel(product.status) : '—' }}
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="sourcingStatus">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header="sourcingStatus">尋源狀態</th>
+          <td mat-cell *matCellDef="let product">
+            {{
+              product.trackType === 'B' && product.sourcingStatus
+                ? sourcingStatusLabel(product.sourcingStatus)
+                : '—'
+            }}
           </td>
         </ng-container>
 
@@ -348,8 +373,8 @@
           </td>
         </ng-container>
 
-        <tr mat-header-row *matHeaderRowDef="displayedColumns; sticky: true"></tr>
-        <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
+        <tr mat-header-row *matHeaderRowDef="displayedColumns(); sticky: true"></tr>
+        <tr mat-row *matRowDef="let row; columns: displayedColumns()"></tr>
       </table>
     </div>
   }

@@ -1,5 +1,5 @@
 .product-page {
-  padding: 24px;
+  padding: 0;
 }
 
 .page-heading {
@@ -140,17 +140,94 @@
 }
 
 .table-card {
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: visible;
 }
 
 table {
   width: 100%;
-  min-width: 1180px;
+  min-width: 0;
+  table-layout: fixed;
 }
 
 th {
   color: #123a56;
   font-weight: 700;
+  line-height: 1.25;
+  white-space: normal;
+}
+
+th.mat-mdc-header-cell,
+td.mat-mdc-cell {
+  padding-right: 6px;
+  padding-left: 6px;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+td.mat-mdc-cell {
+  line-height: 1.35;
+}
+
+.mat-column-select {
+  width: 3.5%;
+  text-align: center;
+}
+
+.mat-column-name {
+  width: 10.5%;
+}
+
+.mat-column-category {
+  width: 7%;
+}
+
+.mat-column-trackType {
+  width: 6%;
+}
+
+.mat-column-supplier {
+  width: 9.5%;
+}
+
+.mat-column-cost,
+.mat-column-price,
+.mat-column-score,
+.mat-column-grade {
+  width: 5.5%;
+}
+
+.mat-column-margin {
+  width: 7%;
+}
+
+.mat-column-timeGapDays {
+  width: 6%;
+}
+
+.mat-column-status,
+.mat-column-sourcingStatus,
+.mat-column-updatedAt {
+  width: 8%;
+}
+
+.mat-column-actions {
+  width: 4%;
+  text-align: center;
+}
+
+.mat-column-actions button {
+  min-width: 32px;
+  padding: 0 4px;
+}
+
+.mat-column-cost,
+.mat-column-price,
+.mat-column-margin,
+.mat-column-score,
+.mat-column-grade,
+.mat-column-timeGapDays,
+.mat-column-updatedAt {
   white-space: nowrap;
 }
 
@@ -187,7 +264,7 @@ mat-paginator {
 
 @media (max-width: 760px) {
   .product-page {
-    padding: 16px;
+    padding: 0;
   }
 
   .filter-panel {
@@ -205,5 +282,13 @@ mat-paginator {
 
   .batch-toolbar mat-form-field {
     width: 100%;
+  }
+
+  .table-card {
+    overflow-x: auto;
+  }
+
+  table {
+    min-width: 980px;
   }
 }

@@ -1,5 +1,5 @@
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
-import { Injectable, computed, inject, signal } from '@angular/core';
+import { Injectable, WritableSignal, computed, inject, signal } from '@angular/core';
 import { Observable, catchError, defer, finalize, map, tap, throwError } from 'rxjs';
 import { environment } from '../../../environments/environment';
 
@@ -29,6 +29,11 @@ export interface ProductReviewFileUploadResult {
   lowConfidence: boolean;
 }
 
+export interface ProductReviewSummary {
+  totalReviewCount: number;
+  lowConfidence: boolean;
+}
+
 @Injectable({ providedIn: 'root' })
 export class ProductSupplementService {
   private readonly http = inject(HttpClient);
@@ -38,19 +43,26 @@ export class ProductSupplementService {
   readonly festivals = signal<readonly FestivalOption[]>([]);
   readonly affinities = signal<readonly ProductFestivalAffinity[]>([]);
   readonly reviewUploadResult = signal<ProductReviewFileUploadResult | null>(null);
+  readonly reviewSummary = signal<ProductReviewSummary | null>(null);
   readonly loading = computed(() => this.pendingOperations() > 0);
   readonly error = signal<string | null>(null);
+  readonly festivalError = signal<string | null>(null);
+  readonly affinityError = signal<string | null>(null);
+  readonly reviewSummaryError = signal<string | null>(null);
 
   loadFestivals(): Observable<readonly FestivalOption[]> {
+    this.festivalError.set(null);
     return this.track(
       this.http.get<ApiResponse<FestivalOption[]>>(`${this.baseUrl}/festivals`).pipe(
         map((response) => unwrap(response, '取得節慶清單失敗')),
         tap((festivals) => this.festivals.set(festivals)),
       ),
+      this.festivalError,
     );
   }
 
   loadAffinities(productId: number): Observable<readonly ProductFestivalAffinity[]> {
+    this.affinityError.set(null);
     return this.track(
       this.http
         .get<ApiResponse<ProductFestivalAffinity[]>>(
@@ -60,6 +72,7 @@ export class ProductSupplementService {
           map((response) => unwrap(response, '取得節慶關聯度失敗')),
           tap((affinities) => this.affinities.set(affinities)),
         ),
+      this.affinityError,
     );
   }
 
@@ -80,6 +93,21 @@ export class ProductSupplementService {
     );
   }
 
+  loadReviewSummary(productId: number): Observable<ProductReviewSummary> {
+    this.reviewSummaryError.set(null);
+    return this.track(
+      this.http
+        .get<ApiResponse<ProductReviewSummary>>(
+          `${this.baseUrl}/products/${productId}/comments-file`,
+        )
+        .pipe(
+          map((response) => unwrap(response, '取得評論摘要失敗')),
+          tap((summary) => this.reviewSummary.set(summary)),
+        ),
+      this.reviewSummaryError,
+    );
+  }
+
   uploadReviewFile(productId: number, file: File): Observable<ProductReviewFileUploadResult> {
     const formData = new FormData();
     formData.append('file', file, file.name);
@@ -91,7 +119,13 @@ export class ProductSupplementService {
         )
         .pipe(
           map((response) => unwrap(response, '上傳評論 CSV 失敗')),
-          tap((result) => this.reviewUploadResult.set(result)),
+          tap((result) => {
+            this.reviewUploadResult.set(result);
+            this.reviewSummary.set({
+              totalReviewCount: result.totalReviewCount,
+              lowConfidence: result.lowConfidence,
+            });
+          }),
         ),
     );
   }
@@ -99,16 +133,23 @@ export class ProductSupplementService {
   clear(): void {
     this.affinities.set([]);
     this.reviewUploadResult.set(null);
+    this.reviewSummary.set(null);
     this.error.set(null);
+    this.festivalError.set(null);
+    this.affinityError.set(null);
+    this.reviewSummaryError.set(null);
   }
 
-  private track<T>(source: Observable<T>): Observable<T> {
+  private track<T>(
+    source: Observable<T>,
+    errorTarget: WritableSignal<string | null> = this.error,
+  ): Observable<T> {
     return defer(() => {
       this.pendingOperations.update((count) => count + 1);
-      this.error.set(null);
+      errorTarget.set(null);
       return source.pipe(
         catchError((error: unknown) => {
-          this.error.set(toErrorMessage(error));
+          errorTarget.set(toErrorMessage(error));
           return throwError(() => error);
         }),
         finalize(() => this.pendingOperations.update((count) => Math.max(0, count - 1))),

@@ -7,26 +7,34 @@
     </div>
     <div class="header-actions">
       <a mat-stroked-button routerLink="/products">取消</a>
-      <button
-        mat-stroked-button
-        type="button"
-        [disabled]="editor.saving() || images.loading() || supplements.loading()"
-        (click)="save(true)"
-      >
-        存為草稿
-      </button>
+      @if (canSaveAsDraft()) {
+        <button
+          mat-stroked-button
+          type="button"
+          [disabled]="editor.saving() || images.loading() || supplements.loading()"
+          (click)="save(true)"
+        >
+          存為草稿
+        </button>
+      }
       <button
         mat-flat-button
         type="button"
         [disabled]="editor.saving() || images.loading() || supplements.loading()"
         (click)="save(false)"
       >
-        {{ editor.saving() ? '儲存中…' : '儲存並評分' }}
+        {{
+          editor.saving()
+            ? '儲存中…'
+            : form.controls.trackType.value === 'B'
+              ? '儲存並開始尋源'
+              : '儲存並評分'
+        }}
       </button>
     </div>
   </header>
 
-  @if (editor.loading() || references.loading()) {
+  @if (editor.loading()) {
     <div class="state-card">正在載入品項資料…</div>
   } @else {
     <form [formGroup]="form" novalidate>
@@ -67,6 +75,18 @@
                 </mat-form-field>
               }
             </div>
+            @if (references.categoryError()) {
+              <p class="inline-error" role="alert">
+                類別清單載入失敗，請重新載入後再儲存品項。
+                <button mat-button type="button" (click)="retryCategories()">重新載入</button>
+              </p>
+            }
+            @if (references.supplierError() && form.controls.trackType.value === 'A') {
+              <p class="inline-error" role="status">
+                供應商清單暫時無法載入；仍可不指定供應商後繼續編輯。
+                <button mat-button type="button" (click)="retrySuppliers()">重新載入</button>
+              </p>
+            }
 
             <div class="two-columns">
               <mat-form-field appearance="outline">
@@ -77,41 +97,73 @@
                 </mat-select>
               </mat-form-field>
             </div>
+            @if (form.controls.trackType.value === 'B') {
+              <p class="track-reminder" role="status">
+                <strong>B 軌品項不會進入評分佇列。</strong>
+                按下「儲存並開始尋源」後，品項會轉為評估中並以尋源狀態及時效落差追蹤；也可先存為草稿。
+              </p>
+            }
           </section>
 
-          @if (form.controls.trackType.value === 'A') {
-            <section class="form-card">
-              <h2><span class="step-number">1</span>成本與定價</h2>
-              <div class="two-columns">
-                <mat-form-field appearance="outline">
-                  <mat-label>進貨成本</mat-label>
-                  <input matInput type="number" min="0" step="0.01" formControlName="cost" />
-                  @if (form.hasError('costRequired')) {
-                    <mat-error>A 軌送出時必填</mat-error>
-                  }
-                </mat-form-field>
-                <mat-form-field appearance="outline">
-                  <mat-label>建議售價</mat-label>
-                  <input
-                    matInput
-                    type="number"
-                    min="0.01"
-                    step="0.01"
-                    formControlName="suggestedPrice"
-                  />
-                  @if (form.hasError('suggestedPriceRequired')) {
-                    <mat-error>A 軌送出時必填</mat-error>
-                  } @else if (form.hasError('invalidPrice')) {
-                    <mat-error>建議售價必須大於成本</mat-error>
-                  }
-                </mat-form-field>
-              </div>
-              <div class="margin-panel">
-                <span>毛利率（自動計算）</span>
-                <strong>{{
-                  marginRate() == null ? '—' : (marginRate() | percent: '1.1-1')
-                }}</strong>
-              </div>
+          <section class="form-card">
+            <h2><span class="step-number">1</span>成本與定價</h2>
+            @if (form.controls.trackType.value === 'B') {
+              <p class="field-help">B 軌的成本與建議售價為選填，可於取得報價後補充。</p>
+            }
+            <div class="two-columns">
+              <mat-form-field appearance="outline">
+                <mat-label
+                  >進貨成本{{ form.controls.trackType.value === 'B' ? '（選填）' : '' }}</mat-label
+                >
+                <input matInput type="number" min="0" step="0.01" formControlName="cost" />
+                @if (form.hasError('costRequired')) {
+                  <mat-error>A 軌送出時必填</mat-error>
+                }
+              </mat-form-field>
+              <mat-form-field appearance="outline">
+                <mat-label
+                  >建議售價{{ form.controls.trackType.value === 'B' ? '（選填）' : '' }}</mat-label
+                >
+                <input
+                  matInput
+                  type="number"
+                  min="0.01"
+                  step="0.01"
+                  formControlName="suggestedPrice"
+                />
+                @if (form.hasError('suggestedPriceRequired')) {
+                  <mat-error>A 軌送出時必填</mat-error>
+                } @else if (form.hasError('invalidPrice')) {
+                  <mat-error>建議售價必須大於成本</mat-error>
+                }
+              </mat-form-field>
+            </div>
+            <div class="margin-panel">
+              <span>毛利率（自動計算）</span>
+              <strong>{{ marginRate() == null ? '—' : (marginRate() | percent: '1.1-1') }}</strong>
+            </div>
+            @if (references.categoryMarginMedian(); as statistics) {
+              @if (statistics.medianMarginRate == null || statistics.sampleCount === 0) {
+                <p class="field-help margin-comparison">此類別尚無可比較的毛利率資料。</p>
+              } @else if (marginComparison(); as comparison) {
+                <p class="field-help margin-comparison">
+                  {{ comparison.categoryName }}中位數 {{ comparison.median | percent: '1.1-1' }}（{{
+                    comparison.sampleCount
+                  }}
+                  筆）； 目前毛利率{{ comparison.difference >= 0 ? '高於' : '低於' }}
+                  {{
+                    (comparison.difference < 0 ? -comparison.difference : comparison.difference)
+                      | percent: '1.1-1'
+                  }}。
+                </p>
+              }
+            }
+            @if (references.categoryMarginMedianError()) {
+              <p class="inline-error margin-comparison" role="status">
+                暫時無法取得此類別的毛利率中位數。
+              </p>
+            }
+            @if (form.controls.trackType.value === 'A') {
               <div class="two-columns compact-fields">
                 <mat-form-field appearance="outline">
                   <mat-label>最小訂購量（選填）</mat-label>
@@ -128,16 +180,12 @@
                   }
                 </mat-form-field>
               </div>
-            </section>
-          } @else {
-            <section class="track-note">
-              B 軌不需要成本與售價；品項會以尋源狀態及時效落差追蹤。
-            </section>
-          }
+            }
+          </section>
 
-          @if (form.controls.trackType.value === 'A') {
-            <section class="form-card">
-              <h2><span class="step-number">2</span>物流與氣候</h2>
+          <section class="form-card">
+            <h2><span class="step-number">2</span>物流、氣候與節慶</h2>
+            @if (form.controls.trackType.value === 'A') {
               <mat-form-field appearance="outline" class="full-width">
                 <mat-label>物流條件（選填）</mat-label>
                 <mat-select formControlName="logisticsConditions" multiple>
@@ -146,37 +194,55 @@
                   }
                 </mat-select>
               </mat-form-field>
-              <div class="two-columns compact-fields">
-                <mat-form-field appearance="outline">
-                  <mat-label>適溫下限（°C）</mat-label>
-                  <input matInput type="number" step="0.1" formControlName="idealTempMin" />
-                </mat-form-field>
-                <mat-form-field appearance="outline">
-                  <mat-label>適溫上限（°C）</mat-label>
-                  <input matInput type="number" step="0.1" formControlName="idealTempMax" />
-                  @if (form.hasError('incompleteTemperature')) {
-                    <mat-error>適溫上、下限必須一起填寫</mat-error>
-                  } @else if (form.hasError('invalidTemperature')) {
-                    <mat-error>上限不可低於下限</mat-error>
-                  }
-                </mat-form-field>
-              </div>
-              <p class="field-help">未填時沿用所屬品類的預設適溫區間。</p>
+            }
+            <div class="two-columns compact-fields">
+              <mat-form-field appearance="outline">
+                <mat-label>適溫下限（°C）</mat-label>
+                <input matInput type="number" step="0.1" formControlName="idealTempMin" />
+              </mat-form-field>
+              <mat-form-field appearance="outline">
+                <mat-label>適溫上限（°C）</mat-label>
+                <input matInput type="number" step="0.1" formControlName="idealTempMax" />
+                @if (form.hasError('incompleteTemperature')) {
+                  <mat-error>適溫上、下限必須一起填寫</mat-error>
+                } @else if (form.hasError('invalidTemperature')) {
+                  <mat-error>上限不可低於下限</mat-error>
+                }
+              </mat-form-field>
+            </div>
+            <p class="field-help">未填時沿用所屬品類的預設適溫區間。</p>
 
-              <div class="subsection-heading">
-                <div>
-                  <h3>節慶關聯度</h3>
-                  <p>選填，關聯度請輸入 0–1，供節慶時間窗因子使用。</p>
-                </div>
-                <button
-                  mat-stroked-button
-                  type="button"
-                  [disabled]="festivalAffinities.length >= 50"
-                  (click)="addFestivalAffinity()"
-                >
-                  ＋ 新增節慶
-                </button>
+            <div class="subsection-heading">
+              <div>
+                <h3>節慶關聯度</h3>
+                <p>選填，關聯度請輸入 0–1，供節慶時間窗因子使用。</p>
               </div>
+              <button
+                mat-stroked-button
+                type="button"
+                [disabled]="
+                  festivalAffinities.length >= 50 || !festivalsLoaded() || !affinitiesLoaded()
+                "
+                (click)="addFestivalAffinity()"
+              >
+                ＋ 新增節慶
+              </button>
+            </div>
+            @if (supplements.festivalError()) {
+              <p class="inline-error" role="status">
+                節慶清單暫時無法載入，此區塊不影響其他品項資料。
+                <button mat-button type="button" (click)="retryFestivalOptions()">重新載入</button>
+              </p>
+            }
+            @if (supplements.affinityError()) {
+              <p class="inline-error" role="alert">
+                既有節慶關聯度載入失敗；儲存時將保留原資料，不會以空值覆蓋。
+                <button mat-button type="button" (click)="retryFestivalAffinities()">
+                  重新載入
+                </button>
+              </p>
+            }
+            @if (festivalsLoaded() && affinitiesLoaded()) {
               <div formArrayName="festivalAffinities" class="affinity-list">
                 @for (group of festivalAffinities.controls; track group; let index = $index) {
                   <div class="affinity-row" [formGroupName]="index">
@@ -217,8 +283,8 @@
               @if (festivalAffinities.hasError('duplicateFestival')) {
                 <p class="inline-error" role="alert">同一個節慶不可重複設定。</p>
               }
-            </section>
-          }
+            }
+          </section>
         </div>
 
         <div class="form-column">
@@ -238,6 +304,12 @@
               }
             </mat-form-field>
             <p class="field-help">用於每日擷取 Google Trends 熱度。</p>
+            @if (references.trendKeywordError()) {
+              <p class="inline-error" role="status">
+                趨勢關鍵字暫時無法載入；A 軌仍可繼續，B 軌請重新載入後再送出。
+                <button mat-button type="button" (click)="retryTrendKeywords()">重新載入</button>
+              </p>
+            }
             @if (form.controls.trackType.value === 'A') {
               <mat-form-field appearance="outline" class="full-width">
                 <mat-label>季節性</mat-label>
@@ -256,12 +328,21 @@
                 <h2><span class="step-number">4</span>品項圖片</h2>
                 <span>{{ totalImageCount() }}/5 張</span>
               </div>
-              <label class="upload-zone" [class.disabled]="totalImageCount() >= 5">
+              @if (images.error() && !imagesLoaded()) {
+                <p class="inline-error" role="status">
+                  既有圖片暫時無法載入，為避免超過張數上限，目前停用圖片異動。
+                  <button mat-button type="button" (click)="retryImages()">重新載入</button>
+                </p>
+              }
+              <label
+                class="upload-zone"
+                [class.disabled]="totalImageCount() >= 5 || !imagesLoaded()"
+              >
                 <input
                   type="file"
                   accept="image/jpeg,image/png"
                   multiple
-                  [disabled]="totalImageCount() >= 5"
+                  [disabled]="totalImageCount() >= 5 || !imagesLoaded()"
                   (change)="onFilesSelected($event)"
                 />
                 <strong>選擇 JPG／PNG 圖片</strong>
@@ -328,35 +409,65 @@
                 <h2><span class="step-number">5</span>評論資料來源</h2>
                 <span>單品項補件</span>
               </div>
-              <label class="upload-zone" [class.disabled]="supplements.loading()">
-                <input
-                  type="file"
-                  accept=".csv,text/csv"
-                  [disabled]="supplements.loading()"
-                  (change)="onReviewFileSelected($event)"
-                />
-                <strong>選擇評論 CSV</strong>
-                <span>最大 2 MB；content 欄位必填</span>
-              </label>
-              <p class="csv-help">
-                支援欄位：content、source、rating（0–5）、reviewed_at（yyyy-MM-dd）。
-              </p>
-              @if (reviewFile(); as file) {
-                <div class="selected-file">
-                  <span>{{ file.name }}（{{ file.size | number }} bytes）</span>
-                  <button mat-button type="button" (click)="removeReviewFile()">移除</button>
-                </div>
-              }
-              @if (reviewFileError()) {
-                <p class="inline-error" role="alert">{{ reviewFileError() }}</p>
+              @if (canImportReviews()) {
+                <label
+                  class="upload-zone"
+                  [class.disabled]="supplements.loading()"
+                  [class.drag-active]="reviewDragActive()"
+                  (dragover)="onReviewDragOver($event)"
+                  (dragleave)="onReviewDragLeave($event)"
+                  (drop)="onReviewFileDropped($event)"
+                >
+                  <input
+                    type="file"
+                    accept=".csv,text/csv"
+                    [disabled]="supplements.loading()"
+                    (change)="onReviewFileSelected($event)"
+                  />
+                  <strong>拖曳 CSV 至此，或選擇檔案</strong>
+                  <span>最大 2 MB；content 欄位必填</span>
+                </label>
+                <p class="csv-help">
+                  支援欄位：content、source、rating（0–5）、reviewed_at（yyyy-MM-dd）。
+                </p>
+                @if (reviewFile(); as file) {
+                  <div class="selected-file">
+                    <span>{{ file.name }}（{{ file.size | number }} bytes）</span>
+                    <button mat-button type="button" (click)="removeReviewFile()">移除</button>
+                  </div>
+                }
+                @if (reviewFileError()) {
+                  <p class="inline-error" role="alert">{{ reviewFileError() }}</p>
+                }
+              } @else {
+                <p class="field-help review-help">
+                  目前角色僅能檢視評論摘要，無評論 CSV 匯入權限。
+                </p>
               }
               @if (supplements.reviewUploadResult(); as result) {
                 <p class="upload-summary">
                   已新增 {{ result.insertedCount }} 筆，略過
                   {{ result.duplicateCount }} 筆重複評論； 目前共 {{ result.totalReviewCount }} 筆。
                 </p>
+              } @else if (supplements.reviewSummary(); as summary) {
+                <p class="upload-summary">
+                  目前已有 {{ summary.totalReviewCount }} 則評論；
+                  {{
+                    summary.lowConfidence
+                      ? '資料量不足 20 則，AI 將標示低信心度。'
+                      : '資料量已達 AI 分析門檻。'
+                  }}
+                </p>
+              } @else if (isEditMode() && !reviewSummaryLoaded()) {
+                <p class="field-help review-help">正在載入既有評論摘要…</p>
               }
-              <p class="field-help review-help">評論少於 30 則時，後續 AI 分析會標示低信心度。</p>
+              @if (supplements.reviewSummaryError()) {
+                <p class="inline-error" role="status">
+                  既有評論摘要暫時無法載入，不影響重新上傳補件。
+                  <button mat-button type="button" (click)="retryReviewSummary()">重新載入</button>
+                </p>
+              }
+              <p class="field-help review-help">評論少於 20 則時，後續 AI 分析會標示低信心度。</p>
             </section>
           }
         </div>
@@ -368,12 +479,6 @@
       @if (editor.error()) {
         <p class="form-error" role="alert">{{ editor.error() }}</p>
       }
-      @if (references.error()) {
-        <p class="form-error" role="alert">{{ references.error() }}</p>
-      }
-      @if (images.error()) {
-        <p class="form-error" role="alert">{{ images.error() }}</p>
-      }
       @if (supplements.error()) {
         <p class="form-error" role="alert">{{ supplements.error() }}</p>
       }
@@ -382,6 +487,21 @@
           @for (warning of warnings(); track warning) {
             <p>{{ warning }}</p>
           }
+        </div>
+      }
+      @if (supplementalSaveErrors().length > 0) {
+        <div class="form-error supplemental-errors" role="alert">
+          <strong>
+            {{
+              supplementFailureRetainedAsDraft()
+                ? '品項已保留為草稿，但以下附加資料尚未完成：'
+                : '基本資料已儲存，但以下附加資料尚未完成：'
+            }}
+          </strong>
+          @for (message of supplementalSaveErrors(); track message) {
+            <p>{{ message }}</p>
+          }
+          <p>資料與待上傳檔案已保留，可直接再次按下儲存重試。</p>
         </div>
       }
     </form>

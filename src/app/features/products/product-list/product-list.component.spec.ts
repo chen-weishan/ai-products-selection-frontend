@@ -10,7 +10,8 @@ import { ProductListComponent } from './product-list.component';
 
 describe('ProductListComponent', () => {
   const load = vi.fn();
-  const loadReferences = vi.fn();
+  const loadCategories = vi.fn();
+  const loadSuppliers = vi.fn();
   const navigate = vi.fn();
   const analyzeBatch = vi.fn();
   const assignCategory = vi.fn();
@@ -26,7 +27,8 @@ describe('ProductListComponent', () => {
 
   beforeEach(async () => {
     load.mockReset();
-    loadReferences.mockReset();
+    loadCategories.mockReset();
+    loadSuppliers.mockReset();
     navigate.mockReset();
     analyzeBatch.mockReset();
     assignCategory.mockReset();
@@ -37,7 +39,8 @@ describe('ProductListComponent', () => {
     changeProductStatus.mockReset();
     products.set([]);
     load.mockReturnValue(of({ content: [], page: 0, size: 20, totalElements: 0, totalPages: 0 }));
-    loadReferences.mockReturnValue(of(undefined));
+    loadCategories.mockReturnValue(of([]));
+    loadSuppliers.mockReturnValue(of([]));
     analyzeBatch.mockReturnValue(of({ queuedCount: 2 }));
     assignCategory.mockReturnValue(of({ updatedCount: 2 }));
     disableBatch.mockReturnValue(of({ disabledCount: 2 }));
@@ -73,11 +76,14 @@ describe('ProductListComponent', () => {
         {
           provide: ProductReferenceService,
           useValue: {
-            load: loadReferences,
+            loadCategories,
+            loadSuppliers,
             categories: signal([]),
             suppliers: signal([]),
             loading: signal(false),
             error: signal(null),
+            categoryError: signal(null),
+            supplierError: signal(null),
           },
         },
         {
@@ -94,6 +100,8 @@ describe('ProductListComponent', () => {
             batchLoading: signal(false),
             batchMessage: signal(null),
             batchError: signal(null),
+            analysisMessage: signal(null),
+            analysisError: signal(null),
             analyzeBatch,
             assignCategory,
             disableBatch,
@@ -111,12 +119,25 @@ describe('ProductListComponent', () => {
 
   it('should create and load default references and products', () => {
     expect(component).toBeTruthy();
-    expect(loadReferences).toHaveBeenCalledOnce();
+    expect(loadCategories).toHaveBeenCalledOnce();
+    expect(loadSuppliers).toHaveBeenCalledOnce();
     expect(load).toHaveBeenCalledWith({
       page: 0,
       size: 20,
       sort: ['latestScore,desc'],
     });
+  });
+
+  it('retries category and supplier references independently', () => {
+    loadCategories.mockClear();
+    loadSuppliers.mockClear();
+
+    component.retryCategories();
+    expect(loadCategories).toHaveBeenCalledOnce();
+    expect(loadSuppliers).not.toHaveBeenCalled();
+
+    component.retrySuppliers();
+    expect(loadSuppliers).toHaveBeenCalledOnce();
   });
 
   it('restores filters, paging and sorting from the URL', () => {
@@ -165,6 +186,56 @@ describe('ProductListComponent', () => {
     expect(component.filterForm.controls.maxScore.disabled).toBe(true);
     expect(component.filterForm.controls.minScore.value).toBeNull();
     expect(component.filterForm.controls.maxScore.value).toBeNull();
+  });
+
+  it('keeps A and B columns separate in mixed mode', () => {
+    expect(component.displayedColumns()).toEqual(
+      expect.arrayContaining(['grade', 'timeGapDays', 'status', 'sourcingStatus']),
+    );
+  });
+
+  it('removes B-only filters and sorting for track A URLs', () => {
+    load.mockClear();
+
+    queryParams.next(
+      convertToParamMap({
+        trackType: 'A',
+        sourcingStatus: 'URGENT',
+        sort: 'timeGapDays,asc',
+      }),
+    );
+
+    expect(load).toHaveBeenCalledWith({
+      trackType: 'A',
+      page: 0,
+      size: 20,
+      sort: ['latestScore,desc'],
+    });
+    expect(component.filterForm.controls.sourcingStatus.disabled).toBe(true);
+    expect(component.displayedColumns()).not.toContain('timeGapDays');
+    expect(component.displayedColumns()).not.toContain('sourcingStatus');
+  });
+
+  it('removes A-only filters and sorting for track B URLs', () => {
+    load.mockClear();
+
+    queryParams.next(
+      convertToParamMap({
+        trackType: 'B',
+        grade: 'A',
+        minScore: '70',
+        sort: 'grade,desc',
+      }),
+    );
+
+    expect(load).toHaveBeenCalledWith({
+      trackType: 'B',
+      page: 0,
+      size: 20,
+      sort: ['timeGapDays,asc'],
+    });
+    expect(component.displayedColumns()).not.toContain('grade');
+    expect(component.displayedColumns()).toContain('timeGapDays');
   });
 
   it('writes paging changes back to the URL', () => {

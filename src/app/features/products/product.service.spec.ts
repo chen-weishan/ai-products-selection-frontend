@@ -1,4 +1,4 @@
-import { HttpErrorResponse } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { TestBed } from '@angular/core/testing';
 import { firstValueFrom, of, throwError } from 'rxjs';
 import { ProductControllerService } from '../../api/api/productController.service';
@@ -11,7 +11,10 @@ describe('ProductService', () => {
   const disableBatch = vi.fn();
   const deleteProduct = vi.fn();
   const changeStatus = vi.fn();
+  const getTaskStatus = vi.fn();
   let service: ProductService;
+
+  afterEach(() => vi.useRealTimers());
 
   beforeEach(() => {
     search.mockReset();
@@ -20,6 +23,7 @@ describe('ProductService', () => {
     disableBatch.mockReset();
     deleteProduct.mockReset();
     changeStatus.mockReset();
+    getTaskStatus.mockReset();
     TestBed.configureTestingModule({
       providers: [
         ProductService,
@@ -34,6 +38,7 @@ describe('ProductService', () => {
             changeStatus,
           },
         },
+        { provide: HttpClient, useValue: { get: getTaskStatus } },
       ],
     });
     service = TestBed.inject(ProductService);
@@ -84,10 +89,99 @@ describe('ProductService', () => {
     await firstValueFrom(service.analyzeBatch([101, 102]));
 
     expect(analyzeBatch).toHaveBeenCalledWith({
-      productBatchAnalyzeRequest: { productIds: new Set([101, 102]) },
+      productBatchAnalyzeRequest: { productIds: [101, 102] },
     });
     expect(service.batchMessage()).toBe('已將 2 筆品項加入評分佇列');
     expect(service.batchLoading()).toBe(false);
+  });
+
+  it('refreshes the current list when an analysis task succeeds', async () => {
+    vi.useFakeTimers();
+    analyzeBatch.mockReturnValue(
+      of({ success: true, data: { taskId: 12, status: 'PENDING', queuedCount: 1 } }),
+    );
+    getTaskStatus.mockReturnValue(
+      of({
+        success: true,
+        data: {
+          taskId: 12,
+          status: 'SUCCEEDED',
+          totalCount: 1,
+          successCount: 1,
+          failCount: 0,
+          progressPercent: 100,
+        },
+      }),
+    );
+    search.mockReturnValue(
+      of({
+        success: true,
+        data: { content: [{ id: 101, latestScore: 82 }], page: 0, size: 20 },
+      }),
+    );
+
+    await firstValueFrom(service.analyzeBatch([101]));
+    await vi.advanceTimersByTimeAsync(2_000);
+
+    expect(getTaskStatus).toHaveBeenCalledWith('http://localhost:8080/api/v1/ai/tasks/12');
+    expect(search).toHaveBeenCalled();
+    expect(service.products()).toEqual([{ id: 101, latestScore: 82 }]);
+    expect(service.analysisMessage()).toBe('評分完成：1 筆成功，清單已自動更新');
+    expect(service.analysisPolling()).toBe(false);
+  });
+
+  it('reports an analysis task failure and still refreshes the list', async () => {
+    vi.useFakeTimers();
+    analyzeBatch.mockReturnValue(
+      of({ success: true, data: { taskId: 13, status: 'PENDING', queuedCount: 1 } }),
+    );
+    getTaskStatus.mockReturnValue(
+      of({
+        success: true,
+        data: {
+          taskId: 13,
+          status: 'FAILED',
+          totalCount: 1,
+          successCount: 0,
+          failCount: 1,
+          progressPercent: 100,
+        },
+      }),
+    );
+    search.mockReturnValue(of({ success: true, data: { content: [], page: 0, size: 20 } }));
+
+    await firstValueFrom(service.analyzeBatch([101]));
+    await vi.advanceTimersByTimeAsync(2_000);
+
+    expect(service.analysisError()).toBe('評分任務 #13 執行失敗：0 筆成功、1 筆失敗');
+    expect(search).toHaveBeenCalled();
+    expect(service.analysisPolling()).toBe(false);
+  });
+
+  it('stops polling and reports when an analysis task exceeds 30 seconds', async () => {
+    vi.useFakeTimers();
+    analyzeBatch.mockReturnValue(
+      of({ success: true, data: { taskId: 14, status: 'PENDING', queuedCount: 1 } }),
+    );
+    getTaskStatus.mockReturnValue(
+      of({
+        success: true,
+        data: {
+          taskId: 14,
+          status: 'RUNNING',
+          totalCount: 1,
+          successCount: 0,
+          failCount: 0,
+          progressPercent: 0,
+        },
+      }),
+    );
+
+    await firstValueFrom(service.analyzeBatch([101]));
+    await vi.advanceTimersByTimeAsync(30_000);
+
+    expect(service.analysisError()).toContain('等待超過 30 秒');
+    expect(service.analysisPolling()).toBe(false);
   });
 
   it('assigns a category to selected products', async () => {
@@ -102,7 +196,7 @@ describe('ProductService', () => {
 
     expect(assignCategory).toHaveBeenCalledWith({
       productBatchCategoryRequest: {
-        productIds: new Set([101, 102]),
+        productIds: [101, 102],
         categoryId: 10,
       },
     });
@@ -126,6 +220,18 @@ describe('ProductService', () => {
 
     expect(service.batchError()).toBe('沒有批次停用權限');
     expect(service.batchLoading()).toBe(false);
+  });
+
+  it('serializes batch disable product IDs as a JSON array', async () => {
+    disableBatch.mockReturnValue(
+      of({ success: true, data: { disabledCount: 2, productIds: [101, 102] } }),
+    );
+
+    await firstValueFrom(service.disableBatch([101, 102]));
+
+    const request = disableBatch.mock.calls[0][0].productBatchDisableRequest;
+    expect(request.productIds).toEqual([101, 102]);
+    expect(JSON.parse(JSON.stringify(request))).toEqual({ productIds: [101, 102] });
   });
 
   it('deletes one product through the generated API client', async () => {

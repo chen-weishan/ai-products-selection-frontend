@@ -30,6 +30,17 @@ describe('ProductSupplementService', () => {
     expect(service.festivals()[0].festivalName).toBe('中秋節');
   });
 
+  it('keeps festival load errors scoped to the festival section', async () => {
+    const promise = firstValueFrom(service.loadFestivals());
+    httpTesting
+      .expectOne(`${environment.apiBaseUrl}/festivals`)
+      .flush({ success: false, error: { message: '節慶服務中斷' } });
+
+    await expect(promise).rejects.toThrow('節慶服務中斷');
+    expect(service.festivalError()).toBe('節慶服務中斷');
+    expect(service.error()).toBeNull();
+  });
+
   it('replaces product festival affinities', async () => {
     const promise = firstValueFrom(
       service.saveAffinities(101, [{ festivalCode: 'MID_AUTUMN', affinity: 0.8 }]),
@@ -68,5 +79,19 @@ describe('ProductSupplementService', () => {
     });
 
     await expect(promise).resolves.toMatchObject({ insertedCount: 1 });
+    expect(service.reviewSummary()).toEqual({ totalReviewCount: 1, lowConfidence: true });
+  });
+
+  it('loads the existing review summary for an edited product', async () => {
+    const promise = firstValueFrom(service.loadReviewSummary(101));
+    const request = httpTesting.expectOne(`${environment.apiBaseUrl}/products/101/comments-file`);
+    expect(request.request.method).toBe('GET');
+    request.flush({
+      success: true,
+      data: { totalReviewCount: 42, lowConfidence: false },
+    });
+
+    await expect(promise).resolves.toEqual({ totalReviewCount: 42, lowConfidence: false });
+    expect(service.reviewSummary()).toEqual({ totalReviewCount: 42, lowConfidence: false });
   });
 });

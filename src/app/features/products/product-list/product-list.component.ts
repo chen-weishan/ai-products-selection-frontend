@@ -65,6 +65,14 @@ const SORT_FIELDS = new Set([
 ]);
 const DEFAULT_SORT = 'latestScore,desc';
 const TRACK_B_DEFAULT_SORT = 'timeGapDays,asc';
+const TRACK_A_ONLY_SORT_FIELDS = new Set([
+  'cost',
+  'suggestedPrice',
+  'marginRate',
+  'latestScore',
+  'grade',
+]);
+const TRACK_B_ONLY_SORT_FIELDS = new Set(['timeGapDays', 'sourcingStatus']);
 const EDIT_ROLES: readonly UserRole[] = ['BUYER', 'BUYER_LEAD', 'DATA_ADMIN', 'SYS_ADMIN'];
 const DECISION_ROLES: readonly UserRole[] = ['BUYER', 'BUYER_LEAD', 'SYS_ADMIN'];
 const DELETE_ROLES: readonly UserRole[] = ['BUYER_LEAD', 'SYS_ADMIN'];
@@ -158,25 +166,34 @@ export class ProductListComponent implements OnInit {
     this.criteria().sort?.[0]?.split(',')[1]?.toLowerCase() === 'asc' ? 'asc' : 'desc',
   );
 
-  readonly displayedColumns = [
-    'select',
-    'name',
-    'category',
-    'trackType',
-    'supplier',
-    'cost',
-    'price',
-    'margin',
-    'score',
-    'gradeOrGap',
-    'status',
-    'updatedAt',
-    'actions',
-  ];
+  readonly displayedColumns = computed(() => {
+    const trackType = this.criteria().trackType;
+    const columns = ['select', 'name', 'category', 'trackType', 'supplier'];
+
+    if (trackType !== 'B') {
+      columns.push('cost', 'price', 'margin', 'score', 'grade');
+    }
+    if (trackType !== 'A') {
+      columns.push('timeGapDays');
+    }
+    columns.push('status');
+    if (trackType !== 'A') {
+      columns.push('sourcingStatus');
+    }
+    columns.push('updatedAt', 'actions');
+    return columns;
+  });
 
   ngOnInit(): void {
     this.references
-      .load()
+      .loadCategories()
+      .pipe(
+        catchError(() => EMPTY),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe();
+    this.references
+      .loadSuppliers()
       .pipe(
         catchError(() => EMPTY),
         takeUntilDestroyed(this.destroyRef),
@@ -207,6 +224,7 @@ export class ProductListComponent implements OnInit {
   }
 
   clearFilters(): void {
+    this.filterForm.controls.sourcingStatus.enable({ emitEvent: false });
     this.filterForm.controls.grade.enable({ emitEvent: false });
     this.filterForm.controls.minScore.enable({ emitEvent: false });
     this.filterForm.controls.maxScore.enable({ emitEvent: false });
@@ -228,6 +246,26 @@ export class ProductListComponent implements OnInit {
     this.productService.load(this.criteria()).subscribe({
       error: () => undefined,
     });
+  }
+
+  retryCategories(): void {
+    this.references
+      .loadCategories()
+      .pipe(
+        catchError(() => EMPTY),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe();
+  }
+
+  retrySuppliers(): void {
+    this.references
+      .loadSuppliers()
+      .pipe(
+        catchError(() => EMPTY),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe();
   }
 
   onPage(event: PageEvent): void {
@@ -477,6 +515,14 @@ export class ProductListComponent implements OnInit {
     const minScore = this.filterForm.controls.minScore;
     const maxScore = this.filterForm.controls.maxScore;
     const grade = this.filterForm.controls.grade;
+    const sourcingStatus = this.filterForm.controls.sourcingStatus;
+
+    if (trackType === 'A') {
+      if (clear) sourcingStatus.setValue(null, { emitEvent: false });
+      sourcingStatus.disable({ emitEvent: false });
+    } else {
+      sourcingStatus.enable({ emitEvent: false });
+    }
 
     if (trackType === 'B') {
       if (clear) {
@@ -500,18 +546,18 @@ export class ProductListComponent implements OnInit {
     const trackB = value.trackType === 'B';
     const keyword = value.keyword.trim();
 
-    let sort = this.criteria().sort ?? [DEFAULT_SORT];
-    if (trackB && sort[0] === DEFAULT_SORT) sort = [TRACK_B_DEFAULT_SORT];
-    if (!trackB && sort[0] === TRACK_B_DEFAULT_SORT) sort = [DEFAULT_SORT];
+    const sort = [
+      normalizeSortForTrack(value.trackType, this.criteria().sort?.[0] ?? DEFAULT_SORT),
+    ];
 
     return compactCriteria({
       keyword: keyword || undefined,
       categoryId: value.categoryId ?? undefined,
       supplierId: value.supplierId ?? undefined,
       trackType: value.trackType ?? undefined,
-      sourcingStatus: value.sourcingStatus ?? undefined,
+      sourcingStatus: value.trackType === 'A' ? undefined : (value.sourcingStatus ?? undefined),
       status: value.status ?? undefined,
-      grade: value.grade ?? undefined,
+      grade: trackB ? undefined : (value.grade ?? undefined),
       minScore: trackB ? undefined : (value.minScore ?? undefined),
       maxScore: trackB ? undefined : (value.maxScore ?? undefined),
       hasRisk: value.hasRisk ? true : undefined,
@@ -557,18 +603,17 @@ function criteriaFromQueryParams(params: ParamMap): ProductSearchCriteria {
     ? (requestedSize as 20 | 50 | 100)
     : 20;
 
-  let sort = validSort(params.getAll('sort')[0]);
-  if (trackType === 'B' && sort === DEFAULT_SORT) sort = TRACK_B_DEFAULT_SORT;
-  if (trackType !== 'B' && sort === TRACK_B_DEFAULT_SORT) sort = DEFAULT_SORT;
+  const sort = normalizeSortForTrack(trackType ?? null, validSort(params.getAll('sort')[0]));
 
   return compactCriteria({
     keyword: params.get('keyword')?.trim() || undefined,
     categoryId: positiveInteger(params.get('categoryId')),
     supplierId: positiveInteger(params.get('supplierId')),
     trackType,
-    sourcingStatus: enumParam(params.get('sourcingStatus'), SOURCING_STATUSES),
+    sourcingStatus:
+      trackType === 'A' ? undefined : enumParam(params.get('sourcingStatus'), SOURCING_STATUSES),
     status: enumParam(params.get('status'), PRODUCT_STATUSES),
-    grade: enumParam(params.get('grade'), GRADES),
+    grade: trackType === 'B' ? undefined : enumParam(params.get('grade'), GRADES),
     minScore: trackType === 'B' ? undefined : decimalNumber(params.get('minScore')),
     maxScore: trackType === 'B' ? undefined : decimalNumber(params.get('maxScore')),
     hasRisk: params.get('hasRisk') === 'true' ? true : undefined,
@@ -584,9 +629,9 @@ function criteriaToQueryParams(criteria: ProductSearchCriteria): Record<string, 
     categoryId: criteria.categoryId ?? null,
     supplierId: criteria.supplierId ?? null,
     trackType: criteria.trackType ?? null,
-    sourcingStatus: criteria.sourcingStatus ?? null,
+    sourcingStatus: criteria.trackType === 'A' ? null : (criteria.sourcingStatus ?? null),
     status: criteria.status ?? null,
-    grade: criteria.grade ?? null,
+    grade: criteria.trackType === 'B' ? null : (criteria.grade ?? null),
     minScore: criteria.trackType === 'B' ? null : (criteria.minScore ?? null),
     maxScore: criteria.trackType === 'B' ? null : (criteria.maxScore ?? null),
     hasRisk: criteria.hasRisk === true ? true : null,
@@ -640,4 +685,11 @@ function validSort(value: string | undefined): string {
   return SORT_FIELDS.has(field) && (normalizedDirection === 'asc' || normalizedDirection === 'desc')
     ? `${field},${normalizedDirection}`
     : DEFAULT_SORT;
+}
+
+function normalizeSortForTrack(trackType: TrackType | null, sort: string): string {
+  const field = sort.split(',')[0];
+  if (trackType === 'A' && TRACK_B_ONLY_SORT_FIELDS.has(field)) return DEFAULT_SORT;
+  if (trackType === 'B' && TRACK_A_ONLY_SORT_FIELDS.has(field)) return TRACK_B_DEFAULT_SORT;
+  return sort;
 }
