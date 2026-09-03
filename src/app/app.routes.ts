@@ -2,15 +2,23 @@ import { Routes } from '@angular/router';
 import { MainLayoutComponent } from './layout/main-layout/main-layout.component';
 import { HeaderComponent } from './layout/header/header.component';
 import { TrendDetailComponent } from './features/trend-detail/trend-detail.component';
+import { authGuard } from './core/auth/auth.guard';
+import { ForgetPasswordComponent } from './features/auth/forget-password/forget-password.component';
+
 export const routes: Routes = [
 
   {
     path: 'login', loadComponent: () =>
       import('./features/auth/login/login.component').then(m => m.LoginComponent)
   },
+  {
+    path: 'forget-password', loadComponent: () =>
+      import('./features/auth/forget-password/forget-password.component').then(m => m.ForgetPasswordComponent)
+  },
 
   {
     path: '', component: MainLayoutComponent,
+    canActivate: [authGuard],
     children: [
       {
         path: '',

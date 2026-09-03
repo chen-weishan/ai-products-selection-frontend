@@ -2,18 +2,19 @@
     <div class="login-main">
         <h1 class="title">登入</h1>
         <label>電子郵件</label>
-        <input type="text" placeholder="user@company.com">
+        <input type="text" [(ngModel)]="email" placeholder="user@company.com">
         <label>密碼</label>
-        <input type="password" placeholder="password">
+        <input type="password" [(ngModel)]="password" placeholder="password">
     </div>
     <div class="password-group">
         <div class="checkbox-group">
             <input type="checkbox" name="remember-me" id="remember-me">
             <label for="remember-me">記住我</label>
         </div>
-        <a href="" class="forget-password">忘記密碼?</a>
+        <a href="javascript:void(0)" (click)="forget()" class="forget-password">忘記密碼?</a>
     </div>
     <div class="sign-btn">
-        <button>登入</button>
+        <button [disabled]="!email.trim()||!password.trim()||isLoading"
+            (click)="onLogin()">{{isLoading?'登入中':'登入'}}</button>
     </div>
 </div>
