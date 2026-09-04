@@ -281,7 +281,9 @@
         <ng-container matColumnDef="score">
           <th mat-header-cell *matHeaderCellDef mat-sort-header="latestScore">分數</th>
           <td mat-cell *matCellDef="let product" class="number-cell">
-            @if (product.trackType === 'B' || product.latestScore == null) {
+            @if (isInsufficientData(product)) {
+              <span class="insufficient-data">資料不足</span>
+            } @else if (product.trackType === 'B' || product.latestScore == null) {
               —
             } @else {
               {{ product.latestScore | number: '1.0-1' }}

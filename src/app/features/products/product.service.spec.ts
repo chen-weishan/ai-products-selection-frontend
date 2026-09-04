@@ -7,6 +7,7 @@ import { ProductService } from './product.service';
 describe('ProductService', () => {
   const search = vi.fn();
   const analyzeBatch = vi.fn();
+  const queueScoreBatch = vi.fn();
   const assignCategory = vi.fn();
   const disableBatch = vi.fn();
   const deleteProduct = vi.fn();
@@ -19,6 +20,7 @@ describe('ProductService', () => {
   beforeEach(() => {
     search.mockReset();
     analyzeBatch.mockReset();
+    queueScoreBatch.mockReset();
     assignCategory.mockReset();
     disableBatch.mockReset();
     deleteProduct.mockReset();
@@ -32,6 +34,7 @@ describe('ProductService', () => {
           useValue: {
             search,
             analyzeBatch,
+            queueScoreBatch,
             assignCategory,
             disableBatch,
             _delete: deleteProduct,
@@ -93,6 +96,29 @@ describe('ProductService', () => {
     });
     expect(service.batchMessage()).toBe('已將 2 筆品項加入評分佇列');
     expect(service.batchLoading()).toBe(false);
+  });
+
+  it('uses the dedicated score queue endpoint and reports skipped products', async () => {
+    queueScoreBatch.mockReturnValue(
+      of({
+        success: true,
+        data: {
+          taskId: 21,
+          status: 'PENDING',
+          requestedCount: 3,
+          queuedCount: 1,
+          warnings: ['品項已在評分佇列中，已略過：[102, 103]'],
+        },
+      }),
+    );
+
+    await firstValueFrom(service.queueScoreBatch([101, 102, 103]));
+
+    expect(queueScoreBatch).toHaveBeenCalledWith({
+      productBatchQueueScoreRequest: { productIds: [101, 102, 103] },
+    });
+    expect(service.batchMessage()).toContain('已將 1 筆品項加入評分佇列');
+    expect(service.batchMessage()).toContain('已略過');
   });
 
   it('refreshes the current list when an analysis task succeeds', async () => {

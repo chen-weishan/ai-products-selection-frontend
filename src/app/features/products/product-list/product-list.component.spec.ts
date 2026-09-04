@@ -14,6 +14,7 @@ describe('ProductListComponent', () => {
   const loadSuppliers = vi.fn();
   const navigate = vi.fn();
   const analyzeBatch = vi.fn();
+  const queueScoreBatch = vi.fn();
   const assignCategory = vi.fn();
   const disableBatch = vi.fn();
   const deleteProduct = vi.fn();
@@ -31,6 +32,7 @@ describe('ProductListComponent', () => {
     loadSuppliers.mockReset();
     navigate.mockReset();
     analyzeBatch.mockReset();
+    queueScoreBatch.mockReset();
     assignCategory.mockReset();
     disableBatch.mockReset();
     deleteProduct.mockReset();
@@ -42,6 +44,7 @@ describe('ProductListComponent', () => {
     loadCategories.mockReturnValue(of([]));
     loadSuppliers.mockReturnValue(of([]));
     analyzeBatch.mockReturnValue(of({ queuedCount: 2 }));
+    queueScoreBatch.mockReturnValue(of({ queuedCount: 2 }));
     assignCategory.mockReturnValue(of({ updatedCount: 2 }));
     disableBatch.mockReturnValue(of({ disabledCount: 2 }));
     deleteProduct.mockReturnValue(of(undefined));
@@ -103,6 +106,7 @@ describe('ProductListComponent', () => {
             analysisMessage: signal(null),
             analysisError: signal(null),
             analyzeBatch,
+            queueScoreBatch,
             assignCategory,
             disableBatch,
             deleteProduct,
@@ -268,7 +272,7 @@ describe('ProductListComponent', () => {
 
     component.analyzeSelected();
 
-    expect(analyzeBatch).toHaveBeenCalledWith([101, 102]);
+    expect(queueScoreBatch).toHaveBeenCalledWith([101, 102]);
     expect(component.selection.isEmpty()).toBe(true);
   });
 
@@ -282,7 +286,7 @@ describe('ProductListComponent', () => {
 
     component.analyzeSelected();
 
-    expect(analyzeBatch).toHaveBeenCalledWith([101]);
+    expect(queueScoreBatch).toHaveBeenCalledWith([101]);
     expect(component.selectionNotice()).toContain('略過 2 筆');
   });
 
@@ -311,5 +315,15 @@ describe('ProductListComponent', () => {
     expect(disableBatch).toHaveBeenCalledWith([101, 102]);
     expect(load).toHaveBeenCalledWith(component.criteria());
     expect(component.selection.isEmpty()).toBe(true);
+  });
+
+  it('distinguishes insufficient data from a product that has not been scored', () => {
+    expect(
+      component.isInsufficientData({
+        trackType: 'A',
+        lastScoringStatus: 'INSUFFICIENT_DATA',
+      } as any),
+    ).toBe(true);
+    expect(component.isInsufficientData({ trackType: 'A' })).toBe(false);
   });
 });

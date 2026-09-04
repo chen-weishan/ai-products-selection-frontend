@@ -250,6 +250,12 @@ tr:nth-child(even) td {
   vertical-align: middle;
 }
 
+.insufficient-data {
+  color: #b54708;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
 mat-paginator {
   margin-top: 8px;
   border-radius: 10px;

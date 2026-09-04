@@ -18,6 +18,7 @@ import {
   ProductBatchAnalyzeResponse,
   ProductBatchCategoryResponse,
   ProductBatchDisableResponse,
+  ProductBatchQueueScoreResponse,
   ProductListItemResponse,
   ProductStatusUpdateRequest,
   ProductStatusUpdateResponse,
@@ -131,6 +132,30 @@ export class ProductService implements OnDestroy {
             return;
           }
           this.startAnalysisPolling(result.taskId, productIds.length);
+        }),
+        this.handleBatchError(),
+        finalize(() => this.batchLoading.set(false)),
+      );
+  }
+
+  queueScoreBatch(productIds: readonly number[]): Observable<ProductBatchQueueScoreResponse> {
+    this.startBatchAction();
+
+    return this.api
+      .queueScoreBatch({
+        productBatchQueueScoreRequest: {
+          productIds: [...productIds],
+        },
+      })
+      .pipe(
+        map((response) => unwrapResponse(response, '批次加入評分佇列失敗')),
+        tap((result) => {
+          const warnings = result.warnings?.length ? `；${result.warnings.join('；')}` : '';
+          this.batchMessage.set(`已將 ${result.queuedCount ?? 0} 筆品項加入評分佇列${warnings}`);
+
+          if (result.taskId != null && (result.queuedCount ?? 0) > 0) {
+            this.startAnalysisPolling(result.taskId, result.queuedCount ?? 0);
+          }
         }),
         this.handleBatchError(),
         finalize(() => this.batchLoading.set(false)),

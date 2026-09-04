@@ -339,7 +339,7 @@ export class ProductListComponent implements OnInit {
     );
 
     this.productService
-      .analyzeBatch(productIds)
+      .queueScoreBatch(productIds)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: () => this.selection.clear(),
@@ -463,6 +463,10 @@ export class ProductListComponent implements OnInit {
 
   isScorable(product: ProductListItemResponse): boolean {
     return product.trackType === 'A' && product.status !== 'DRAFT' && product.status !== 'REJECTED';
+  }
+
+  isInsufficientData(product: ProductListItemResponse): boolean {
+    return product.trackType === 'A' && product.lastScoringStatus === 'INSUFFICIENT_DATA';
   }
 
   scorableSelectedCount(): number {
