@@ -97,7 +97,7 @@ export function findMockAccount(email: string, password?: string): MockAccount |
 export function createMockLoginResponse(account: MockAccount): LoginResponse {
   const timestamp = Date.now();
   return {
-    accessToken: `mock_jwt_token_${account.role.toLowerCase()}_${timestamp}`,
+    accessToken: `eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiI0IiwiZW1haWwiOiJzeXNhZG1pbkBzc2RzLmRldiIsImRpc3BsYXlOYW1lIjoi546L57S55a6JIiwicm9sZXMiOlsiU1lTX0FETUlOIl0sImlhdCI6MTc4ODc1MzY0MSwiZXhwIjoxNzg4NzYwODQxfQ.YzlLRLp_TEHuTw9CBuoK601S1yjCBIh4x1ZMz7G-RHr8I0hOdzLYV7JmRXidwRLo_X61HUAJTKn_Hm0RGDZlnw`,
     refreshToken: `mock_refresh_token_${account.user.id}_${timestamp}`,
     expiresIn: 86400, // 24 hours
     user: { ...account.user }

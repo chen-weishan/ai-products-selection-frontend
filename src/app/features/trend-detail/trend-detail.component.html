@@ -80,6 +80,7 @@
         <th>30 日斜率</th>
         <th>同源百分位</th>
         <th>合成權重</th>
+        <th>狀態</th>
       </tr>
     </thead>
     <tbody>
@@ -90,6 +91,7 @@
         <td>{{ src.slope30d ?? '-' }}</td>
         <td>{{ src.percentile ? (src.percentile + '%') : '-' }}</td>
         <td>{{ src.appliedWeight ?? '-' }}</td>
+        <td>{{src.status}}</td>
       </tr>
       }
     </tbody>
@@ -104,9 +106,13 @@
 
 <div class="ai-returns">
   <div class="Synthesis-Logic">
-    <h4>合成邏輯</h4>
+    <h3>合成邏輯</h3>
   </div>
   <div class="dual-windows">
-    <h4>雙窗口</h4>
+    <div class="description">
+      <h3>雙窗口</h3>
+      <p>7 日斜率抓短期竄升，30 日斜率確認不是單日雜訊。
+        兩者背離時（7 日轉負、30 日仍正）系統標記為可能見頂，提示採購加速決策或觀望。</p>
+    </div>
   </div>
 </div>
