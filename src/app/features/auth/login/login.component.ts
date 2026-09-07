@@ -1,7 +1,9 @@
 import { Component, inject } from '@angular/core';
-import { AuthService } from '../../../core/auth/auth.service'
+import { AuthService } from '../../../core/auth/auth.service';
 import { Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
+import { MockAccount } from '../../../core/auth/mock-users';
+
 @Component({
   selector: 'app-login',
   imports: [FormsModule],
@@ -16,17 +18,25 @@ export class LoginComponent {
   password = '';
   rememberMe = false;
   isLoading = false;
-  erroeMessage = '';
+  errorMessage = '';
 
+  /** 模擬帳號列表供快速填入測試 */
+  readonly mockAccounts = this.authservice.getMockAccounts();
 
+  /** 快速填入指定角色的測試帳密 */
+  fillMockAccount(account: MockAccount): void {
+    this.email = account.email;
+    this.password = account.password;
+    this.errorMessage = '';
+  }
 
   onLogin(): void {
     if (!this.email || !this.password) {
-      this.erroeMessage = '請輸入帳號或密碼';
+      this.errorMessage = '請輸入帳號或密碼';
       return;
     }
     this.isLoading = true;
-    this.erroeMessage = '';
+    this.errorMessage = '';
     this.authservice.login({ email: this.email, password: this.password }).subscribe({
       next: () => {
         this.isLoading = false;
@@ -34,14 +44,13 @@ export class LoginComponent {
       },
       error: (err) => {
         this.isLoading = false;
-        this.erroeMessage = '帳號或密碼錯誤';
-        console.error('login failed', err)
+        this.errorMessage = err?.message || '帳號或密碼錯誤';
+        console.error('login failed', err);
       }
-    })
-
+    });
   }
 
-  forget() {
+  forget(): void {
     this.router.navigate(['/forget-password']);
   }
 }

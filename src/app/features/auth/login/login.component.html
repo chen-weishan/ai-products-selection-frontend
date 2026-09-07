@@ -1,20 +1,67 @@
 <div class="login-wrapper">
-    <div class="login-main">
-        <h1 class="title">登入</h1>
-        <label>電子郵件</label>
-        <input type="text" [(ngModel)]="email" placeholder="user@company.com">
-        <label>密碼</label>
-        <input type="password" [(ngModel)]="password" placeholder="password">
+  <div class="login-main">
+    <h1 class="title">系統登入</h1>
+    
+    <div class="input-field">
+      <label for="email">電子郵件</label>
+      <input 
+        id="email"
+        type="text" 
+        [(ngModel)]="email" 
+        placeholder="user@company.com"
+        (keydown.enter)="onLogin()"
+      />
     </div>
-    <div class="password-group">
-        <div class="checkbox-group">
-            <input type="checkbox" name="remember-me" id="remember-me">
-            <label for="remember-me">記住我</label>
-        </div>
-        <a href="javascript:void(0)" (click)="forget()" class="forget-password">忘記密碼?</a>
+
+    <div class="input-field">
+      <label for="password">密碼</label>
+      <input 
+        id="password"
+        type="password" 
+        [(ngModel)]="password" 
+        placeholder="請輸入密碼"
+        (keydown.enter)="onLogin()"
+      />
     </div>
-    <div class="sign-btn">
-        <button [disabled]="!email.trim()||!password.trim()||isLoading"
-            (click)="onLogin()">{{isLoading?'登入中':'登入'}}</button>
+  </div>
+
+  <div class="password-group">
+    <div class="checkbox-group">
+      <input type="checkbox" name="remember-me" id="remember-me" [(ngModel)]="rememberMe">
+      <label for="remember-me">記住我</label>
     </div>
+    <a href="javascript:void(0)" (click)="forget()" class="forget-password">忘記密碼?</a>
+  </div>
+
+  <div class="sign-btn">
+    <button 
+      [disabled]="!email.trim() || !password.trim() || isLoading"
+      (click)="onLogin()"
+    >
+      {{ isLoading ? '驗證登入中...' : '登入' }}
+    </button>
+  </div>
+
+  <div class="error-group">
+    @if (errorMessage) {
+      <span class="error">{{ errorMessage }}</span>
+    }
+  </div>
+
+  <!-- 快速測試帳號選擇區 -->
+  <div class="mock-accounts-section">
+    <div class="mock-title">測試帳號快速填入</div>
+    <div class="mock-badges">
+      @for (acc of mockAccounts; track acc.role) {
+        <button 
+          type="button" 
+          class="mock-badge-btn" 
+          (click)="fillMockAccount(acc)"
+          [title]="acc.description + ' (' + acc.email + ' / ' + acc.password + ')'"
+        >
+          {{ acc.label }}
+        </button>
+      }
+    </div>
+  </div>
 </div>
