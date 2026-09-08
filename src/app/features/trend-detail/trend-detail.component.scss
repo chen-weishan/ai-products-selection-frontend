@@ -72,66 +72,45 @@
   }
 }
 
+@keyframes growBar {
+  from {
+    width: 0;
+  }
 
-// .badge {
-//   display: inline-block;
-//   padding: 4px 10px;
-//   border-radius: 20px;
-//   font-size: 13px;
-//   font-weight: 500;
-//   margin: 5px;
+  to {
+    width: var(--target);
+  }
+}
 
-//   &.stage-badge {
-//     background: #e0f2fe;
-//     color: #0369a1;
-//   }
+.progress-container {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 
-//   &.warning-badge {
-//     background: #fee2e2;
-//     color: #b91c1c;
-//   }
-// }
+  .progress-track {
+    width: 100px;
+    height: 8px;
+    background-color: #e2e8f0; // 灰色底軌
+    border-radius: 4px;
+    overflow: hidden;
 
-// .metrics-grid {
-//   display: grid;
-//   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-//   gap: 16px;
-//   margin-bottom: 24px;
+    .fill {
+      height: 100%;
+      background: linear-gradient(90deg, #3b82f6, #60a5fa); // 藍色進度條
+      width: 0;
+      border-radius: 4px;
+      animation: growBar 1.2s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+    }
+  }
 
-//   .metric-card {
-//     background: #ffffff;
-//     border: 1px solid #e2e8f0;
-//     border-radius: 12px;
-//     padding: 16px 20px;
-//     display: flex;
-//     flex-direction: column;
-//     gap: 6px;
-//     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  .weight-label {
+    font-size: 13px;
+    font-weight: 500;
+    color: #475569;
+    min-width: 45px;
+  }
+}
 
-//     .metric-label {
-//       font-size: 13px;
-//       color: #64748b;
-//     }
-
-//     .metric-value {
-//       font-size: 22px;
-//       font-weight: 700;
-//       color: #1e293b;
-
-//       &.highlight {
-//         color: #2563eb;
-//       }
-
-//       &.positive {
-//         color: #16a34a;
-//       }
-
-//       &.negative {
-//         color: #dc2626;
-//       }
-//     }
-//   }
-// }
 
 .chart-section {
   background: #fcfcfc;
@@ -300,12 +279,15 @@
   }
 }
 
+
+
+
 .line {
-  width: 100%;
+  // width: 100%;
   height: 5px;
   background-color: #1e293b;
   border-radius: 20px;
-
+  margin: 10px;
 }
 
 .ai-returns {

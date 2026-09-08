@@ -52,7 +52,8 @@
   <div class="badge">
     @if (data.stage) {
 
-    <span class="badge stage-badge">{{ data.stage }} (第 {{ data.stageWeeks }} 週)</span>
+    <span class="badge stage-badge">
+      {{ stageMap[data.stage] }} (第 {{ data.stageWeeks }} 週)</span>
 
     }
     @if (data.divergenceFlag) {
@@ -71,31 +72,59 @@
 
 @if (data.sourceDetails && data.sourceDetails.length > 0) {
 <div class="sources-section">
-  <h3>資料來源明細</h3>
-  <table>
-    <thead>
-      <tr>
-        <th>來源</th>
-        <th>7 日斜率</th>
-        <th>30 日斜率</th>
-        <th>同源百分位</th>
-        <th>合成權重</th>
-        <th>狀態</th>
-      </tr>
-    </thead>
-    <tbody>
-      @for (src of data.sourceDetails; track src.sourceName) {
-      <tr>
-        <td>{{ src.sourceName }}</td>
-        <td>{{ src.slope7d ?? '-' }}</td>
-        <td>{{ src.slope30d ?? '-' }}</td>
-        <td>{{ src.percentile ? (src.percentile + '%') : '-' }}</td>
-        <td>{{ src.appliedWeight ?? '-' }}</td>
-        <td>{{src.status}}</td>
-      </tr>
-      }
-    </tbody>
+  <h2>資料來源明細</h2>
+
+  <table mat-table [dataSource]="data.sourceDetails" class="mat-shadow-2">
+
+    <!--- Note that these columns can be defined in any order.
+        The actual rendered columns are set as a property on the row definition" -->
+
+    <!-- Position Column -->
+    <ng-container matColumnDef="sourceName">
+      <th mat-header-cell *matHeaderCellDef> 來源</th>
+      <td mat-cell *matCellDef="let element"> {{element.sourceName}} </td>
+    </ng-container>
+
+    <!-- Name Column -->
+    <ng-container matColumnDef="slope7d">
+      <th mat-header-cell *matHeaderCellDef> 7日斜率 </th>
+      <td mat-cell *matCellDef="let element"> {{element.slope7d}} </td>
+    </ng-container>
+
+    <!-- Weight Column -->
+    <ng-container matColumnDef="slope30d">
+      <th mat-header-cell *matHeaderCellDef> 30日斜率 </th>
+      <td mat-cell *matCellDef="let element"> {{element.slope30d}} </td>
+    </ng-container>
+
+    <!-- Symbol Column -->
+    <ng-container matColumnDef="percentile">
+      <th mat-header-cell *matHeaderCellDef> 百分位</th>
+      <td mat-cell *matCellDef="let element"> {{element.percentile}} </td>
+    </ng-container>
+
+    <ng-container matColumnDef="appliedWeight">
+      <th mat-header-cell *matHeaderCellDef> 合成權重</th>
+      <td mat-cell *matCellDef="let element">
+        <div class="progress-container">
+          <div class="progress-track">
+            <div class="fill" [style.--target]="(element.appliedWeight*100)+'%'"></div>
+          </div>
+          <span class="weight-label">{{ (element.appliedWeight * 100 | number:'1.0-1') }}%</span>
+        </div>
+      </td>
+    </ng-container>
+
+    <ng-container matColumnDef="status">
+      <th mat-header-cell *matHeaderCellDef> 狀態</th>
+      <td mat-cell *matCellDef="let element"> {{statusMap[element.status]||element.status}} </td>
+    </ng-container>
+
+    <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+    <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
   </table>
+
+
 </div>
 } @else {
 <p style="color: #64748b; margin-top: 16px;">尚無來源明細資料</p>

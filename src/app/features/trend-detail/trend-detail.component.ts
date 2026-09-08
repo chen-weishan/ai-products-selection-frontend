@@ -13,9 +13,11 @@ import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Chart } from 'chart.js/auto';
+import { MatTableModule } from '@angular/material/table';
 
 import {
   Point,
+  SourceDetail,
   TrendControllerService,
   TrendKeywordDetailResponse,
 } from '../../api';
@@ -24,7 +26,7 @@ type DateRange = '90d' | '60d' | '30d';
 
 @Component({
   selector: 'app-trend-detail',
-  imports: [CommonModule],
+  imports: [CommonModule, MatTableModule],
   templateUrl: './trend-detail.component.html',
   styleUrl: './trend-detail.component.scss',
 })
@@ -41,13 +43,37 @@ export class TrendDetailComponent implements OnInit, OnDestroy {
   errorMessage = signal<string | null>(null);
   trendData = signal<TrendKeywordDetailResponse | null>(null);
   currentkeywordId = signal<number | null>(null);
-
   selectedRange = signal<DateRange>('90d');
   readonly dateRangeOptions: { label: string; value: DateRange }[] = [
     { label: '近90天', value: '90d' },
     { label: '近60天', value: '60d' },
     { label: '近30天', value: '30d' },
   ];
+
+  readonly stageMap: Record<string, string> = {
+    RISING: '上升期',
+    PLATEAU: '高原期',
+    DECLINING: '衰退期'
+  };
+
+  readonly statusMap: Record<string, string> = {
+    AVAILABLE: '正常',
+    INSUFFICIENT_DATA: '數據不足',
+    NO_DATA: '無資料',
+    UNAVAILABLE: '異常',
+    DEGRADED: '降級',
+    SYNCING: '同步中'
+  };
+
+  displayedColumns: string[] = [
+    'sourceName',
+    'slope7d',
+    'slope30d',
+    'percentile',
+    'appliedWeight',
+    'status'
+  ];
+
 
   ngOnInit(): void {
     const rawid = this.route.snapshot.paramMap.get('keywordId');

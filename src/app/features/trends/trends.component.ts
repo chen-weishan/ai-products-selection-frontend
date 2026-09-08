@@ -1,5 +1,5 @@
 import { Component, DestroyRef, inject, signal } from '@angular/core';
-import { TrendControllerService, TrendSignalProjection } from '../../api';
+import { TrendControllerService, TrendSignalRow } from '../../api';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router } from '@angular/router';
 import { MatTableModule } from '@angular/material/table';
@@ -18,7 +18,7 @@ export class TrendsComponent {
   private readonly destroyRef = inject(DestroyRef);
   isLoading = signal(false);
   errorMessage = signal<string | null>(null);
-  trendList = signal<TrendSignalProjection[]>([]);
+  trendList = signal<TrendSignalRow[]>([]);
 
 
 
