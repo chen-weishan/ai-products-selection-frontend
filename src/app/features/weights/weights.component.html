@@ -18,7 +18,8 @@
       <select class="sel" (change)="onSelectChange($any($event.target).value)">
         @for (v of versions(); track v.id) {
           <option [value]="v.id" [selected]="v.id === sel.id">
-            版本：{{ v.versionNo }}{{ v.isCurrent ? '（生效中）' : '' }}
+            <!-- 生效中優先於狀態：APPROVED 但非現行的舊版本要顯示「已核准」而不是「生效中」 -->
+            版本：{{ v.versionNo }}（{{ v.isCurrent ? '生效中' : statusLabels[v.status] }}）
           </option>
         }
       </select>
