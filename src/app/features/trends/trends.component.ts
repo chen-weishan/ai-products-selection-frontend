@@ -1,26 +1,23 @@
-import { Component, DestroyRef, inject, signal } from '@angular/core';
+import { Component, DestroyRef, inject, signal, OnInit } from '@angular/core';
 import { TrendControllerService, TrendSignalRow } from '../../api';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router } from '@angular/router';
 import { MatTableModule } from '@angular/material/table';
-import { RouterLink } from '@angular/router';
-import { TrendDetailComponent } from '../trend-detail/trend-detail.component';
+import { MOCK_TREND_LIST } from '../../core/mock/trend-mock';
 
 @Component({
   selector: 'app-trends',
-  imports: [MatTableModule, RouterLink],
+  imports: [MatTableModule],
   templateUrl: './trends.component.html',
   styleUrl: './trends.component.scss'
 })
-export class TrendsComponent {
-  private readonly trendService = inject(TrendControllerService)
+export class TrendsComponent implements OnInit {
+  private readonly trendService = inject(TrendControllerService);
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
   isLoading = signal(false);
   errorMessage = signal<string | null>(null);
   trendList = signal<TrendSignalRow[]>([]);
-
-
 
   ngOnInit() {
     this.loadTrends();
@@ -29,18 +26,19 @@ export class TrendsComponent {
   loadTrends() {
     this.isLoading.set(true);
     this.errorMessage.set(null);
-    this.trendService.getTrends().
-      pipe(takeUntilDestroyed(this.destroyRef))
+    this.trendService.getTrends()
+      .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (res) => {
-          this.trendList.set(res);
+          this.trendList.set(res && res.length > 0 ? res : MOCK_TREND_LIST);
           this.isLoading.set(false);
         },
         error: (err) => {
-          this.errorMessage.set('載入失敗,請稍後再嘗試!');
+          console.warn('[TrendsComponent] 後端 API 請求失敗，自動使用 Mock 假資料回退:', err);
+          this.trendList.set(MOCK_TREND_LIST);
           this.isLoading.set(false);
         }
-      })
+      });
   }
 
   displayedColumns: string[] = [

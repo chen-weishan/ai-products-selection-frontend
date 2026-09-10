@@ -21,6 +21,7 @@ import {
   TrendControllerService,
   TrendKeywordDetailResponse,
 } from '../../api';
+import { getMockTrendDetail } from '../../core/mock/trend-mock';
 
 type DateRange = '90d' | '60d' | '30d';
 
@@ -117,9 +118,17 @@ export class TrendDetailComponent implements OnInit, OnDestroy {
             }
           });
         },
-        error: () => {
-          this.errorMessage.set('載入失敗,請稍後再嘗試!');
+        error: (err) => {
+          console.warn('[TrendDetailComponent] 後端 API 請求失敗，自動使用 Mock 假資料回退:', err);
+          const mockData = getMockTrendDetail(keywordId, this.selectedRange());
+          this.trendData.set(mockData);
           this.isLoading.set(false);
+
+          setTimeout(() => {
+            if (mockData.points && mockData.points.length > 0) {
+              this.renderChart(mockData.points);
+            }
+          });
         },
       });
   }
