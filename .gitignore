@@ -39,6 +39,9 @@ testem.log
 /typings
 __screenshots__/
 
+# API Generated Code
+/src/app/api
+
 # System files
 .DS_Store
 Thumbs.db

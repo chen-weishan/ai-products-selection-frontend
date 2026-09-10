@@ -1,0 +1,233 @@
+.dashboard {
+  padding: 20px;
+  font-family: inherit;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+.track-switch, .period-switch {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+}
+
+.track-switch label, .period-switch label {
+  margin: 0;
+}
+
+select {
+  padding: 4px 8px;
+  font-size: 0.9rem;
+}
+
+.quick-mark {
+  background: var(--bright-blue, #4a90e2);
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 20px;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+.quick-mark:hover {
+  opacity: 0.9;
+}
+
+/* Heat sources */
+.heat-sources {
+  margin-bottom: 20px;
+  padding: 15px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+}
+.heat-sources h3 {
+  margin-top: 0;
+  font-size: 1.1rem;
+}
+.sources-list {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+.source-item {
+  background: #f9f9f9;
+  padding: 10px;
+  border-radius: 6px;
+  min-width: 180px;
+}
+.source-name {
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+.source-status {
+  margin-bottom: 4px;
+}
+.dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 6px;
+}
+.dot.available { background: #28a745; }
+.dot.unavailable { background: #dc3545; }
+.source-updated, .source-quota {
+  font-size: 0.85rem;
+  color: #666;
+}
+
+/* KPI cards */
+.kpi-cards {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 20px;
+}
+.card {
+  flex: 1;
+  min-width: 150px;
+  padding: 15px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  text-align: center;
+}
+.card h4 {
+  margin: 0 0 8px 0;
+  font-size: 0.9rem;
+  color: #555;
+}
+.card .value {
+  font-size: 1.8rem;
+  font-weight: bold;
+  color: #333;
+}
+
+/* Ranking tabs */
+.ranking-tabs {
+  display: flex;
+  gap: 0;
+  margin-bottom: 10px;
+  border-bottom: 2px solid #ddd;
+}
+.ranking-tabs .tab {
+  flex: 1;
+  padding: 10px;
+  text-align: center;
+  background: #f5f5f5;
+  border: none;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+.ranking-tabs .tab.active {
+  background: white;
+  border-bottom: 2px solid var(--bright-blue, #4a90e2);
+  color: var(--bright-blue, #4a90e2);
+  font-weight: 600;
+}
+
+/* Ranking board table */
+.ranking-board table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.ranking-board th,
+.ranking-board td {
+  padding: 8px 12px;
+  text-align: left;
+  border-bottom: 1px solid #eee;
+}
+.ranking-board th {
+  background: #fafafa;
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+.ranking-board td.score {
+  font-weight: 600;
+  color: #d32f2f;
+}
+.ranking-board td.override {
+  text-align: center;
+  font-size: 1.2rem;
+  color: #ff9800;
+}
+.ranking-board td {
+  font-size: 0.9rem;
+}
+
+/* Grade colors */
+.grade-a { color: #2e7d32; }
+.grade-b { color: #1565c0; }
+.grade-c { color: #ef6c00; }
+.grade-d { color: #c62828; }
+.grade-e { color: #6a1b9a; }
+.grade-f { color: #000; }
+.grade-g { color: #000; }
+
+/* Pending fill */
+.pending-fill {
+  margin-bottom: 20px;
+  padding: 15px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+}
+.pending-fill h3 {
+  margin-top: 0;
+}
+.pending-fill table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.pending-fill th,
+.pending-fill td {
+  padding: 8px 12px;
+  border-bottom: 1px solid #eee;
+}
+.pending-fill th {
+  background: #fafafa;
+  font-weight: 600;
+}
+.pending-fill .overdue-days {
+  color: #d32f2f;
+  font-weight: 600;
+}
+
+/* B-track summary */
+.btrack-summary {
+  margin-bottom: 20px;
+  padding: 15px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+}
+.btrack-summary h3 {
+  margin-top: 0;
+}
+.btrack-summary table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.btrack-summary th,
+.btrack-summary td {
+  padding: 8px 12px;
+  border-bottom: 1px solid #eee;
+}
+.btrack-summary th {
+  background: #fafafa;
+  font-weight: 600;
+}
+.btrack-summary .time-gap {
+  font-weight: 600;
+  color: #1565c0;
+}
+.btrack-summary tr.eliminated {
+  background: #f5f5f5;
+}
+.btrack-summary tr.eliminated td {
+  color: #999;
+}

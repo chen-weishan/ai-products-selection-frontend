@@ -1,0 +1,265 @@
+<div class="dashboard">
+  <!-- Header with controls -->
+  <div class="header">
+    <div class="track-switch">
+      <label>軌別：
+        <select [(ngModel)]="track" (ngModelChange)="onTrackChange()">
+          <option value="A">A 軌（有供應商）</option>
+          <option value="B">B 軌（尋源中）</option>
+        </select>
+      </label>
+    </div>
+
+    <div class="period-switch">
+      <label>週期：
+        <select [(ngModel)]="selectedPeriodOption" (ngModelChange)="onPeriodChange()">
+          <option *ngFor="let opt of periodOptions" [value]="opt">{{opt}}</option>
+        </select>
+        <ng-container *ngIf="selectedPeriodOption === '自訂區間'">
+          <input type="date" [(ngModel)]="customStart" placeholder="起始">
+          <input type="date" [(ngModel)]="customEnd" placeholder="結束">
+        </ng-container>
+      </label>
+    </div>
+
+    <button class="quick-mark" (click)="onQuickMark()">＋ 我看到一個</button>
+  </div>
+
+  <!-- Heat source status -->
+  <div class="heat-sources">
+    <h3>熱度來源狀態</h3>
+    <div class="sources-list" *ngIf="heatSources$ | async as sources">
+      <div *ngFor="let src of sources" class="source-item">
+        <div class="source-name">{{src.sourceCode}}</div>
+        <div class="source-status">
+          <span class="dot" [class.available]="src.availability === 'AVAILABLE'" [class.unavailable]="src.availability === 'UNAVAILABLE'"></span>
+          {{src.availability === 'AVAILABLE' ? '正常' : '異常'}}
+        </div>
+        <div class="source-updated">最後更新：{{src.lastFetchedAt | date:'yyyy-MM-dd HH:mm'}}</div>
+        <div class="source-quota">額度：{{src.quotaUsed}} / {{src.quotaLimit}}</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- KPI cards -->
+  <div class="kpi-cards">
+    <div class="card" *ngIf="kpi$ | async as kpi">
+      <h4>候選品項總數</h4>
+      <div class="value">{{kpi.totalCandidates}}</div>
+    </div>
+    <div class="card" *ngIf="kpi$ | async as kpi">
+      <h4>A 級主推品項數（四榜去重）</h4>
+      <div class="value">{{kpi.aGradeCount}}</div>
+    </div>
+    <div class="card" *ngIf="kpi$ | async as kpi">
+      <h4>高風險示警數</h4>
+      <div class="value">{{kpi.highRiskCount}}</div>
+    </div>
+    <div class="card" *ngIf="kpi$ | async as kpi">
+      <h4>結案未回填數</h4>
+      <div class="value">{{kpi.overdueCount}}</div>
+    </div>
+  </div>
+
+  <!-- Ranking tabs -->
+  <div class="ranking-tabs">
+    <button class="tab active" (click)="activeTab='viral'">話題爆款榜</button>
+    <button class="tab" (click)="activeTab='festival'">節慶檔期榜</button>
+    <button class="tab" (click)="activeTab='replenishment'">常態補貨榜</button>
+    <button class="tab" (click)="activeTab='seasonal'">季節導向榜</button>
+  </div>
+
+  <div class="ranking-content" *ngIf="rankings$ | async as rankings">
+    <div class="ranking-board" *ngIf="activeTab === 'viral'">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>品項名稱</th>
+            <th>分數</th>
+            <th>等級</th>
+            <th>情境判定</th>
+            <th>風險</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let item of rankings.viral; let i = index">
+            <td>{{i+1}}</td>
+            <td>
+              {{item.productName}}
+              <span *ngIf="item.sceneOverridden" class="tag">·已覆寫</span>
+            </td>
+            <td>
+              <div class="bar">
+                <i [ngStyle]="{'width.%': item.finalScore ?? 0}"></i>
+              </div>
+            </td>
+            <td class="{{gradeClass(item.grade)}}">{{item.grade}}</td>
+            <td>
+              <span class="tag">{{sceneLabel(item.sceneType)}}</span>
+            </td>
+            <td>
+              <span *ngIf="item.riskLevel && item.riskLevel !== 'NONE'" class="dot"></span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="ranking-board" *ngIf="activeTab === 'festival'">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>品項名稱</th>
+            <th>分數</th>
+            <th>等級</th>
+            <th>情境判定</th>
+            <th>風險</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let item of rankings.festival; let i = index">
+            <td>{{i+1}}</td>
+            <td>
+              {{item.productName}}
+              <span *ngIf="item.sceneOverridden" class="tag">·已覆寫</span>
+            </td>
+            <td>
+              <div class="bar">
+                <i [ngStyle]="{'width.%': item.finalScore ?? 0}"></i>
+              </div>
+            </td>
+            <td class="{{gradeClass(item.grade)}}">{{item.grade}}</td>
+            <td>
+              <span class="tag">{{sceneLabel(item.sceneType)}}</span>
+            </td>
+            <td>
+              <span *ngIf="item.riskLevel && item.riskLevel !== 'NONE'" class="dot"></span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="ranking-board" *ngIf="activeTab === 'replenishment'">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>品項名稱</th>
+            <th>分數</th>
+            <th>等級</th>
+            <th>情境判定</th>
+            <th>風險</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let item of rankings.replenishment; let i = index">
+            <td>{{i+1}}</td>
+            <td>
+              {{item.productName}}
+              <span *ngIf="item.sceneOverridden" class="tag">·已覆寫</span>
+            </td>
+            <td>
+              <div class="bar">
+                <i [ngStyle]="{'width.%': item.finalScore ?? 0}"></i>
+              </div>
+            </td>
+            <td class="{{gradeClass(item.grade)}}">{{item.grade}}</td>
+            <td>
+              <span class="tag">{{sceneLabel(item.sceneType)}}</span>
+            </td>
+            <td>
+              <span *ngIf="item.riskLevel && item.riskLevel !== 'NONE'" class="dot"></span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="ranking-board" *ngIf="activeTab === 'seasonal'">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>品項名稱</th>
+            <th>分數</th>
+            <th>等級</th>
+            <th>情境判定</th>
+            <th>風險</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let item of rankings.seasonal; let i = index">
+            <td>{{i+1}}</td>
+            <td>
+              {{item.productName}}
+              <span *ngIf="item.sceneOverridden" class="tag">·已覆寫</span>
+            </td>
+            <td>
+              <div class="bar">
+                <i [ngStyle]="{'width.%': item.finalScore ?? 0}"></i>
+              </div>
+            </td>
+            <td class="{{gradeClass(item.grade)}}">{{item.grade}}</td>
+            <td>
+              <span class="tag">{{sceneLabel(item.sceneType)}}</span>
+            </td>
+            <td>
+              <span *ngIf="item.riskLevel && item.riskLevel !== 'NONE'" class="dot"></span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Pending fill-in cases -->
+  <div class="pending-fill">
+    <h3>待回填結案（逾期 >7 天）</h3>
+    <table *ngIf="todos$ | async as todos">
+      <thead>
+        <tr>
+          <th>產品 ID</th>
+          <th>產品名稱</th>
+          <th>結案日</th>
+          <th>逾期天數</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let todo of todos">
+          <td>{{todo.productId}}</td>
+          <td>{{todo.productName}}</td>
+          <td>{{todo.campaignEndDate | date:'yyyy-MM-dd'}}</td>
+          <td class="overdue-days">{{todo.overdueDays}}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- B-track summary -->
+  <div class="btrack-summary">
+    <h3>B 軌摘要（Top 3）</h3>
+    <table *ngIf="btrackSummary$ | async as btrack">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>品項名稱</th>
+          <th>熱度階段</th>
+          <th>時效落差（天）</th>
+          <th>狀態</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let item of btrack; let i = index" [class.eliminated]="item.sourcingStatus === 'ELIMINATED'">
+          <td>{{i+1}}</td>
+          <td>{{item.productName}}</td>
+          <td>{{item.heatStage}}</td>
+          <td class="time-gap">{{item.timeGapDays}}</td>
+          <td>{{item.sourcingStatus}}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
