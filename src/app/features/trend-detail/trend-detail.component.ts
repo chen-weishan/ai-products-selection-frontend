@@ -16,12 +16,10 @@ import { Chart } from 'chart.js/auto';
 import { MatTableModule } from '@angular/material/table';
 
 import {
-  Point,
-  SourceDetail,
-  TrendControllerService,
-  TrendKeywordDetailResponse,
+  TrendInterpretationControllerService,
 } from '../../api';
 import { getMockTrendDetail } from '../../core/mock/trend-mock';
+import { Point, TrendKeywordDetailResponse } from '../../core/models/trend';
 
 type DateRange = '90d' | '60d' | '30d';
 
@@ -35,7 +33,7 @@ export class TrendDetailComponent implements OnInit, OnDestroy {
   @ViewChild('chartCanvas') chartCanvas?: ElementRef<HTMLCanvasElement>;
 
   private readonly route = inject(ActivatedRoute);
-  private readonly trendService = inject(TrendControllerService);
+  private readonly trendService = inject(TrendInterpretationControllerService);
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
   private chart: Chart | null = null;
@@ -102,19 +100,25 @@ export class TrendDetailComponent implements OnInit, OnDestroy {
     this.errorMessage.set(null);
 
     this.trendService
-      .getKeywordDetail({
-        keywordId,
-        range: this.selectedRange(),
-      })
+      .latest({ keywordId })
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (res) => {
-          this.trendData.set(res);
+          const mockData = getMockTrendDetail(keywordId, this.selectedRange());
+          const interpretation = res.data;
+          const data = {
+            ...mockData,
+            stage: interpretation?.stage ?? mockData.stage,
+            stageWeeks: interpretation?.stageWeeks ?? mockData.stageWeeks,
+            estimatedLifespanDays:
+              interpretation?.estimatedLifespanDays ?? mockData.estimatedLifespanDays,
+          };
+          this.trendData.set(data);
           this.isLoading.set(false);
 
           setTimeout(() => {
-            if (res.points && res.points.length > 0) {
-              this.renderChart(res.points);
+            if (data.points && data.points.length > 0) {
+              this.renderChart(data.points);
             }
           });
         },

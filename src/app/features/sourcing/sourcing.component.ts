@@ -1,5 +1,5 @@
 import { Component } from '@angular/core';
-import { CategoryControllerService, CategoryTreeResponse } from '../../api'
+import { AiBudgetControllerService } from '../../api'
 import { inject } from '@angular/core';
 import { signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -14,18 +14,21 @@ import { CommonModule } from '@angular/common';
   styleUrl: './sourcing.component.scss'
 })
 export class SourcingComponent {
-  private readonly categoryservice = inject(CategoryControllerService);
+  private readonly budgetService = inject(AiBudgetControllerService);
   categories = signal<CategoryTreeResponse[]>([]);
   selectedCategoryId = signal<number | null>(null);
 
   ngOnInit() {
-    this.categoryservice.getCategories().subscribe({
+    this.categories.set(PRESET_CATEGORIES);
+    this.budgetService.current().subscribe({
       next: (res) => {
-        this.categories.set(res.data ?? [])
-        console.log('回傳成功', res.data)
+        const trackB = res.data?.pools?.find(pool => pool.pool === 'TRACK_B');
+        if (trackB) {
+          this.frequency = `${trackB.used ?? 0}/${trackB.limit ?? 0}`;
+        }
       },
       error: (err) => {
-        console.log('品類取得失敗', err);
+        console.warn('[SourcingComponent] 無法取得 AI 預算：', err);
       }
     })
   }
@@ -33,3 +36,18 @@ export class SourcingComponent {
   frequency = '18/50';
 
 }
+
+interface CategoryTreeResponse {
+  id: number;
+  name: string;
+  leadTimeDays: number;
+  children?: CategoryTreeResponse[];
+}
+
+const PRESET_CATEGORIES: CategoryTreeResponse[] = [
+  { id: 1, name: '零食（國產）', leadTimeDays: 21 },
+  { id: 2, name: '進口食品／特產', leadTimeDays: 45 },
+  { id: 3, name: '常溫飲料／沖泡', leadTimeDays: 30 },
+  { id: 4, name: '調味醬料／抹醬', leadTimeDays: 35 },
+  { id: 5, name: '生鮮／短效期冷藏', leadTimeDays: 14 },
+];

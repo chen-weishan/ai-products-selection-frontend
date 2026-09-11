@@ -2,6 +2,37 @@
 
 This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 21.2.21.
 
+## Local frontend/backend development
+
+The backend uses a fixed HTTP Basic account in the `dev` profile. Add both
+`DEV_BASIC_AUTH_USERNAME` and `DEV_BASIC_AUTH_PASSWORD` to
+`../ai-products-selection-backend/chen-weishan/.env` (see its `.env.example`).
+From the workspace root, start the backend from the actual Gradle project root:
+
+```powershell
+cd ai-products-selection-backend\chen-weishan
+.\gradlew.bat :ssds-api:bootRun
+```
+
+The OpenAPI document is public in the dev security configuration. In a second
+terminal at the workspace root, install dependencies, regenerate the Angular
+client, and start the UI:
+
+```powershell
+cd ai-products-selection-frontend
+npm install
+npm run generate:api
+npm start
+```
+
+Open `http://localhost:4200/`. The Angular development proxy reads the same
+backend `.env` and adds Basic Auth server-side, so credentials are neither
+committed nor bundled into browser JavaScript. API calls continue to use the
+relative `/api/v1` base path configured in `src/app/app.config.ts`.
+
+If the repositories are not siblings in this workspace, set `SSDS_BACKEND_DIR`
+to the backend Gradle project directory before running `npm start`.
+
 ## Development server
 
 To start a local development server, run:

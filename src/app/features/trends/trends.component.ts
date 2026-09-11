@@ -1,6 +1,5 @@
-import { Component, DestroyRef, inject, signal, OnInit } from '@angular/core';
-import { TrendControllerService, TrendSignalRow } from '../../api';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { Component, inject, signal, OnInit } from '@angular/core';
+import { TrendSignalRow } from '../../core/models/trend';
 import { Router } from '@angular/router';
 import { MatTableModule } from '@angular/material/table';
 import { MOCK_TREND_LIST } from '../../core/mock/trend-mock';
@@ -12,9 +11,7 @@ import { MOCK_TREND_LIST } from '../../core/mock/trend-mock';
   styleUrl: './trends.component.scss'
 })
 export class TrendsComponent implements OnInit {
-  private readonly trendService = inject(TrendControllerService);
   private readonly router = inject(Router);
-  private readonly destroyRef = inject(DestroyRef);
   isLoading = signal(false);
   errorMessage = signal<string | null>(null);
   trendList = signal<TrendSignalRow[]>([]);
@@ -24,21 +21,10 @@ export class TrendsComponent implements OnInit {
   }
 
   loadTrends() {
-    this.isLoading.set(true);
     this.errorMessage.set(null);
-    this.trendService.getTrends()
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe({
-        next: (res) => {
-          this.trendList.set(res && res.length > 0 ? res : MOCK_TREND_LIST);
-          this.isLoading.set(false);
-        },
-        error: (err) => {
-          console.warn('[TrendsComponent] 後端 API 請求失敗，自動使用 Mock 假資料回退:', err);
-          this.trendList.set(MOCK_TREND_LIST);
-          this.isLoading.set(false);
-        }
-      });
+    // 現行後端尚未提供趨勢清單端點，清單頁先保留假資料。
+    this.trendList.set(MOCK_TREND_LIST);
+    this.isLoading.set(false);
   }
 
   displayedColumns: string[] = [

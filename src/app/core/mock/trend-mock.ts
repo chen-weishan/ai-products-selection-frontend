@@ -1,4 +1,4 @@
-import { TrendKeywordDetailResponse, TrendSignalRow } from '../../api';
+import { TrendKeywordDetailResponse, TrendSignalRow } from '../models/trend';
 
 export const MOCK_TREND_LIST: TrendSignalRow[] = [
   {

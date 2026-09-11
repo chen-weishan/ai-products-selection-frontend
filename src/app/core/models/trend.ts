@@ -1,4 +1,34 @@
-//改用generate 這個先放著
+export interface Point {
+    date?: string;
+    compositeValue?: number;
+}
+
+export interface SourceDetail {
+    sourceName?: string;
+    slope7d?: number;
+    slope30d?: number;
+    percentile?: number;
+    appliedWeight?: number;
+    status?: string;
+}
+
+export interface TrendSignalRow {
+    keywordId?: number;
+    keyword?: string;
+    heatToday?: number;
+    slope7d?: number;
+    slope30d?: number;
+    stage?: string;
+    divergenceFlag?: boolean;
+}
+
+export interface TrendKeywordDetailResponse extends TrendSignalRow {
+    points?: Point[];
+    stageWeeks?: number;
+    estimatedLifespanDays?: number;
+    sourceDetails?: SourceDetail[];
+}
+
 export interface TrendChartPoint {
     "date": string;
     "heatScore": number;
