@@ -60,6 +60,7 @@ export class TrendDetailComponent implements OnInit, OnDestroy {
   readonly statusMap: Record<string, string> = {
     AVAILABLE: '正常',
     INSUFFICIENT_DATA: '數據不足',
+    INSUFFICIENT_QUOTA: '額度不足',
     NO_DATA: '無資料',
     UNAVAILABLE: '異常',
     DEGRADED: '降級',
@@ -74,6 +75,17 @@ export class TrendDetailComponent implements OnInit, OnDestroy {
     'appliedWeight',
     'status'
   ];
+
+  formatSlope(val: number | undefined): string {
+    if (val === undefined || val === null) return '-';
+    const percent = Math.round(val * 100);
+    return percent > 0 ? `+${percent}%` : `${percent}%`;
+  }
+
+  formatWeight(val: number | undefined): string {
+    if (val === undefined || val === null) return '-';
+    return `${Math.round(val * 100)}%`;
+  }
 
 
   ngOnInit(): void {
