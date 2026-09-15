@@ -51,6 +51,7 @@ interface ApiResponse<T> {
 const ANALYSIS_POLL_INTERVAL_MS = 2_000;
 const ANALYSIS_REQUEST_TIMEOUT_MS = 5_000;
 const ANALYSIS_POLL_TIMEOUT_MS = 30_000;
+const SUCCESS_FEEDBACK_DURATION_MS = 5_000;
 
 @Injectable({
   providedIn: 'root',
@@ -59,6 +60,8 @@ export class ProductService implements OnDestroy {
   private readonly api = inject(ProductControllerService);
   private readonly http = inject(HttpClient);
   private readonly analysisPolls = new Map<number, Subscription>();
+  private batchMessageDismissTimer: ReturnType<typeof setTimeout> | null = null;
+  private analysisMessageDismissTimer: ReturnType<typeof setTimeout> | null = null;
   private lastCriteria: ProductSearchCriteria = {};
 
   readonly products = signal<readonly ProductListItemResponse[]>([]);
@@ -124,7 +127,7 @@ export class ProductService implements OnDestroy {
       .pipe(
         map((response) => unwrapResponse(response, '批次加入評分佇列失敗')),
         tap((result) => {
-          this.batchMessage.set(
+          this.showBatchMessage(
             `已將 ${result.queuedCount ?? productIds.length} 筆品項加入評分佇列`,
           );
           if (result.taskId == null) {
@@ -151,7 +154,7 @@ export class ProductService implements OnDestroy {
         map((response) => unwrapResponse(response, '批次加入評分佇列失敗')),
         tap((result) => {
           const warnings = result.warnings?.length ? `；${result.warnings.join('；')}` : '';
-          this.batchMessage.set(`已將 ${result.queuedCount ?? 0} 筆品項加入評分佇列${warnings}`);
+          this.showBatchMessage(`已將 ${result.queuedCount ?? 0} 筆品項加入評分佇列${warnings}`);
 
           if (result.taskId != null && (result.queuedCount ?? 0) > 0) {
             this.startAnalysisPolling(result.taskId, result.queuedCount ?? 0);
@@ -178,7 +181,7 @@ export class ProductService implements OnDestroy {
       .pipe(
         map((response) => unwrapResponse(response, '批次指定類別失敗')),
         tap((result) => {
-          this.batchMessage.set(
+          this.showBatchMessage(
             `已將 ${result.updatedCount ?? productIds.length} 筆品項指定為${result.categoryName ? `「${result.categoryName}」` : '新類別'}`,
           );
         }),
@@ -199,7 +202,7 @@ export class ProductService implements OnDestroy {
       .pipe(
         map((response) => unwrapResponse(response, '批次停用失敗')),
         tap((result) => {
-          this.batchMessage.set(`已停用 ${result.disabledCount ?? productIds.length} 筆品項`);
+          this.showBatchMessage(`已停用 ${result.disabledCount ?? productIds.length} 筆品項`);
         }),
         this.handleBatchError(),
         finalize(() => this.batchLoading.set(false)),
@@ -215,7 +218,7 @@ export class ProductService implements OnDestroy {
           throw new Error(response.error?.message ?? '刪除品項失敗');
         }
       }),
-      tap(() => this.batchMessage.set('品項已刪除')),
+      tap(() => this.showBatchMessage('品項已刪除')),
       this.handleBatchError(),
       finalize(() => this.batchLoading.set(false)),
     );
@@ -234,18 +237,36 @@ export class ProductService implements OnDestroy {
       })
       .pipe(
         map((response) => unwrapResponse(response, '變更品項狀態失敗')),
-        tap(() => this.batchMessage.set('品項狀態已更新')),
+        tap(() => this.showBatchMessage('品項狀態已更新')),
         this.handleBatchError(),
         finalize(() => this.batchLoading.set(false)),
       );
   }
 
   clearBatchFeedback(): void {
-    this.batchMessage.set(null);
+    this.dismissBatchMessage();
     this.batchError.set(null);
   }
 
+  dismissBatchMessage(): void {
+    if (this.batchMessageDismissTimer !== null) {
+      clearTimeout(this.batchMessageDismissTimer);
+      this.batchMessageDismissTimer = null;
+    }
+    this.batchMessage.set(null);
+  }
+
+  dismissAnalysisMessage(): void {
+    if (this.analysisMessageDismissTimer !== null) {
+      clearTimeout(this.analysisMessageDismissTimer);
+      this.analysisMessageDismissTimer = null;
+    }
+    this.analysisMessage.set(null);
+  }
+
   ngOnDestroy(): void {
+    this.dismissBatchMessage();
+    this.dismissAnalysisMessage();
     this.analysisPolls.forEach((subscription) => subscription.unsubscribe());
     this.analysisPolls.clear();
   }
@@ -253,6 +274,7 @@ export class ProductService implements OnDestroy {
   private startAnalysisPolling(taskId: number, productCount: number): void {
     this.stopAnalysisPolling(taskId);
     this.analysisError.set(null);
+    this.dismissAnalysisMessage();
     this.analysisMessage.set(`評分任務 #${taskId} 已排入，正在等待 ${productCount} 筆品項完成…`);
     this.pendingAnalysisTaskIds.update((ids) => [...new Set([...ids, taskId])]);
     const startedAt = Date.now();
@@ -296,7 +318,7 @@ export class ProductService implements OnDestroy {
     this.stopAnalysisPolling(task.taskId);
     if (task.status === 'SUCCEEDED') {
       this.analysisError.set(null);
-      this.analysisMessage.set(`評分完成：${task.successCount} 筆成功，清單已自動更新`);
+      this.showAnalysisCompletionMessage(`評分完成：${task.successCount} 筆成功，清單已自動更新`);
     } else {
       this.analysisMessage.set(null);
       this.analysisError.set(
@@ -319,6 +341,24 @@ export class ProductService implements OnDestroy {
   private startBatchAction(): void {
     this.batchLoading.set(true);
     this.clearBatchFeedback();
+  }
+
+  private showBatchMessage(message: string): void {
+    this.dismissBatchMessage();
+    this.batchMessage.set(message);
+    this.batchMessageDismissTimer = setTimeout(
+      () => this.dismissBatchMessage(),
+      SUCCESS_FEEDBACK_DURATION_MS,
+    );
+  }
+
+  private showAnalysisCompletionMessage(message: string): void {
+    this.dismissAnalysisMessage();
+    this.analysisMessage.set(message);
+    this.analysisMessageDismissTimer = setTimeout(
+      () => this.dismissAnalysisMessage(),
+      SUCCESS_FEEDBACK_DURATION_MS,
+    );
   }
 
   private handleBatchError<T>(): MonoTypeOperatorFunction<T> {

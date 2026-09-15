@@ -3,71 +3,72 @@ import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { LoginRequest, LoginResponse, UserInfo, UserRole } from '../models/auth-model';
 import { Observable, tap } from 'rxjs';
+import { environment } from '../../../environments/environment';
+
 @Injectable({
-  providedIn: 'root'
+  providedIn: 'root',
 })
 export class AuthService {
-private http = inject(HttpClient);
-private router=inject(Router);
+  private readonly http = inject(HttpClient);
+  private readonly router = inject(Router);
 
-private readonly ACCESS_TOKEN_KEY='ssds_access_Token';
-private readonly REFRESH_TOKEN_KEY='ssds_refresh_Token';
-private readonly USER_KEY='ssds_user_info';
+  private readonly accessTokenKey = 'ssds_access_token';
+  private readonly userKey = 'ssds_user_info';
 
-readonly currentUser=signal<UserInfo | null>(this.getStoredUser());
-
-readonly isLoggedIn=computed(()=>!!this.currentUser &&!!this.getAccessToken())
-
-login(credentials:LoginRequest):Observable<LoginResponse>{
-  return this.http.post<LoginResponse>('/api/vi/auth/login',credentials).pipe(
-    tap(res=>{
-      this.saveAuthData(res);
-    })
+  readonly currentUser = signal<UserInfo | null>(this.getStoredUser());
+  readonly isLoggedIn = computed(
+    () => this.currentUser() !== null && this.getAccessToken() !== null,
   );
-}
 
-loginout():void{
-  localStorage.removeItem(this.ACCESS_TOKEN_KEY);
-  localStorage.removeItem(this.REFRESH_TOKEN_KEY);
-  localStorage.removeItem(this.USER_KEY);
-this.currentUser.set(null);
-this.router.navigate(['/login']);
-}
-getAccessToken():string | null {
-return localStorage.getItem(this.ACCESS_TOKEN_KEY);
-}
-gatrefreshToken():string|null{
-  return localStorage.getItem(this.REFRESH_TOKEN_KEY);
-}
-hasRole(roles:UserRole|UserRole[]):boolean{
-  const user=this.currentUser();
-  if(!user) return false;
-
-  if(Array.isArray(roles)){
-  return roles.includes(user.role);
-  }
-  return user.role===roles;
-}
-
-private saveAuthData(response:LoginResponse){
-  localStorage.setItem(this.ACCESS_TOKEN_KEY,response.accessToken);
-
-  if (response.refreshToken) {
-    localStorage.setItem(this.REFRESH_TOKEN_KEY, response.refreshToken);
+  login(credentials: LoginRequest): Observable<LoginResponse> {
+    return this.http
+      .post<LoginResponse>(`${environment.apiBaseUrl}/auth/login`, credentials)
+      .pipe(tap((response) => this.saveAuthData(response)));
   }
 
-  localStorage.setItem(this.USER_KEY,JSON.stringify(response.user));
-  this.currentUser.set(response.user);
-}
-
-private getStoredUser():UserInfo | null{
-  const data =localStorage.getItem(this.USER_KEY);
-  if(!data) return null;
-  try{
-    return JSON.parse(data) as UserInfo;
-  }catch{
-    return null;
+  logout(): void {
+    localStorage.removeItem(this.accessTokenKey);
+    localStorage.removeItem(this.userKey);
+    this.currentUser.set(null);
+    void this.router.navigate(['/login']);
   }
-}
 
+  getAccessToken(): string | null {
+    return localStorage.getItem(this.accessTokenKey);
+  }
+
+  hasRole(roles: UserRole | readonly UserRole[]): boolean {
+    const user = this.currentUser();
+    if (!user) return false;
+
+    const acceptedRoles = Array.isArray(roles) ? roles : [roles];
+    return user.roles.some((role) => acceptedRoles.includes(role));
+  }
+
+  private saveAuthData(response: LoginResponse): void {
+    const user: UserInfo = {
+      email: response.email,
+      displayName: response.displayName,
+      roles: response.roles,
+    };
+    localStorage.setItem(this.accessTokenKey, response.accessToken);
+    localStorage.setItem(this.userKey, JSON.stringify(user));
+    this.currentUser.set(user);
+  }
+
+  private getStoredUser(): UserInfo | null {
+    const data = localStorage.getItem(this.userKey);
+    if (!data) return null;
+
+    try {
+      const user = JSON.parse(data) as Partial<UserInfo>;
+      return typeof user.email === 'string' &&
+        typeof user.displayName === 'string' &&
+        Array.isArray(user.roles)
+        ? (user as UserInfo)
+        : null;
+    } catch {
+      return null;
+    }
+  }
 }

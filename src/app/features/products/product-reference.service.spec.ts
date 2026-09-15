@@ -44,9 +44,9 @@ describe('ProductReferenceService', () => {
 
     await firstValueFrom(service.load());
 
-    expect(service.categories()).toEqual([
-      { id: 10, label: '食品' },
-      { id: 11, label: '— 飲品' },
+    expect(service.categories()).toEqual([{ id: 11, label: '飲品' }]);
+    expect(service.categoryGroups()).toEqual([
+      { id: 10, label: '食品', options: [{ id: 11, label: '飲品' }] },
     ]);
     expect(service.suppliers()).toEqual([{ id: 1, name: '測試供應商' }]);
     expect(service.loading()).toBe(false);
@@ -74,6 +74,9 @@ describe('ProductReferenceService', () => {
     await expect(firstValueFrom(service.loadSuppliers())).rejects.toThrow('供應商服務中斷');
 
     expect(service.categories()).toEqual([{ id: 10, label: '食品' }]);
+    expect(service.categoryGroups()).toEqual([
+      { id: 10, label: '食品', options: [{ id: 10, label: '食品' }] },
+    ]);
     expect(service.supplierError()).toBe('供應商服務中斷');
     expect(service.categoryError()).toBeNull();
   });

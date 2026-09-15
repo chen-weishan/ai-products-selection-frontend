@@ -1,30 +1,21 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { Router } from '@angular/router';
-
-import { BasicAuthService } from '../../core/auth/basic-auth.service';
+import { AuthService } from '../../core/auth/auth.service';
 import { HeaderComponent } from './header.component';
 
 describe('HeaderComponent', () => {
-  const clearCredentials = vi.fn();
-  const navigate = vi.fn();
+  const logout = vi.fn();
   let component: HeaderComponent;
   let fixture: ComponentFixture<HeaderComponent>;
 
   beforeEach(async () => {
-    clearCredentials.mockReset();
-    navigate.mockReset();
-    navigate.mockResolvedValue(true);
+    logout.mockReset();
 
     await TestBed.configureTestingModule({
       imports: [HeaderComponent],
       providers: [
         {
-          provide: BasicAuthService,
-          useValue: { clearCredentials },
-        },
-        {
-          provide: Router,
-          useValue: { navigate },
+          provide: AuthService,
+          useValue: { logout },
         },
       ],
     }).compileComponents();
@@ -38,10 +29,9 @@ describe('HeaderComponent', () => {
     expect(component).toBeTruthy();
   });
 
-  it('clears Basic Auth credentials and returns to login', () => {
+  it('logs out through the JWT auth service', () => {
     component.logout();
 
-    expect(clearCredentials).toHaveBeenCalledOnce();
-    expect(navigate).toHaveBeenCalledWith(['/login']);
+    expect(logout).toHaveBeenCalledOnce();
   });
 });

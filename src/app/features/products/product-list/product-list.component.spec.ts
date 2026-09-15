@@ -21,7 +21,11 @@ describe('ProductListComponent', () => {
   const changeStatus = vi.fn();
   const confirm = vi.fn();
   const changeProductStatus = vi.fn();
+  const dismissBatchMessage = vi.fn();
+  const dismissAnalysisMessage = vi.fn();
   const products = signal<any[]>([]);
+  const batchMessage = signal<string | null>(null);
+  const analysisMessage = signal<string | null>(null);
   let queryParams: BehaviorSubject<ParamMap>;
   let component: ProductListComponent;
   let fixture: ComponentFixture<ProductListComponent>;
@@ -39,7 +43,11 @@ describe('ProductListComponent', () => {
     changeStatus.mockReset();
     confirm.mockReset();
     changeProductStatus.mockReset();
+    dismissBatchMessage.mockReset();
+    dismissAnalysisMessage.mockReset();
     products.set([]);
+    batchMessage.set(null);
+    analysisMessage.set(null);
     load.mockReturnValue(of({ content: [], page: 0, size: 20, totalElements: 0, totalPages: 0 }));
     loadCategories.mockReturnValue(of([]));
     loadSuppliers.mockReturnValue(of([]));
@@ -82,6 +90,7 @@ describe('ProductListComponent', () => {
             loadCategories,
             loadSuppliers,
             categories: signal([]),
+            categoryGroups: signal([]),
             suppliers: signal([]),
             loading: signal(false),
             error: signal(null),
@@ -101,10 +110,12 @@ describe('ProductListComponent', () => {
             loading: signal(false),
             error: signal(null),
             batchLoading: signal(false),
-            batchMessage: signal(null),
+            batchMessage,
             batchError: signal(null),
-            analysisMessage: signal(null),
+            analysisMessage,
             analysisError: signal(null),
+            dismissBatchMessage,
+            dismissAnalysisMessage,
             analyzeBatch,
             queueScoreBatch,
             assignCategory,
@@ -130,6 +141,19 @@ describe('ProductListComponent', () => {
       size: 20,
       sort: ['latestScore,desc'],
     });
+  });
+
+  it('allows both success notifications to be dismissed early', () => {
+    batchMessage.set('已將 3 筆品項加入評分佇列');
+    analysisMessage.set('評分完成：3 筆成功，清單已自動更新');
+    fixture.detectChanges();
+
+    const element = fixture.nativeElement as HTMLElement;
+    element.querySelector<HTMLButtonElement>('[aria-label="關閉成功提示"]')?.click();
+    element.querySelector<HTMLButtonElement>('[aria-label="關閉評分提示"]')?.click();
+
+    expect(dismissBatchMessage).toHaveBeenCalledOnce();
+    expect(dismissAnalysisMessage).toHaveBeenCalledOnce();
   });
 
   it('retries category and supplier references independently', () => {

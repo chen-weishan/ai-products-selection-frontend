@@ -98,6 +98,37 @@ describe('ProductService', () => {
     expect(service.batchLoading()).toBe(false);
   });
 
+  it('automatically dismisses a success message after five seconds', async () => {
+    vi.useFakeTimers();
+    assignCategory.mockReturnValue(
+      of({
+        success: true,
+        data: { categoryId: 10, categoryName: '零食', updatedCount: 2 },
+      }),
+    );
+
+    await firstValueFrom(service.assignCategory([101, 102], 10));
+    await vi.advanceTimersByTimeAsync(4_999);
+    expect(service.batchMessage()).toBe('已將 2 筆品項指定為「零食」');
+
+    await vi.advanceTimersByTimeAsync(1);
+    expect(service.batchMessage()).toBeNull();
+  });
+
+  it('dismisses a success message immediately when requested', async () => {
+    assignCategory.mockReturnValue(
+      of({
+        success: true,
+        data: { categoryId: 10, categoryName: '零食', updatedCount: 2 },
+      }),
+    );
+
+    await firstValueFrom(service.assignCategory([101, 102], 10));
+    service.dismissBatchMessage();
+
+    expect(service.batchMessage()).toBeNull();
+  });
+
   it('uses the dedicated score queue endpoint and reports skipped products', async () => {
     queueScoreBatch.mockReturnValue(
       of({
@@ -154,6 +185,9 @@ describe('ProductService', () => {
     expect(service.products()).toEqual([{ id: 101, latestScore: 82 }]);
     expect(service.analysisMessage()).toBe('評分完成：1 筆成功，清單已自動更新');
     expect(service.analysisPolling()).toBe(false);
+
+    await vi.advanceTimersByTimeAsync(5_000);
+    expect(service.analysisMessage()).toBeNull();
   });
 
   it('reports an analysis task failure and still refreshes the list', async () => {

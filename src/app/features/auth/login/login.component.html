@@ -2,18 +2,20 @@
   <mat-card class="login-card">
     <mat-card-header>
       <mat-card-title>選品策略系統</mat-card-title>
-      <mat-card-subtitle>本機開發登入</mat-card-subtitle>
+      <mat-card-subtitle>帳號登入</mat-card-subtitle>
     </mat-card-header>
 
     <mat-card-content>
-      <p class="login-hint">目前後端使用 HTTP Basic。請輸入 dev profile 設定的帳號與密碼。</p>
+      <p class="login-hint">請使用系統帳號登入。</p>
 
       <form [formGroup]="form" (ngSubmit)="submit()">
         <mat-form-field appearance="outline">
-          <mat-label>帳號</mat-label>
-          <input matInput formControlName="username" autocomplete="username" />
-          @if (form.controls.username.hasError('required')) {
-            <mat-error>請輸入帳號</mat-error>
+          <mat-label>Email</mat-label>
+          <input matInput type="email" formControlName="email" autocomplete="username" />
+          @if (form.controls.email.hasError('required')) {
+            <mat-error>請輸入 Email</mat-error>
+          } @else if (form.controls.email.hasError('email')) {
+            <mat-error>Email 格式不正確</mat-error>
           }
         </mat-form-field>
 
@@ -35,7 +37,7 @@
         }
 
         <button mat-flat-button color="primary" type="submit" [disabled]="submitting()">
-          {{ submitting() ? '驗證中…' : '登入' }}
+          {{ submitting() ? '登入中…' : '登入' }}
         </button>
       </form>
     </mat-card-content>

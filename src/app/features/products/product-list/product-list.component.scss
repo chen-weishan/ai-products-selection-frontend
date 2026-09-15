@@ -63,9 +63,39 @@
 }
 
 .batch-feedback {
+  display: flex;
+  align-items: center;
+  gap: 12px;
   margin: 0 0 12px;
   padding: 10px 14px;
   border-radius: 8px;
+}
+
+.batch-feedback span {
+  flex: 1;
+}
+
+.feedback-close {
+  display: inline-grid;
+  flex: 0 0 32px;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: currentcolor;
+  cursor: pointer;
+  font: inherit;
+  font-size: 26px;
+  line-height: 1;
+  place-items: center;
+}
+
+.feedback-close:hover,
+.feedback-close:focus-visible {
+  background: rgb(0 0 0 / 8%);
+  outline: none;
 }
 
 .success-feedback {

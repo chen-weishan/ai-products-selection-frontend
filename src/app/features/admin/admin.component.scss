@@ -1,4 +1,221 @@
-mat-spinner {
-  --mat-progress-spinner-active-indicator-color: #7112d7;
-  z-index: 5;
+:host {
+  display: block;
+}
+
+.admin-page {
+  min-height: 100%;
+  padding: 28px;
+  background: #f5f8f7;
+  color: #153b3a;
+}
+
+.page-heading,
+.card-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.page-heading {
+  margin-bottom: 20px;
+}
+
+.eyebrow {
+  margin: 0 0 5px;
+  color: #087b77;
+  font-weight: 700;
+}
+
+h1,
+h2,
+p {
+  margin-top: 0;
+}
+
+h1 {
+  margin-bottom: 6px;
+  font-size: 30px;
+}
+
+h2 {
+  margin-bottom: 4px;
+  font-size: 20px;
+}
+
+.page-heading p,
+.card-heading p {
+  margin-bottom: 0;
+  color: #607574;
+}
+
+.notice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 48px;
+  margin-bottom: 18px;
+  padding: 8px 14px;
+  border: 1px solid #9ed8bf;
+  border-radius: 10px;
+  background: #ebf8f1;
+  color: #086b4c;
+}
+
+.notice.error {
+  border-color: #efb2ad;
+  background: #fff1ef;
+  color: #a22920;
+}
+
+.notice button {
+  border: 0;
+  background: transparent;
+  color: currentColor;
+  font-size: 26px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.loading-panel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  min-height: 260px;
+}
+
+.tab-content {
+  display: grid;
+  grid-template-columns: minmax(420px, 1.25fr) minmax(330px, 0.75fr);
+  gap: 20px;
+  padding-top: 20px;
+}
+
+.list-card,
+.form-card {
+  min-width: 0;
+  padding: 22px;
+  border: 1px solid #dce6e4;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 2px 8px rgb(20 62 60 / 6%);
+}
+
+.record-list {
+  display: grid;
+  gap: 8px;
+  max-height: 570px;
+  margin-top: 20px;
+  overflow: auto;
+}
+
+.record-row {
+  display: grid;
+  grid-template-columns: minmax(150px, 0.8fr) minmax(220px, 1.2fr) auto;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 13px 14px;
+  border: 1px solid #dbe5e3;
+  border-radius: 10px;
+  background: #fff;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.record-row:hover,
+.record-row.selected {
+  border-color: #087b77;
+  background: #edf8f7;
+}
+
+.record-row.child {
+  padding-left: 30px;
+}
+
+.record-name {
+  overflow: hidden;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tree-line {
+  margin-right: 7px;
+  color: #849896;
+}
+
+.record-meta {
+  overflow: hidden;
+  color: #607574;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.form-card form {
+  display: grid;
+  gap: 6px;
+  margin-top: 22px;
+}
+
+.two-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.form-card form > button {
+  justify-self: start;
+  min-width: 126px;
+  margin-top: 6px;
+}
+
+.edit-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.delete-button {
+  color: #b3261e;
+  border-color: #d7aaa6;
+}
+
+.empty-message {
+  padding: 42px 12px;
+  color: #718482;
+  text-align: center;
+}
+
+@media (max-width: 980px) {
+  .tab-content {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 620px) {
+  .admin-page {
+    padding: 18px;
+  }
+
+  .page-heading,
+  .card-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .record-row {
+    grid-template-columns: 1fr auto;
+  }
+
+  .record-meta {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  .two-columns {
+    grid-template-columns: 1fr;
+  }
 }

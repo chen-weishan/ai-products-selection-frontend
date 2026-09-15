@@ -7,35 +7,35 @@ import {
   RouterStateSnapshot,
   UrlTree,
 } from '@angular/router';
-import { BasicAuthService } from './basic-auth.service';
+import { AuthService } from './auth.service';
 import { authGuard } from './auth.guard';
 
 describe('authGuard', () => {
-  const hasCredentials = vi.fn();
+  const isLoggedIn = vi.fn();
   const executeGuard: CanActivateFn = (...guardParameters) =>
     TestBed.runInInjectionContext(() => authGuard(...guardParameters));
 
   beforeEach(() => {
-    hasCredentials.mockReset();
+    isLoggedIn.mockReset();
     TestBed.configureTestingModule({
       providers: [
         provideRouter([]),
         {
-          provide: BasicAuthService,
-          useValue: { hasCredentials },
+          provide: AuthService,
+          useValue: { isLoggedIn },
         },
       ],
     });
   });
 
-  it('allows navigation when Basic credentials exist', () => {
-    hasCredentials.mockReturnValue(true);
+  it('allows navigation when a JWT session exists', () => {
+    isLoggedIn.mockReturnValue(true);
 
     expect(runGuard(executeGuard, '/products')).toBe(true);
   });
 
   it('redirects to login and preserves the requested URL', () => {
-    hasCredentials.mockReturnValue(false);
+    isLoggedIn.mockReturnValue(false);
     const result = runGuard(executeGuard, '/products');
 
     expect(result).toBeInstanceOf(UrlTree);

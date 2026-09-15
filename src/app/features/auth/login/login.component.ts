@@ -4,10 +4,10 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
+import { HttpErrorResponse } from '@angular/common/http';
 import { ActivatedRoute, Router } from '@angular/router';
 import { finalize } from 'rxjs';
-import { BasicAuthService } from '../../../core/auth/basic-auth.service';
-import { ProductService } from '../../products/product.service';
+import { AuthService } from '../../../core/auth/auth.service';
 
 @Component({
   selector: 'app-login',
@@ -22,8 +22,7 @@ import { ProductService } from '../../products/product.service';
   styleUrl: './login.component.scss',
 })
 export class LoginComponent {
-  private readonly basicAuth = inject(BasicAuthService);
-  private readonly products = inject(ProductService);
+  private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
 
@@ -31,9 +30,9 @@ export class LoginComponent {
   readonly loginError = signal<string | null>(null);
 
   readonly form = new FormGroup({
-    username: new FormControl('buyer@ssds.dev', {
+    email: new FormControl('', {
       nonNullable: true,
-      validators: [Validators.required],
+      validators: [Validators.required, Validators.email],
     }),
     password: new FormControl('', {
       nonNullable: true,
@@ -47,22 +46,24 @@ export class LoginComponent {
       return;
     }
 
-    const { username, password } = this.form.getRawValue();
-    this.basicAuth.setCredentials(username, password);
+    const { email, password } = this.form.getRawValue();
     this.submitting.set(true);
     this.loginError.set(null);
 
-    this.products
-      .load({ page: 0, size: 20 })
+    this.auth
+      .login({ email: email.trim(), password })
       .pipe(finalize(() => this.submitting.set(false)))
       .subscribe({
         next: () => {
           const returnUrl = this.route.snapshot.queryParamMap.get('returnUrl') ?? '/products';
           void this.router.navigateByUrl(returnUrl);
         },
-        error: () => {
-          this.basicAuth.clearCredentials();
-          this.loginError.set(this.products.error() ?? '登入失敗，請確認帳號與密碼');
+        error: (error: HttpErrorResponse) => {
+          const message =
+            typeof error.error?.message === 'string'
+              ? error.error.message
+              : '登入失敗，請確認帳號與密碼';
+          this.loginError.set(message);
         },
       });
   }

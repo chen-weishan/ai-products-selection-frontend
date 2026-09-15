@@ -114,6 +114,9 @@ describe('ProductFormComponent', () => {
             loadCategoryMarginMedian,
             clearCategoryMarginMedian,
             categories: signal([{ id: 10, label: '零食' }]),
+            categoryGroups: signal([
+              { id: 1, label: '食品', options: [{ id: 10, label: '零食' }] },
+            ]),
             suppliers: signal([{ id: 20, name: '測試供應商' }]),
             trendKeywords: signal([{ id: 30, keyword: '抹茶' }]),
             categoryMarginMedian: signal(null),

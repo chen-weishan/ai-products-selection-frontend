@@ -116,6 +116,8 @@ export const routes: Routes = [
       },
       {
         path: 'admin',
+        canActivate: [roleGuard],
+        data: { roles: ['SYS_ADMIN'] as const },
         loadComponent: () =>
           import('./features/admin/admin.component').then((module) => module.AdminComponent),
       },

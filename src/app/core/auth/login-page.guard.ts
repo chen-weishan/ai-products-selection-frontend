@@ -1,6 +1,6 @@
 import { inject } from '@angular/core';
 import { CanActivateFn, Router } from '@angular/router';
-import { environment } from '../../../environments/environment';
+import { AuthService } from './auth.service';
 
 export const loginPageGuard: CanActivateFn = () =>
-  environment.fr03DevCredentials ? inject(Router).createUrlTree(['/products']) : true;
+  inject(AuthService).isLoggedIn() ? inject(Router).createUrlTree(['/products']) : true;

@@ -1,26 +1,215 @@
-<!-- Dialog測試 要寫前端可直接刪掉 -->
-
-
-<div style="padding: 24px; display: flex; gap: 16px;">
-  <!-- 一般確認 -->
-  <button mat-flat-button color="primary" type="button" (click)="testNormalDialog()">
-    測試一般確認彈窗
-  </button>
-
-  <!-- 危險警告 -->
-  <button mat-flat-button color="warn" type="button" (click)="testDangerDialog()">
-    測試危險操作彈窗
-  </button>
-</div>
-
-<div>
-  <button mat-flat-button type="button" (click)="NormalDialog()">
-    確認彈窗
+<section class="admin-page">
+  <header class="page-heading">
+    <div>
+      <p class="eyebrow">S-14 系統設定</p>
+      <h1>主檔管理</h1>
+      <p>維護品項建檔與篩選所使用的類別及供應商資料。</p>
+    </div>
+    <button mat-stroked-button type="button" [disabled]="loading()" (click)="reload()">
+      <mat-icon>refresh</mat-icon>
+      重新載入
     </button>
-</div>
+  </header>
 
+  @if (success() || error()) {
+    <div class="notice" [class.error]="error()" role="status">
+      <span>{{ error() ?? success() }}</span>
+      <button type="button" aria-label="關閉訊息" (click)="dismissMessage()">×</button>
+    </div>
+  }
 
-<button mat-flat-button color="primary" (click)="testLoadingApi()">
-      測試 API 載入動畫 (延遲 2 秒)
-    </button>
+  @if (loading()) {
+    <div class="loading-panel">
+      <mat-spinner diameter="36" />
+      <span>正在載入主檔…</span>
+    </div>
+  } @else {
+    <mat-tab-group animationDuration="150ms">
+      <mat-tab label="類別管理">
+        <div class="tab-content">
+          <section class="list-card">
+            <div class="card-heading">
+              <div>
+                <h2>品類樹</h2>
+                <p>目前共 {{ flatCategories().length }} 個類別，最多支援兩層。</p>
+              </div>
+              <button mat-flat-button type="button" (click)="newCategory()">
+                <mat-icon>add</mat-icon>
+                新增類別
+              </button>
+            </div>
 
+            <div class="record-list">
+              @for (category of flatCategories(); track category.id) {
+                <button
+                  type="button"
+                  class="record-row"
+                  [class.child]="category.depth > 0"
+                  [class.selected]="editingCategoryId() === category.id"
+                  (click)="editCategory(category)"
+                >
+                  <span class="record-name">
+                    @if (category.depth > 0) { <span class="tree-line">└</span> }
+                    {{ category.name }}
+                  </span>
+                  <span class="record-meta">
+                    {{ category.parentName ? '上層：' + category.parentName : '頂層類別' }} · 排序
+                    {{ category.sortOrder }}
+                  </span>
+                  <mat-icon>edit</mat-icon>
+                </button>
+              } @empty {
+                <p class="empty-message">尚未建立類別。</p>
+              }
+            </div>
+          </section>
+
+          <section class="form-card">
+            <div class="card-heading">
+              <div>
+                <h2>{{ editingCategoryId() == null ? '新增類別' : '修改類別' }}</h2>
+                <p>同一層級的類別名稱不可重複。</p>
+              </div>
+              @if (editingCategoryId() != null) {
+                <div class="edit-actions">
+                  <button mat-button type="button" (click)="newCategory()">取消編輯</button>
+                  <button mat-stroked-button class="delete-button" type="button"
+                    [disabled]="saving()" (click)="deleteCategory()">
+                    <mat-icon>delete</mat-icon>
+                    刪除
+                  </button>
+                </div>
+              }
+            </div>
+
+            <form [formGroup]="categoryForm" (ngSubmit)="saveCategory()">
+              <mat-form-field appearance="outline">
+                <mat-label>類別名稱</mat-label>
+                <input matInput formControlName="name" maxlength="50" />
+                @if (categoryForm.controls.name.hasError('required')) {
+                  <mat-error>請輸入類別名稱</mat-error>
+                }
+              </mat-form-field>
+
+              <mat-form-field appearance="outline">
+                <mat-label>上層類別</mat-label>
+                <mat-select formControlName="parentId">
+                  <mat-option [value]="null">無（頂層類別）</mat-option>
+                  @for (category of rootCategories(); track category.id) {
+                    <mat-option [value]="category.id">{{ category.name }}</mat-option>
+                  }
+                </mat-select>
+                <mat-hint>子類別不能再包含下一層</mat-hint>
+              </mat-form-field>
+
+              <mat-form-field appearance="outline">
+                <mat-label>排序</mat-label>
+                <input matInput type="number" min="0" step="1" formControlName="sortOrder" />
+                <mat-hint>數字越小越前面</mat-hint>
+                @if (categoryForm.controls.sortOrder.hasError('min')) {
+                  <mat-error>排序不可小於 0</mat-error>
+                }
+              </mat-form-field>
+
+              <button mat-flat-button type="submit" [disabled]="saving()">
+                {{ saving() ? '儲存中…' : editingCategoryId() == null ? '新增類別' : '儲存修改' }}
+              </button>
+            </form>
+          </section>
+        </div>
+      </mat-tab>
+
+      <mat-tab label="供應商管理">
+        <div class="tab-content">
+          <section class="list-card">
+            <div class="card-heading">
+              <div>
+                <h2>供應商清單</h2>
+                <p>目前共 {{ suppliers().length }} 家供應商。</p>
+              </div>
+              <button mat-flat-button type="button" (click)="newSupplier()">
+                <mat-icon>add</mat-icon>
+                新增供應商
+              </button>
+            </div>
+
+            <div class="record-list">
+              @for (supplier of suppliers(); track supplier.id) {
+                <button
+                  type="button"
+                  class="record-row supplier-row"
+                  [class.selected]="editingSupplierId() === supplier.id"
+                  (click)="editSupplier(supplier)"
+                >
+                  <span class="record-name">{{ supplier.name }}</span>
+                  <span class="record-meta">
+                    {{ supplier.contact || '未填聯絡人' }} · {{ supplier.phone || '未填電話' }}
+                  </span>
+                  <mat-icon>edit</mat-icon>
+                </button>
+              } @empty {
+                <p class="empty-message">尚未建立供應商。</p>
+              }
+            </div>
+          </section>
+
+          <section class="form-card">
+            <div class="card-heading">
+              <div>
+                <h2>{{ editingSupplierId() == null ? '新增供應商' : '修改供應商' }}</h2>
+                <p>供應商名稱不可重複，其他聯絡資訊可留空。</p>
+              </div>
+              @if (editingSupplierId() != null) {
+                <div class="edit-actions">
+                  <button mat-button type="button" (click)="newSupplier()">取消編輯</button>
+                  <button mat-stroked-button class="delete-button" type="button"
+                    [disabled]="saving()" (click)="deleteSupplier()">
+                    <mat-icon>delete</mat-icon>
+                    刪除
+                  </button>
+                </div>
+              }
+            </div>
+
+            <form [formGroup]="supplierForm" (ngSubmit)="saveSupplier()">
+              <mat-form-field appearance="outline">
+                <mat-label>供應商名稱</mat-label>
+                <input matInput formControlName="name" maxlength="100" />
+                @if (supplierForm.controls.name.hasError('required')) {
+                  <mat-error>請輸入供應商名稱</mat-error>
+                }
+              </mat-form-field>
+
+              <div class="two-columns">
+                <mat-form-field appearance="outline">
+                  <mat-label>聯絡人</mat-label>
+                  <input matInput formControlName="contact" maxlength="50" />
+                </mat-form-field>
+                <mat-form-field appearance="outline">
+                  <mat-label>電話</mat-label>
+                  <input matInput formControlName="phone" maxlength="30" />
+                </mat-form-field>
+              </div>
+
+              <mat-form-field appearance="outline">
+                <mat-label>備註</mat-label>
+                <textarea matInput formControlName="note" rows="4" maxlength="500"></textarea>
+                <mat-hint align="end">{{ supplierForm.controls.note.value.length }}/500</mat-hint>
+              </mat-form-field>
+
+              <button mat-flat-button type="submit" [disabled]="saving()">
+                {{
+                  saving()
+                    ? '儲存中…'
+                    : editingSupplierId() == null
+                      ? '新增供應商'
+                      : '儲存修改'
+                }}
+              </button>
+            </form>
+          </section>
+        </div>
+      </mat-tab>
+    </mat-tab-group>
+  }
+</section>

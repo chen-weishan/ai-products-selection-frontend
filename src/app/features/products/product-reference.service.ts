@@ -13,6 +13,12 @@ export interface CategoryOption {
   label: string;
 }
 
+export interface CategoryGroup {
+  id: number;
+  label: string;
+  options: readonly CategoryOption[];
+}
+
 export interface CategoryMarginMedian {
   categoryId: number;
   categoryName: string;
@@ -28,6 +34,7 @@ export class ProductReferenceService {
   private readonly pendingOperations = signal(0);
 
   readonly categories = signal<readonly CategoryOption[]>([]);
+  readonly categoryGroups = signal<readonly CategoryGroup[]>([]);
   readonly suppliers = signal<readonly SupplierResponse[]>([]);
   readonly trendKeywords = signal<readonly TrendKeywordResponse[]>([]);
   readonly categoryMarginMedian = signal<CategoryMarginMedian | null>(null);
@@ -60,7 +67,9 @@ export class ProductReferenceService {
           if (!response.success || !response.data) {
             throw new Error(response.error?.message ?? '取得品項類別失敗');
           }
-          return flattenCategories(response.data);
+          const groups = groupCategories(response.data);
+          this.categoryGroups.set(groups);
+          return groups.flatMap((group) => group.options);
         }),
         tap((categories) => this.categories.set(categories)),
         catchError((error: unknown) => {
@@ -169,6 +178,20 @@ function flattenCategories(
           ];
 
     return [...current, ...flattenCategories(category.children ?? [], depth + 1)];
+  });
+}
+
+function groupCategories(categories: readonly CategoryTreeResponse[]): CategoryGroup[] {
+  return categories.flatMap((category) => {
+    if (category.id == null || !category.name) return [];
+    const children = flattenCategories(category.children ?? []);
+    return [
+      {
+        id: category.id,
+        label: category.name,
+        options: children.length > 0 ? children : [{ id: category.id, label: category.name }],
+      },
+    ];
   });
 }
 
