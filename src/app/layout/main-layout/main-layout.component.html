@@ -1,24 +1,17 @@
 <app-header></app-header>
 <mat-drawer-container class="layout-container" autosize>
-  <mat-drawer #drawer class="example-sidenav"
-  [class.is-collapsed]="layoutService.isCollapsed()"
-  mode="side" opened>
+  <mat-drawer #drawer class="example-sidenav" [class.is-collapsed]="layoutService.isCollapsed()" mode="side" opened>
 
-      <mat-nav-list class="nav-list">
+    <mat-nav-list class="nav-list">
       @for (item of navItems(); track item.path) {
-        <a
-          mat-list-item
-          [routerLink]="item.path"
-          routerLinkActive="active"
-          class="nav-link-item"
-          [title]="layoutService.isCollapsed()?item.label:''"
-        >
+      <a mat-list-item [routerLink]="item.path" routerLinkActive="active" class="nav-link-item"
+        [title]="layoutService.isCollapsed()?item.label:''">
         <mat-icon matListItemIcon class="menu-icon">{{ item.icon }}</mat-icon>
 
         @if(!layoutService.isCollapsed()){
-          <span matListItemTitle class="item-label">{{ item.label }}</span>
+        <span matListItemTitle class="item-label">{{ item.label }}</span>
         }
-        </a>
+      </a>
       }
     </mat-nav-list>
 

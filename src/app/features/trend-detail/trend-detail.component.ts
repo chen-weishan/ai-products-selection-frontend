@@ -1,9 +1,246 @@
-import { Component } from '@angular/core';
+import {
+  Component,
+  inject,
+  signal,
+  DestroyRef,
+  ElementRef,
+  ViewChild,
+  OnInit,
+  OnDestroy,
+  computed,
+} from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { ActivatedRoute, Router } from '@angular/router';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { Chart } from 'chart.js/auto';
+import { MatTableModule } from '@angular/material/table';
+
+import {
+  Point,
+  SourceDetail,
+  TrendControllerService,
+  TrendKeywordDetailResponse,
+} from '../../api';
+import { getMockTrendDetail } from '../../core/mock/trend-mock';
+
+type DateRange = '90d' | '60d' | '30d';
 
 @Component({
   selector: 'app-trend-detail',
-  imports: [],
+  imports: [CommonModule, MatTableModule],
   templateUrl: './trend-detail.component.html',
   styleUrl: './trend-detail.component.scss',
 })
-export class TrendDetailComponent {}
+export class TrendDetailComponent implements OnInit, OnDestroy {
+  @ViewChild('chartCanvas') chartCanvas?: ElementRef<HTMLCanvasElement>;
+
+  private readonly route = inject(ActivatedRoute);
+  private readonly trendService = inject(TrendControllerService);
+  private readonly router = inject(Router);
+  private readonly destroyRef = inject(DestroyRef);
+  private chart: Chart | null = null;
+
+  isLoading = signal(false);
+  errorMessage = signal<string | null>(null);
+  trendData = signal<TrendKeywordDetailResponse | null>(null);
+  currentkeywordId = signal<number | null>(null);
+  selectedRange = signal<DateRange>('90d');
+  readonly dateRangeOptions: { label: string; value: DateRange }[] = [
+    { label: '近90天', value: '90d' },
+    { label: '近60天', value: '60d' },
+    { label: '近30天', value: '30d' },
+  ];
+
+  readonly stageMap: Record<string, string> = {
+    RISING: '上升期',
+    PLATEAU: '高原期',
+    DECLINING: '衰退期'
+  };
+
+  readonly statusMap: Record<string, string> = {
+    AVAILABLE: '正常',
+    INSUFFICIENT_DATA: '數據不足',
+    INSUFFICIENT_QUOTA: '額度不足',
+    NO_DATA: '無資料',
+    UNAVAILABLE: '異常',
+    DEGRADED: '降級',
+    SYNCING: '同步中'
+  };
+
+  displayedColumns: string[] = [
+    'sourceName',
+    'slope7d',
+    'slope30d',
+    'percentile',
+    'appliedWeight',
+    'status'
+  ];
+
+  formatSlope(val: number | undefined): string {
+    if (val === undefined || val === null) return '-';
+    const percent = Math.round(val * 100);
+    return percent > 0 ? `+${percent}%` : `${percent}%`;
+  }
+
+  formatWeight(val: number | undefined): string {
+    if (val === undefined || val === null) return '-';
+    return `${Math.round(val * 100)}%`;
+  }
+
+
+  ngOnInit(): void {
+    const rawid = this.route.snapshot.paramMap.get('keywordId');
+    const keywordId = Number(rawid);
+    if (!rawid || isNaN(keywordId)) {
+      this.errorMessage.set('無效關鍵字ID');
+      return;
+    }
+    this.currentkeywordId.set(keywordId);
+    this.loadTrendDetail();
+  }
+
+  ngOnDestroy(): void {
+    if (this.chart) {
+      this.chart.destroy();
+      this.chart = null;
+    }
+  }
+
+  loadTrendDetail(): void {
+    const keywordId = this.currentkeywordId();
+    if (!keywordId) return;
+
+    this.isLoading.set(true);
+    this.errorMessage.set(null);
+
+    this.trendService
+      .getKeywordDetail({
+        keywordId,
+        range: this.selectedRange(),
+      })
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (res) => {
+          this.trendData.set(res);
+          this.isLoading.set(false);
+
+          setTimeout(() => {
+            if (res.points && res.points.length > 0) {
+              this.renderChart(res.points);
+            }
+          });
+        },
+        error: (err) => {
+          console.warn('[TrendDetailComponent] 後端 API 請求失敗，自動使用 Mock 假資料回退:', err);
+          const mockData = getMockTrendDetail(keywordId, this.selectedRange());
+          this.trendData.set(mockData);
+          this.isLoading.set(false);
+
+          setTimeout(() => {
+            if (mockData.points && mockData.points.length > 0) {
+              this.renderChart(mockData.points);
+            }
+          });
+        },
+      });
+  }
+
+  onRangeChange(range: DateRange): void {
+    if (this.selectedRange() === range) return;
+    this.selectedRange.set(range);
+    this.loadTrendDetail();
+  }
+
+  renderChart(points: Point[]): void {
+    if (!this.chartCanvas?.nativeElement) {
+      console.warn('Canvas元素尚未準備好');
+      return;
+    }
+
+    const ctx = this.chartCanvas.nativeElement.getContext('2d');
+    if (!ctx) return;
+
+    if (this.chart) {
+      this.chart.destroy();
+    }
+
+    const labels = points.map((p) => p.date ?? '');
+    const dataValues = points.map((p) => p.compositeValue ?? 0);
+
+    const gradient = ctx.createLinearGradient(0, 0, 0, 300);
+    gradient.addColorStop(0, 'rgba(59, 130, 246, 0.35)');
+    gradient.addColorStop(1, 'rgba(59, 130, 246, 0.0)');
+
+    this.chart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [
+          {
+            label: '綜合熱度指數',
+            data: dataValues,
+            borderColor: '#3b82f6',
+            backgroundColor: gradient,
+            borderWidth: 2.5,
+            pointRadius: points.length > 40 ? 0 : 3,
+            pointHoverRadius: 6,
+            pointBackgroundColor: '#3b82f6',
+            fill: true,
+            tension: 0.3,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: {
+          mode: 'index',
+          intersect: false,
+        },
+        plugins: {
+          legend: {
+            display: false,
+          },
+          tooltip: {
+            backgroundColor: '#1e293b',
+            titleFont: { size: 13 },
+            bodyFont: { size: 14, weight: 'bold' },
+            padding: 10,
+            displayColors: false,
+            callbacks: {
+              label: (context) => ` 熱度值: ${context.parsed.y}`,
+            },
+          },
+        },
+        scales: {
+          x: {
+            grid: {
+              display: false,
+            },
+            ticks: {
+              maxTicksLimit: 8,
+              color: '#64748b',
+            },
+          },
+          y: {
+            grid: {
+              color: '#f1f5f9',
+            },
+            ticks: {
+              color: '#64748b',
+            },
+          },
+        },
+      },
+    });
+  }
+
+  goBack(): void {
+    this.router.navigate(['/trends']);
+  }
+
+  latesDate = computed(() => {
+    const date = this.trendData()?.points;
+    return date && date.length > 0 ? date[date.length - 1].date : '無';
+  })
+}
