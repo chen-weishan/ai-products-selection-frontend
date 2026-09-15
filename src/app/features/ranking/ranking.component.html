@@ -1,1 +1,213 @@
-<p>ranking works!</p>
+<!-- 頁首 ─────────────────────────────────────────────── -->
+<div class="mh">
+  <div>
+    <h3>{{ boardLabels[scene()] }}</h3>
+    <div class="sub">
+      {{ period() }}
+      @if (countOf(scene()); as n) { 　·　{{ n }} 個品項套用此情境 }
+    </div>
+  </div>
+
+  <div class="tools">
+    <label class="field">
+      期別
+      <input
+        class="inp"
+        type="week"
+        [value]="periodInputValue()"
+        (change)="setPeriod($any($event.target).value)"
+      />
+    </label>
+
+    @if (activeVersion(); as v) {
+      <span class="tag teal">權重版本 {{ v.versionNo }}</span>
+    }
+
+    @if (draftVersions().length) {
+      <select class="sel" (change)="setSimulateVersion($any($event.target).value)">
+        @for (v of draftVersions(); track v.id) {
+          <option [value]="v.id">草稿 {{ v.versionNo }}</option>
+        }
+      </select>
+      <button type="button" class="btn" [disabled]="loading()" (click)="simulate()">
+        試算此草稿
+      </button>
+    }
+  </div>
+</div>
+
+<!-- 分頁（四榜）───────────────────────────────────────── -->
+<div class="tabs">
+  @for (s of sceneTypes; track s) {
+    <button type="button" [class.on]="scene() === s" (click)="selectScene(s)">
+      {{ boardLabels[s] }}
+      @if (countOf(s); as n) { <span class="n">{{ n }}</span> }
+    </button>
+  }
+  <a class="link" routerLink="/risks">高風險示警 →</a>
+</div>
+
+<!-- 本榜權重 ─────────────────────────────────────────── -->
+@if (sceneWeights(); as group) {
+  <div class="scene">
+    <span class="lb">本榜權重</span>
+    <span class="nm">{{ boardLabels[scene()] }}</span>
+    <span class="mini">
+      @for (code of factorCodes; track code) {
+        {{ factorLabels[code] }} {{ percent(group.weights[code]) }}
+      }
+    </span>
+    <a class="adjust" routerLink="/weights">調整 →</a>
+  </div>
+}
+
+<!-- 訊息 ─────────────────────────────────────────────── -->
+@if (errorMessage(); as msg) {
+  <div class="alert error">{{ msg }}</div>
+}
+@if (loading()) {
+  <div class="alert busy">載入中…</div>
+}
+@if (simulated()) {
+  <div class="alert warn">
+    目前顯示的是草稿 {{ simulatedVersionNo() }} 的試算結果，未寫入資料庫。
+    <button type="button" class="btn" (click)="exitSimulation()">回到現行分數</button>
+  </div>
+}
+
+<!-- 排行表格 ─────────────────────────────────────────── -->
+<table>
+  <thead>
+    <tr>
+      <th style="width: 34px">#</th>
+      <th>品項</th>
+      <!-- 長條與數字是同一個值的兩種呈現，共用一個標題，不重複寫兩次「加分」 -->
+      <th colspan="2" style="width: 17%">加分</th>
+      <th style="width: 62px">扣分</th>
+      <th style="width: 62px">總分</th>
+      <th style="width: 40px">級</th>
+      <th style="width: 66px">信心度</th>
+      <th style="width: 130px">因子組成</th>
+    </tr>
+  </thead>
+  <tbody>
+    @for (row of displayRows(); track row.scoreId; let i = $index) {
+      <tr
+        class="pick"
+        [class.risk-high]="riskLevel(row) === 'high'"
+        [class.risk-mid]="riskLevel(row) === 'mid'"
+        (click)="showDeductions(row)"
+      >
+        <td class="rank">{{ rankNo(i) }}</td>
+        <td class="name">
+          {{ row.productName }}
+          @if (riskLevel(row) !== 'none') {
+            <span class="dot" [class.mid]="riskLevel(row) === 'mid'"></span>
+          }
+          @if (row.lowConfidence) { <span class="tag">資料不足</span> }
+          @if (!row.isPrimary) { <span class="tag">次要情境</span> }
+        </td>
+        <td>
+          <div class="bar" [class.grey]="row.lowConfidence">
+            <i [style.width]="barWidth(row.bonusSubtotal)"></i>
+          </div>
+        </td>
+        <td class="num">{{ score(row.bonusSubtotal) }}</td>
+        <td class="num">
+          @if (row.penaltySubtotal > 0) {
+            <span class="neg">−{{ score(row.penaltySubtotal) }}</span>
+          } @else {
+            <span class="mini">—</span>
+          }
+        </td>
+        <td class="num">{{ score(row.finalScore) }}</td>
+        <td>
+          <span
+            class="chip"
+            [class.A]="row.grade === 'A'"
+            [class.B]="row.grade === 'B'"
+            [class.C]="row.grade === 'C'"
+            >{{ row.grade }}</span
+          >
+        </td>
+        <td class="num" [class.low]="row.lowConfidence">
+          {{ row.confidence }}@if (row.lowConfidence) { ⚠ }
+        </td>
+        <td>
+          <div class="stack">
+            @for (f of orderedFactors(row); track f.factorCode) {
+              <div
+                class="bar thin"
+                [class.nodata]="!f.dataAvailable"
+                [title]="factorLabels[f.factorCode]"
+              >
+                <i [style.width]="barWidth(f.normalizedValue)"></i>
+              </div>
+            }
+          </div>
+        </td>
+      </tr>
+    } @empty {
+      <tr>
+        <td colspan="9" class="empty">
+          {{ period() }} 的{{ boardLabels[scene()] }}沒有分數資料
+        </td>
+      </tr>
+    }
+  </tbody>
+</table>
+
+<div class="legend-row">
+  <span>因子順序：{{ factorOrderText }}</span>
+  <span><i class="swatch"></i> 灰底＝該因子無資料，標示但不扣分</span>
+</div>
+
+<!-- 分頁列 ───────────────────────────────────────────── -->
+@if (!simulated() && totalPages() > 1) {
+  <div class="pager">
+    <button type="button" class="btn" [disabled]="page() === 0" (click)="goToPage(page() - 1)">
+      上一頁
+    </button>
+    <span class="mini">第 {{ page() + 1 }} / {{ totalPages() }} 頁　共 {{ totalElements() }} 筆</span>
+    <button
+      type="button"
+      class="btn"
+      [disabled]="page() >= totalPages() - 1"
+      (click)="goToPage(page() + 1)"
+    >
+      下一頁
+    </button>
+  </div>
+}
+
+<!-- 扣分明細 ─────────────────────────────────────────── -->
+@if (deductions(); as d) {
+  <div class="deduct">
+    <h5>扣分明細　{{ deductionsOf() }}</h5>
+    @for (item of d.items; track item.factorCode) {
+      <div class="row">
+        {{ penaltyLabels[item.factorCode] }}
+        @if (item.dataAvailable) {
+          <span class="n">−{{ score(item.penaltyValue) }}</span>
+        } @else {
+          <span class="n na">未評估</span>
+        }
+      </div>
+    } @empty {
+      <div class="row mini">這筆分數有扣分小計，但沒有逐項明細。</div>
+    }
+    <div class="row total">扣分小計<span class="n">−{{ score(d.penaltySubtotal) }}</span></div>
+    @if (d.riskSuppressed) {
+      <div class="mini hard">
+        扣分達硬規則門檻：分級最高只給 B，並已強制進入風險示警清單（§5.6）。
+      </div>
+    }
+    <div class="mini">扣分不受情境權重影響，四組權重下都固定生效。</div>
+  </div>
+}
+
+<div class="todo">
+  尚未實作：本榜分級分布卡（對應 GET /scores/ranking/summary，後端尚無此端點；
+  示意圖註明此數字須由後端彙總，不可由當頁列數加總）、類別篩選（後端只吃 categoryId，
+  但目前沒有品類清單端點可供選單）。
+</div>
