@@ -3,6 +3,7 @@ import { MainLayoutComponent } from './layout/main-layout/main-layout.component'
 import { HeaderComponent } from './layout/header/header.component';
 import { TrendDetailComponent } from './features/trend-detail/trend-detail.component';
 import { authGuard } from './core/auth/auth.guard';
+import { roleGuard } from './core/auth/role.guard';
 import { ForgetPasswordComponent } from './features/auth/forget-password/forget-password.component';
 
 export const routes: Routes = [
@@ -19,6 +20,7 @@ export const routes: Routes = [
   {
     path: '', component: MainLayoutComponent,
     canActivate: [authGuard],
+    canActivateChild: [authGuard, roleGuard],
     children: [
       {
         path: '',
@@ -66,19 +68,22 @@ export const routes: Routes = [
         path: 'ai-tasks', loadComponent: () =>
           import('./features/ai-tasks/ai-tasks.component').then(
             m => m.AiTasksComponent
-          )
+          ),
+        data: { roles: ['BUYER', 'BUYER_LEAD', 'DATA_ADMIN', 'SYS_ADMIN'] }
       },
       {
         path: 'weights', loadComponent: () =>
           import('./features/weights/weights.component').then(
             m => m.WeightsComponent
-          )
+          ),
+        data: { roles: ['BUYER', 'BUYER_LEAD', 'DATA_ADMIN', 'SYS_ADMIN'] }
       },
       {
         path: 'imports', loadComponent: () =>
           import('./features/imports/imports.component').then(
             m => m.ImportsComponent
-          )
+          ),
+        data: { roles: ['BUYER_LEAD', 'DATA_ADMIN', 'SYS_ADMIN'] }
       },
       {
         path: 'risks', loadComponent: () =>
@@ -102,7 +107,8 @@ export const routes: Routes = [
         path: 'admin', loadComponent: () =>
           import('./features/admin/admin.component').then(
             m => m.AdminComponent
-          )
+          ),
+        data: { roles: ['BUYER_LEAD', 'DATA_ADMIN', 'SYS_ADMIN'] }
       },
       {
         path: 'trends/:keywordId', loadComponent: () =>
@@ -113,6 +119,7 @@ export const routes: Routes = [
     ]
   },
   { path: 'header', component: HeaderComponent, },
+  { path: '**', redirectTo: 'products' },
 
 
 

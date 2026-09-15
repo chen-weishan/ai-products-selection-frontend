@@ -130,6 +130,6 @@ export function getMockTrendDetail(
         status: 'AVAILABLE',
         isManual: true,
       },
-    ],
+    ] as any,
   };
 }

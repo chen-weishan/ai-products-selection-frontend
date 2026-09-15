@@ -11,22 +11,22 @@ export interface MockAccount {
 
 export const MOCK_ACCOUNTS: MockAccount[] = [
   {
-    email: 'admin@company.com',
-    password: 'admin123',
-    label: USER_ROLE_LABELS.SYS_ADMIN,
-    role: 'SYS_ADMIN',
-    description: '具備全系統設定、使用者權限與全模組管理權限',
+    email: 'buyer@ssds.dev',
+    password: 'Ssds@2026',
+    label: USER_ROLE_LABELS.BUYER,
+    role: 'BUYER',
+    description: '執行商品選品、尋源探索、趨勢追蹤與AI任務',
     user: {
       id: 'usr-001',
-      username: 'admin',
-      name: '陳系統 (Admin)',
-      role: 'SYS_ADMIN',
-      avatarUrl: 'https://api.dicebear.com/7.x/bottts/svg?seed=admin'
+      username: 'buyer',
+      name: '王採購 (Buyer)',
+      role: 'BUYER',
+      avatarUrl: 'https://api.dicebear.com/7.x/bottts/svg?seed=buyer'
     }
   },
   {
-    email: 'lead@company.com',
-    password: 'lead123',
+    email: 'lead@ssds.dev',
+    password: 'Ssds@2026',
     label: USER_ROLE_LABELS.BUYER_LEAD,
     role: 'BUYER_LEAD',
     description: '負責選品決策審核、權重調配與團隊數據檢視',
@@ -39,43 +39,43 @@ export const MOCK_ACCOUNTS: MockAccount[] = [
     }
   },
   {
-    email: 'buyer@company.com',
-    password: 'buyer123',
-    label: USER_ROLE_LABELS.BUYER,
-    role: 'BUYER',
-    description: '執行商品選品、尋源探索、趨勢追蹤與AI任務',
-    user: {
-      id: 'usr-003',
-      username: 'buyer',
-      name: '王採購 (Buyer)',
-      role: 'BUYER',
-      avatarUrl: 'https://api.dicebear.com/7.x/bottts/svg?seed=buyer'
-    }
-  },
-  {
-    email: 'data@company.com',
-    password: 'data123',
+    email: 'dataadmin@ssds.dev',
+    password: 'Ssds@2026',
     label: USER_ROLE_LABELS.DATA_ADMIN,
     role: 'DATA_ADMIN',
     description: '管理外部數據匯入、商品熱度標記與數據源維護',
     user: {
-      id: 'usr-004',
-      username: 'data_admin',
+      id: 'usr-003',
+      username: 'dataadmin',
       name: '張資料 (Data Admin)',
       role: 'DATA_ADMIN',
-      avatarUrl: 'https://api.dicebear.com/7.x/bottts/svg?seed=data'
+      avatarUrl: 'https://api.dicebear.com/7.x/bottts/svg?seed=dataadmin'
     }
   },
   {
-    email: 'viewer@company.com',
-    password: 'viewer123',
+    email: 'sysadmin@ssds.dev',
+    password: 'Ssds@2026',
+    label: USER_ROLE_LABELS.SYS_ADMIN,
+    role: 'SYS_ADMIN',
+    description: '具備全系統設定、使用者權限與全模組管理權限',
+    user: {
+      id: 'usr-004',
+      username: 'sysadmin',
+      name: '陳系統 (Sys Admin)',
+      role: 'SYS_ADMIN',
+      avatarUrl: 'https://api.dicebear.com/7.x/bottts/svg?seed=sysadmin'
+    }
+  },
+  {
+    email: 'viewer@ssds.dev',
+    password: 'Ssds@2026',
     label: USER_ROLE_LABELS.VIEWER,
     role: 'VIEWER',
-    description: '僅供檢視報表與儀表板之唯讀權限',
+    description: '具備所有數據與報表之唯讀瀏覽權限，無法進行編輯變更',
     user: {
       id: 'usr-005',
       username: 'viewer',
-      name: '李觀察 (Viewer)',
+      name: '趙觀察 (Viewer)',
       role: 'VIEWER',
       avatarUrl: 'https://api.dicebear.com/7.x/bottts/svg?seed=viewer'
     }

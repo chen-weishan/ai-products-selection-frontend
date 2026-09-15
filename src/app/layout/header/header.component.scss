@@ -4,43 +4,65 @@ $bg-page: #F4F6F8;
 
 .header {
   width: 100vw;
-  height: 3vw;
+  height: 52px;
   background-color: $primary-blue;
   display: flex;
   align-items: center;
   justify-content: space-between;
+  padding: 0 1rem;
+  box-sizing: border-box;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .header-left {
   display: flex;
   align-items: center;
-  justify-content: flex-start;
-  direction: row;
+  gap: 0.5rem;
 }
 
 .title {
   color: $bg-page;
   font-size: 1.15rem;
-  font-weight: 500;
-  //微調保持與圖標一致
+  font-weight: 600;
+  letter-spacing: 0.5px;
   line-height: 1;
 }
 
 .menu-btn {
   color: $bg-page;
-  display: flex;
-  align-items: center;
-  justify-content: center;
 }
 
 .header-right {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
+  gap: 1rem;
+}
 
+.user-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: $bg-page;
+  font-size: 0.875rem;
+
+  .user-name {
+    font-weight: 500;
+  }
+
+  .role-tag {
+    background: rgba(255, 255, 255, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    color: #e0f2fe;
+  }
+}
+
+.action-btn {
+  color: $bg-page;
 }
 
 .right-icon {
   color: $bg-page;
-  margin-right: 0.5rem;
-}
+}
