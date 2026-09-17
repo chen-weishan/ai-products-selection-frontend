@@ -53,4 +53,11 @@ export class TrendsComponent implements OnInit {
     if (keywordId === null || keywordId === undefined) { console.warn('沒有對應資料'); return; };
     this.router.navigate(['/trends', keywordId]);
   }
+
+  formatSlope(value: number | null | undefined): string {
+    if (value === null || value === undefined) return '';
+    const percentage = Math.round(value * 100);
+    const sign = percentage > 0 ? '+' : '';
+    return `${sign}${percentage}%`;
+  }
 }

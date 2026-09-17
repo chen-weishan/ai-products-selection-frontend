@@ -119,6 +119,18 @@ export function getMockTrendDetail(
         isMuted: true,
       },
       {
+        sourceName: 'Dcard',
+        subName: '(論壇)',
+        slope7d: -0.15,
+        slope30d: -0.05,
+        slope7dDisplay: '-15%',
+        slope30dDisplay: '-5%',
+        percentile: 30,
+        appliedWeight: 0.1,
+        status: 'DEGRADED',
+        isMuted: true,
+      },
+      {
         sourceName: '人工標記',
         badge: '8 人次',
         slope7d: 4.8,
