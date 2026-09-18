@@ -7,20 +7,31 @@
     <span>ai探索為獨立預算池</span>
 </div>
 
-<h4>品類選擇</h4>
-<mat-form-field>
-    <mat-label>品類</mat-label>
-    <mat-select [value]="selectedCategoryId()" (selectionChange)="selectedCategoryId.set($event.value)">
-        @for (item of categories(); track item.id) {
-        @if(item.children && item.children.length>0){
-        <mat-optgroup [label]="item.name||''">
-            @for(child of item.children;track child.id){
-            <mat-option [value]="child.id">{{child.name}}</mat-option>
-            }
-        </mat-optgroup>
-        }@else{
-        <mat-option [value]="item.id">{{item.name}}</mat-option>
-        }
-        }
-    </mat-select>
-</mat-form-field>
+<div class="search">
+
+    <div>
+        <input class="keyword-input-wrapper" type="text" placeholder="關鍵字搜尋">
+    </div>
+
+    <div class="category-search">
+        <mat-form-field>
+            <mat-label>品類</mat-label>
+            <mat-select [value]="selectedCategoryId()" (selectionChange)="selectedCategoryId.set($event.value)">
+                @for (item of categories(); track item.id) {
+                @if(item.children && item.children.length>0){
+                <mat-optgroup [label]="item.name||''">
+                    @for(child of item.children;track child.id){
+                    <mat-option [value]="child.id">{{child.name}}</mat-option>
+                    }
+                </mat-optgroup>
+                }@else{
+                <mat-option [value]="item.id">{{item.name}}</mat-option>
+                }
+                }
+            </mat-select>
+        </mat-form-field>
+    </div>
+    <div>
+        <button class="category-btn">開始探索</button>
+    </div>
+</div>

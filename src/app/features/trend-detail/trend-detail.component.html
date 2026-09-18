@@ -179,7 +179,7 @@
         各來源量級不可比（Threads 的 200 則 vs Trends 指數 78），因此先在各來源內做百分位正規化，再依合成權重加總。
         @for (source of getAbnormalSources(); track source.sourceName) {
         <br />
-        {{ formatSourceName(source.sourceName)?.toLowerCase() }} 本期狀態為「{{ statusMap[source.status || ''] || source.status
+        {{ formatSourceName(source.sourceName).toLowerCase() }} 本期狀態為「{{ statusMap[source.status || ''] || source.status
         }}」，其權重已按比例分攤給其餘正常來源。
         }
       </p>
