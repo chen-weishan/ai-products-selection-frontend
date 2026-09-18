@@ -3,14 +3,15 @@
     <button class="btn">尋源優先序</button>
 </div>
 <div class="directions">
-    <span>本月已使用:{{frequency}}·</span>
+    <span>本月已使用:{{frequency()}}·</span>
     <span>ai探索為獨立預算池</span>
 </div>
 
 <div class="search">
 
     <div>
-        <input class="keyword-input-wrapper" type="text" placeholder="關鍵字搜尋">
+        <input class="keyword-input-wrapper" type="text" placeholder="關鍵字搜尋"
+               [value]="keyword()" (input)="keyword.set($any($event.target).value)">
     </div>
 
     <div class="category-search">
@@ -32,6 +33,138 @@
         </mat-form-field>
     </div>
     <div>
-        <button class="category-btn">開始探索</button>
+        <button class="category-btn" (click)="startScout()">開始探索</button>
     </div>
 </div>
+
+@if (scoutReport(); as report) {
+<div class="scout-card">
+    <!-- 1. 卡片頂部標題列 -->
+    <div class="card-header">
+        <div class="header-title">
+            <span class="title-text">探索報告</span>
+        </div>
+        <div class="header-meta">
+            SourcingScoutAgent · {{ executionSeconds()}}秒
+        </div>
+    </div>
+
+    <!-- 2. 中間 AI 摘要長文 (report.report) -->
+    <div class="report-summary">
+        {{ report.report }}
+    </div>
+
+    <!-- 3. 機會訊號區塊 (report.opportunitySignals) -->
+    @if (report.opportunitySignals && report.opportunitySignals.length > 0) {
+    <div class="signal-section opportunity">
+        <div class="section-title">機會訊號</div>
+        <div class="signal-list">
+            @for (item of report.opportunitySignals; track item) {
+            <div class="signal-item">
+                <span class="icon">✓</span>
+                <span class="text">{{ item }}</span>
+            </div>
+            }
+        </div>
+    </div>
+    }
+
+    <!-- 4. 風險訊號區塊 (report.riskSignals) -->
+    @if (report.riskSignals && report.riskSignals.length > 0) {
+    <div class="signal-section risk">
+        <div class="section-title">風險訊號</div>
+        <div class="signal-list">
+            @for (item of report.riskSignals; track item) {
+            <div class="signal-item">
+                <span class="icon">⚠</span>
+                <span class="text">{{ item }}</span>
+            </div>
+            }
+        </div>
+    </div>
+    }
+
+    <!-- 5. 底部備註與「重新探索」按鈕 -->
+    <div class="card-footer">
+        <span class="disclaimer">AI 探索結果為調查輔助，實際尋源可行性須由採購確認</span>
+        <button type="button" class="btn-re-scout" (click)="startScout()">重新探索</button>
+    </div>
+</div>
+
+<div class="evaluation-grid">
+
+    <!-- ❸ 時效落差評估卡片 -->
+    <div class="eval-card">
+        <div class="card-header">
+            <span class="step-num">3</span>
+            <span class="title-text">時效落差評估</span>
+        </div>
+        <div class="eval-body">
+            <!-- 熱度階段 -->
+            <div class="eval-row">
+                <span class="label">熱度階段</span>
+                <span class="stage-badge">{{ getHeatStageText(report.heatStage) }} {{ report.stageWeeks ? 'W' +
+                    report.stageWeeks : '' }}</span>
+            </div>
+            <!-- 預估剩餘壽命 -->
+            <div class="eval-row">
+                <span class="label">預估剩餘壽命</span>
+                <span class="value">{{ report.estimatedLifespanDays ?? '—' }} <span class="unit">天</span></span>
+            </div>
+            <!-- 品類前置期 -->
+            <div class="eval-row">
+                <span class="label">品類前置期</span>
+                <span class="value">{{ getLeadTimeDays(report) }} <span class="unit">天</span></span>
+            </div>
+            <!-- 時效落差（高亮警示框） -->
+            <div class="gap-highlight-box" [class.danger]="report.timeGapDays !== null && report.timeGapDays < 0"
+                [class.warning]="report.timeGapDays !== null && report.timeGapDays >= 0 && report.timeGapDays <= 14"
+                [class.success]="report.timeGapDays !== null && report.timeGapDays > 14">
+                <div class="gap-title">時效落差</div>
+                <div class="gap-result">
+                    <span class="days">{{ report.timeGapDays !== null ? (report.timeGapDays > 0 ? '+' : '') +
+                        report.timeGapDays + ' 天' : '—' }}</span>
+                    <span class="gap-desc">{{ getTimeGapVerdict(report.timeGapDays) }}</span>
+                </div>
+            </div>
+            <div class="eval-footnote">
+                前置期可由採購覆寫。若已知供應商可即時出貨，改填實際天數。恰為 14 天時落在「高風險」區間，非「可行」——邊界不重疊。
+            </div>
+        </div>
+    </div>
+    <!-- ❹ 否決規則卡片 -->
+    <div class="eval-card">
+        <div class="card-header">
+            <span class="step-num">4</span>
+            <span class="title-text">否決規則</span>
+        </div>
+        <div class="rules-body">
+            <div class="rule-item">
+                <span class="rule-range success">&gt; +14 天</span>
+                <span class="rule-text">可行，正常排序</span>
+            </div>
+            <div class="rule-item">
+                <span class="rule-range warning">0 ～ +14 天</span>
+                <span class="rule-text">高風險，標示「需加速尋源」</span>
+            </div>
+            <div class="rule-item">
+                <span class="rule-range danger">&lt; 0 天</span>
+                <span class="rule-text">直接淘汰，不論熱度多高</span>
+            </div>
+            <div class="rule-explanation">
+                時效落差是否決條件而非加權因子——寫成扣分的話，高熱度還是會把它蓋過去。
+            </div>
+        </div>
+    </div>
+</div>
+<!-- 底部操作按鈕列 -->
+<div class="action-bar">
+    <button type="button" class="btn-outline" (click)="saveAsWatching(report.productId)">
+        存為觀察
+    </button>
+    <button type="button" class="btn-primary" [disabled]="report.timeGapDays !== null && report.timeGapDays < 0"
+        (click)="addToSourcingQueue(report)">
+        加入尋源優先序
+    </button>
+</div>
+}
