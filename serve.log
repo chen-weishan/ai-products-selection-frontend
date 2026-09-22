@@ -1,0 +1,31 @@
+❯ Building...
+✔ Building...
+Initial chunk files | Names                  |  Raw size
+main.js             | main                   |  30.29 kB | 
+styles.css          | styles                 |   9.08 kB | 
+chunk-CZJLB7T5.js   | -                      |   1.08 kB | 
+chunk-N33HUB2S.js   | -                      | 192 bytes | 
+
+                    | Initial total          |  40.64 kB
+
+Lazy chunk files    | Names                  |  Raw size
+chunk-L6P6J5M7.js   | weights-component      |  67.65 kB | 
+chunk-44FTHCIF.js   | ranking-component      |  67.48 kB | 
+chunk-3SMRW3MB.js   | dashboard-component    |  66.06 kB | 
+chunk-ICR44RP4.js   | admin-component        |  15.49 kB | 
+chunk-TIHVJIQA.js   | -                      |   3.37 kB | 
+chunk-437Y7WQT.js   | product-list-component |   2.06 kB | 
+chunk-2SY4UVO7.js   | decisions-component    |   1.97 kB | 
+chunk-Q5WLENP2.js   | heat-tags-component    |   1.96 kB | 
+chunk-PP5OUIDM.js   | sourcing-component     |   1.95 kB | 
+chunk-ELWG33DF.js   | ai-tasks-component     |   1.93 kB | 
+chunk-FUHVXBVT.js   | imports-component      |   1.92 kB | 
+chunk-U7OHXH45.js   | reports-component      |   1.92 kB | 
+chunk-QHNYIQPW.js   | risks-component        |   1.87 kB | 
+chunk-2O7IZKTX.js   | trends-component       |   1.72 kB | 
+
+Application bundle generation complete. [1.839 seconds] - 2026-09-11T11:42:34.455Z
+
+Watch mode enabled. Watching for file changes...
+NOTE: Raw file sizes do not reflect development server per-request transformations.
+  ➜  Local:   http://localhost:4200/

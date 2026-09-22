@@ -6,7 +6,7 @@ export const routes: Routes = [
   children:[
     {
         path: '',
-        redirectTo: 'products',
+        redirectTo: 'dashboard',
         pathMatch: 'full'
       },
     {path:'dashboard',loadComponent:()=>

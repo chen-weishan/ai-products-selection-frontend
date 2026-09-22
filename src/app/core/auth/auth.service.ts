@@ -19,7 +19,7 @@ readonly currentUser=signal<UserInfo | null>(this.getStoredUser());
 readonly isLoggedIn=computed(()=>!!this.currentUser &&!!this.getAccessToken())
 
 login(credentials:LoginRequest):Observable<LoginResponse>{
-  return this.http.post<LoginResponse>('/api/vi/auth/login',credentials).pipe(
+  return this.http.post<LoginResponse>('/api/v1/auth/login',credentials).pipe(
     tap(res=>{
       this.saveAuthData(res);
     })

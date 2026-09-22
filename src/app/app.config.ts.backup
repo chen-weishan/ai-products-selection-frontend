@@ -5,7 +5,7 @@ import { routes } from './app.routes';
 import { loadingInterceptor } from './core/http/loading-interceptor';
 import { loginInterceptor } from './interceptor/login-interceptor';
 import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
-import { BASE_PATH } from './api/variables';
+import { BASE_PATH } from './api/api/variables';
 
 export const appConfig: ApplicationConfig = {
   providers: [

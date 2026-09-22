@@ -1,4 +1,58 @@
-html, body {
+// Include theming for Angular Material with `mat.theme()`.
+// This Sass mixin will define CSS variables that are used for styling Angular Material
+// components according to the Material 3 design spec.
+// Learn more about theming and how to use it for your application's
+// custom components at https://material.angular.dev/guide/theming
+@use '@angular/material' as mat;
+
+// Custom CSS variables from the design mockup
+:root {
+  --navy:#123A56; --navy-deep:#0E2A3F; --navy-line:#1D4A69;
+  --teal:#1E7A9E; --teal-soft:#D8EAF2;
+  --a:#1E7A4D; --b:#B8791A; --c:#8A9299;
+  --risk:#C0392B; --warn:#D68910;
+  --page:#EDF1F4; --card:#FFFFFF; --surface:#F4F6F8;
+  --ink:#16232E; --ink-2:#4A5A67; --ink-3:#8A9AA6;
+  --line:#DCE3E9; --line-soft:#EAEFF3;
+  --sans:"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;
+  --serif:"Noto Serif TC","Songti TC",serif;
+  --mono:"IBM Plex Mono",ui-monospace,monospace;
+}
+
+html {
+  height: 100%;
+  @include mat.theme(
+    (
+      color: (
+        primary: mat.$cyan-palette,
+        tertiary: mat.$blue-palette,
+      ),
+      typography: Roboto,
+      density: 0,
+    )
+  );
+}
+
+body {
+  // Default the application to a light color theme. This can be changed to
+  // `dark` to enable the dark color theme, or to `light dark` to defer to the
+  // user's system settings.
+  color-scheme: light;
+
+  // Set a default background, font and text colors for the application using
+  // Angular Material's system-level CSS variables. Learn more about these
+  // variables at https://material.angular.dev/guide/system-variables
+  background-color: var(--mat-sys-surface);
+  color: var(--mat-sys-on-surface);
+  font: var(--mat-sys-body-medium);
+
+  // Reset the user agent margin.
+  margin: 0;
+  height: 100%;
+}
+
+html,
+body {
   height: 100%;
   margin: 0;
   padding: 0;
@@ -9,7 +63,7 @@ html, body {
 .custom-confirm-dialog-panel {
   .mat-mdc-dialog-container .mdc-dialog__surface {
     border-radius: 12px !important; // 圓角調整
-    background-color: #FFFFFF;
+    background-color: #ffffff;
     padding: 0 !important;
   }
 }
