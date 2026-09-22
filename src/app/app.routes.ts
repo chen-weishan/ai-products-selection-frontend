@@ -68,7 +68,15 @@ export const routes: Routes = [
         path: 'sourcing', loadComponent: () =>
           import('./features/sourcing/sourcing.component').then(
             m => m.SourcingComponent
-          )
+          ),
+        data: { roles: ['BUYER', 'BUYER_LEAD', 'DATA_ADMIN', 'SYS_ADMIN'] }
+      },
+      {
+        path: 'sourcing-queue', loadComponent: () =>
+          import('./features/sourcing-queue/sourcing-queue.component').then(
+            m => m.SourcingQueueComponent
+          ),
+        data: { roles: ['BUYER', 'BUYER_LEAD', 'DATA_ADMIN', 'SYS_ADMIN'] }
       },
       {
         path: 'ai-tasks', loadComponent: () =>

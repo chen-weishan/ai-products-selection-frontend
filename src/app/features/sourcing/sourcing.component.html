@@ -1,6 +1,6 @@
 <div class="title">
     <h2>尋源探索</h2>
-    <button class="btn">尋源優先序</button>
+    <button type="button" class="btn" (click)="goToQueue()">尋源優先序</button>
 </div>
 <div class="directions">
     <span>本月已使用:{{frequency()}}·</span>
@@ -10,8 +10,8 @@
 <div class="search">
 
     <div>
-        <input class="keyword-input-wrapper" type="text" placeholder="關鍵字搜尋"
-               [value]="keyword()" (input)="keyword.set($any($event.target).value)">
+        <input class="keyword-input-wrapper" type="text" placeholder="關鍵字搜尋" [value]="keyword()"
+            (input)="keyword.set($any($event.target).value)">
     </div>
 
     <div class="category-search">
@@ -96,7 +96,7 @@
     <!-- ❸ 時效落差評估卡片 -->
     <div class="eval-card">
         <div class="card-header">
-            <span class="step-num">3</span>
+
             <span class="title-text">時效落差評估</span>
         </div>
         <div class="eval-body">
@@ -164,6 +164,72 @@
     </button>
     <button type="button" class="btn-primary" [disabled]="report.timeGapDays !== null && report.timeGapDays < 0"
         (click)="addToSourcingQueue(report)">
+        加入尋源優先序
+    </button>
+</div>
+}@else {
+<!-- 尚未有資料時：直接用現有的版面資料 -->
+<div class="scout-card">
+    <div class="card-header">
+        <div class="header-title">
+            <span class="title-text">探索報告</span>
+        </div>
+        <div class="header-meta">
+            尚未進行探索
+        </div>
+    </div>
+    <!-- 摘要文字區域顯示提示 -->
+    <div class="report-summary">
+        請在上方輸入關鍵字並選擇品類，點擊「開始探索」以產出 AI 尋源評估報告。
+    </div>
+</div>
+<div class="evaluation-grid">
+    <div class="eval-card">
+        <div class="card-header">
+
+            <span class="title-text">時效落差評估</span>
+        </div>
+        <div class="eval-body">
+            <div class="eval-row">
+                <span class="label">熱度階段</span>
+                <span class="value">—</span>
+            </div>
+            <div class="eval-row">
+                <span class="label">預估剩餘壽命</span>
+                <span class="value">—</span>
+            </div>
+            <div class="eval-row">
+                <span class="label">品類前置期</span>
+                <span class="value">—</span>
+            </div>
+        </div>
+    </div>
+    <div class="eval-card">
+        <div class="card-header">
+
+            <span class="title-text">否決規則</span>
+        </div>
+        <div class="rules-body">
+            <div class="rule-item">
+                <span class="rule-range success">&gt; +14 天</span>
+                <span class="rule-text">可行，正常排序</span>
+            </div>
+            <div class="rule-item">
+                <span class="rule-range warning">0 ～ +14 天</span>
+                <span class="rule-text">高風險，標示「需加速尋源」</span>
+            </div>
+            <div class="rule-item">
+                <span class="rule-range danger">&lt; 0 天</span>
+                <span class="rule-text">直接淘汰，不論熱度多高</span>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="action-bar">
+    <button type="button" class="btn-outline" disabled>
+        存為觀察
+    </button>
+    <button type="button" class="btn-primary" disabled>
         加入尋源優先序
     </button>
 </div>

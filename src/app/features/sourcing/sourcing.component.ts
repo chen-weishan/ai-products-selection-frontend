@@ -1,11 +1,12 @@
-import { Component } from '@angular/core';
-import { 
+import { Component, OnInit, OnDestroy } from '@angular/core';
+import {
   AITasksService,
-  AiBudgetControllerService, 
-  AiTaskControllerService, 
-  CategoryControllerService, 
-  CategoryTreeResponse, 
-  SourcingScoutControllerService 
+  AiBudgetControllerService,
+  AiTaskControllerService,
+  CategoryControllerService,
+  CategoryTreeResponse,
+  ProductControllerService,
+  SourcingScoutControllerService
 } from '../../api';
 import { inject } from '@angular/core';
 import { signal } from '@angular/core';
@@ -15,20 +16,39 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { CommonModule } from '@angular/common';
 import { DialogService } from '../../services/dialog-service';
-
+import { SKIP_LOADING } from '../../core/http/loading-interceptor';
+import { HttpContext } from '@angular/common/http';
+import { RouterLink, Router } from '@angular/router';
 @Component({
   selector: 'app-sourcing',
-  imports: [MatFormFieldModule, MatSelectModule, MatInputModule, FormsModule, CommonModule],
+  imports: [MatFormFieldModule, MatSelectModule, MatInputModule, FormsModule, CommonModule, RouterLink],
   templateUrl: './sourcing.component.html',
   styleUrl: './sourcing.component.scss'
 })
-export class SourcingComponent {
+export class SourcingComponent implements OnInit, OnDestroy {
+  private readonly STORAGE_KEY = 'sourcing_active_task';
+  private pollTimer: any = null;
+  private readonly router = inject(Router);
   private readonly categoryService = inject(CategoryControllerService);
+  private readonly productService = inject(ProductControllerService);
   private soucingService = inject(SourcingScoutControllerService);
   private aiTaskService = inject(AiTaskControllerService);
   private aiTasksService = inject(AITasksService);
   private aiBudgetService = inject(AiBudgetControllerService);
   private readonly dialogService = inject(DialogService);
+
+  goToQueue() {
+    console.log('🚀 [SourcingComponent] 點擊「尋源優先序」，正在跳轉至 /sourcing-queue ...');
+    this.router.navigate(['/sourcing-queue']).then((success) => {
+      if (success) {
+        console.log('✅ [SourcingComponent] 跳轉 /sourcing-queue 成功');
+      } else {
+        console.warn('⚠️ [SourcingComponent] 跳轉 /sourcing-queue 失敗！請檢查是否被路由守衛 (roleGuard/authGuard) 攔截。');
+      }
+    }).catch((err) => {
+      console.error('❌ [SourcingComponent] 跳轉 /sourcing-queue 發生異常：', err);
+    });
+  }
 
   executionSeconds = signal<number>(0);
   private scoutStartTime = 0;
@@ -39,9 +59,15 @@ export class SourcingComponent {
   frequency = signal<string>('0/50');
   isQuotaExhausted = signal<boolean>(false);
 
+  ngOnDestroy() {
+    if (this.pollTimer) {
+      clearInterval(this.pollTimer);
+    }
+  }
+
   ngOnInit() {
     this.fetchBudget();
-
+    this.restoreActiveTask();
     this.categoryService.getCategories().subscribe({
       next: async (res) => {
         const responseData = await this.unpack(res);
@@ -52,6 +78,25 @@ export class SourcingComponent {
         console.error('品類取得失敗', err);
       }
     });
+  }
+
+  private restoreActiveTask() {
+    const saved = sessionStorage.getItem(this.STORAGE_KEY);
+    if (!saved) return;
+
+    try {
+      const taskInfo = JSON.parse(saved);
+      if (taskInfo?.taskId) {
+        if (taskInfo.keyword) this.keyword.set(taskInfo.keyword);
+        if (taskInfo.categoryId) this.selectedCategoryId.set(taskInfo.categoryId);
+        if (taskInfo.startTime) this.scoutStartTime = taskInfo.startTime;
+        console.log('🔄 偵測到進行中的尋源任務，正在恢復輪詢：', taskInfo);
+        this.pollAiTask(taskInfo.taskId, taskInfo.productId);
+      }
+    } catch (e) {
+      console.error('解析暫存任務失敗', e);
+      sessionStorage.removeItem(this.STORAGE_KEY);
+    }
   }
 
   fetchBudget() {
@@ -103,10 +148,15 @@ export class SourcingComponent {
         const taskId = responseData?.data?.taskId ?? responseData?.taskId ?? responseData?.data?.id;
         const productId = responseData?.data?.productId ?? responseData?.productId;
 
-        if (!taskId) {
-          console.error('無法從後端回應取得 taskId', responseData);
-          return;
-        }
+        if (!taskId) return;
+
+        sessionStorage.setItem(this.STORAGE_KEY, JSON.stringify({
+          taskId,
+          productId,
+          keyword,
+          categoryId,
+          startTime: this.scoutStartTime
+        }))
 
         this.pollAiTask(taskId, productId);
       },
@@ -119,15 +169,26 @@ export class SourcingComponent {
   private pollAiTask(taskId: number, productId?: number) {
     if (!taskId) return;
 
-    const timer = setInterval(() => {
-      this.aiTaskService.getById1({ id: taskId }).subscribe({
+    if (this.pollTimer) {
+      clearInterval(this.pollTimer);
+    }
+
+    this.pollTimer = setInterval(() => {
+      this.aiTaskService.getById1({ id: taskId },
+        'body',
+        false,
+        { context: new HttpContext().set(SKIP_LOADING, true) }
+      ).subscribe({
         next: async (res) => {
           const responseData = await this.unpack(res);
           const task = responseData?.data ?? responseData;
           console.log('輪詢進度：', task);
 
           if (task?.status === 'SUCCEEDED' || task?.status === 'COMPLETED') {
-            clearInterval(timer);
+            if (this.pollTimer) {
+              clearInterval(this.pollTimer);
+              sessionStorage.removeItem(this.STORAGE_KEY);
+            }
 
             if (productId) {
               this.fetchReport(productId);
@@ -151,7 +212,10 @@ export class SourcingComponent {
             }
 
           } else if (task?.status === 'FAILED') {
-            clearInterval(timer);
+            if (this.pollTimer) {
+              clearInterval(this.pollTimer);
+              sessionStorage.removeItem(this.STORAGE_KEY);
+            }
             this.dialogService.Confirm({
               title: '探索失敗',
               message: 'AI 尋源探索失敗，請稍後再試！',
@@ -162,10 +226,13 @@ export class SourcingComponent {
         },
         error: (err) => {
           console.error('查詢進度失敗', err);
-          clearInterval(timer);
+          if (this.pollTimer) {
+            clearInterval(this.pollTimer);
+            sessionStorage.removeItem(this.STORAGE_KEY);
+          }
         }
       });
-    }, 1500);
+    }, 5000);
   }
 
   private fetchReport(productId: number) {
@@ -227,12 +294,48 @@ export class SourcingComponent {
 
   /** 點擊「存為觀察」 */
   saveAsWatching(productId: number) {
-    this.dialogService.Confirm({
-      title: '操作確認',
-      message: '已將此品項狀態標記為「觀察中」！',
-      confirmText: '確定',
-      cancelText: '',
-      isDanger: false
+    const report = this.scoutReport();
+    const catId = this.selectedCategoryId() ?? report?.categoryId;
+    const kw = this.keyword() || report?.productName || report?.keyword;
+
+    if (!catId) {
+      this.dialogService.Confirm({
+        title: '提示',
+        message: '缺少品類資料，無法儲存！',
+        confirmText: '確定',
+        isDanger: true
+      });
+      return;
+    }
+
+    this.productService.update1({
+      id: productId,
+      productUpdateRequest: {
+        name: kw,
+        categoryId: catId,
+        trackType: 'B',
+        sourcingStatus: 'PENDING',
+        keywordIds: report?.keywordId ? new Set([report.keywordId]) : undefined
+      }
+    }).subscribe({
+      next: async (res) => {
+        await this.unpack(res);
+        this.dialogService.Confirm({
+          title: '操作成功',
+          message: '已成功將此品項標記並儲存為「觀察中」！',
+          confirmText: '確定',
+          isDanger: false
+        });
+      },
+      error: (err) => {
+        console.error('儲存為觀察失敗', err);
+        this.dialogService.Confirm({
+          title: '儲存失敗',
+          message: '更新品項狀態失敗，請稍後再試！',
+          confirmText: '確定',
+          isDanger: true
+        });
+      }
     });
   }
 
@@ -247,12 +350,44 @@ export class SourcingComponent {
       });
       return;
     }
-    this.dialogService.Confirm({
-      title: '尋源成功',
-      message: '已成功將品項加入「尋源優先序清單」！',
-      confirmText: '確定',
-      cancelText: '',
-      isDanger: false
+
+    const productId = report.productId;
+    const catId = this.selectedCategoryId() ?? report.categoryId;
+    const kw = this.keyword() || report.productName || report.keyword;
+    const targetStatus: 'SOURCING' | 'URGENT' = (report.timeGapDays !== null && report.timeGapDays <= 14) ? 'URGENT' : 'SOURCING';
+
+    this.productService.update1({
+      id: productId,
+      productUpdateRequest: {
+        name: kw,
+        categoryId: catId,
+        trackType: 'B',
+        sourcingStatus: targetStatus,
+        keywordIds: report.keywordId ? new Set([report.keywordId]) : undefined
+      }
+    }).subscribe({
+      next: async (res) => {
+        await this.unpack(res);
+        const statusText = targetStatus === 'URGENT' ? '需加速尋源' : '尋源中';
+        this.dialogService.Confirm({
+          title: '尋源成功',
+          message: `已成功將品項加入「尋源優先序清單」（狀態：${statusText}）！`,
+          confirmText: '確定',
+          isDanger: false
+        });
+      },
+      error: (err) => {
+        console.error('加入尋源優先序失敗', err);
+        this.dialogService.Confirm({
+          title: '操作失敗',
+          message: '加入尋源優先序失敗，請稍後再試！',
+          confirmText: '確定',
+          isDanger: true
+        });
+      }
     });
   }
+
+
+
 }

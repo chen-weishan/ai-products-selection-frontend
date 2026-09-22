@@ -1,0 +1,170 @@
+<div class="sourcing-queue-container">
+  <!-- 頁首與統計 ─────────────────────────────────────────────── -->
+  <div class="header-section">
+    <div class="title-group">
+      <h2 class="page-title">尋源優先序</h2>
+      <div class="sub-stats">
+        <span>{{ activeCount() }} 個進行中</span>
+        <span class="dot">·</span>
+        <span>{{ rejectedCount() }} 個已淘汰</span>
+        <span class="dot">·</span>
+        <span>{{ promotedCount() }} 個已成案</span>
+      </div>
+    </div>
+
+    <div class="action-tools">
+      <mat-form-field appearance="outline" subscriptSizing="dynamic" class="status-form-field">
+        <mat-label>狀態</mat-label>
+        <mat-select [value]="selectedStatus()" (selectionChange)="selectedStatus.set($event.value)">
+          <mat-option value="ALL">全部</mat-option>
+          <mat-option value="ACTIVE">進行中</mat-option>
+          <mat-option value="URGENT">需加速</mat-option>
+          <mat-option value="SOURCING">尋源中</mat-option>
+          <mat-option value="PENDING">待評估</mat-option>
+          <mat-option value="PROMOTED">已成案</mat-option>
+          <mat-option value="REJECTED">已淘汰</mat-option>
+        </mat-select>
+      </mat-form-field>
+
+      <button mat-flat-button color="primary" class="btn-create" (click)="goToSourcing()">
+        <mat-icon class="btn-icon">add</mat-icon>
+        <span>新增探索</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- 主清單表格 (Material Table) ────────────────────────────── -->
+  <mat-card class="table-card mat-elevation-z1">
+    <mat-card-content class="table-card-content">
+      <table mat-table [dataSource]="filteredItems()" class="sourcing-table">
+        <!-- 序號 -->
+        <ng-container matColumnDef="index">
+          <th mat-header-cell *matHeaderCellDef class="col-index">
+            <span class="step-badge">❶</span>
+          </th>
+          <td mat-cell *matCellDef="let item; let i = index" class="col-index">
+            <span class="index-num">{{ getDisplayIndex(item, i) }}</span>
+          </td>
+        </ng-container>
+
+        <!-- 關鍵字 -->
+        <ng-container matColumnDef="keyword">
+          <th mat-header-cell *matHeaderCellDef class="col-keyword">關鍵字</th>
+          <td mat-cell *matCellDef="let item" class="col-keyword">
+            <span class="keyword-name">{{ item.keyword }}</span>
+          </td>
+        </ng-container>
+
+        <!-- 熱度階段 -->
+        <ng-container matColumnDef="heatStage">
+          <th mat-header-cell *matHeaderCellDef class="col-stage">熱度階段</th>
+          <td mat-cell *matCellDef="let item" class="col-stage">
+            @if (item.heatStage) {
+              <span class="heat-badge" [ngClass]="getHeatBadgeClass(item.heatStage)">
+                {{ getHeatStageLabel(item) }}
+              </span>
+            } @else {
+              <span class="empty-val">—</span>
+            }
+          </td>
+        </ng-container>
+
+        <!-- 剩餘壽命 -->
+        <ng-container matColumnDef="lifespan">
+          <th mat-header-cell *matHeaderCellDef class="col-lifespan">剩餘壽命</th>
+          <td mat-cell *matCellDef="let item" class="col-lifespan">
+            @if (item.estimatedLifespanDays != null) {
+              <span class="val-num">{{ item.estimatedLifespanDays }}</span>
+              <span class="val-unit">天</span>
+            } @else {
+              <span class="empty-val">—</span>
+            }
+          </td>
+        </ng-container>
+
+        <!-- 前置期 -->
+        <ng-container matColumnDef="leadTime">
+          <th mat-header-cell *matHeaderCellDef class="col-leadtime">前置期</th>
+          <td mat-cell *matCellDef="let item" class="col-leadtime">
+            @if (item.leadTimeDays != null) {
+              <span class="val-num">{{ item.leadTimeDays }}</span>
+              <span class="val-unit">天</span>
+            } @else {
+              <span class="empty-val">—</span>
+            }
+          </td>
+        </ng-container>
+
+        <!-- 時效落差 -->
+        <ng-container matColumnDef="timeGap">
+          <th mat-header-cell *matHeaderCellDef class="col-timegap">時效落差</th>
+          <td mat-cell *matCellDef="let item" class="col-timegap">
+            <span class="gap-text" [ngClass]="getTimeGapClass(item.timeGapDays)">
+              {{ formatTimeGap(item.timeGapDays) }}
+            </span>
+          </td>
+        </ng-container>
+
+        <!-- 狀態 -->
+        <ng-container matColumnDef="status">
+          <th mat-header-cell *matHeaderCellDef class="col-status">狀態</th>
+          <td mat-cell *matCellDef="let item" class="col-status">
+            <span class="status-badge" [ngClass]="getStatusClass(item.sourcingStatus)">
+              {{ getStatusLabel(item.sourcingStatus) }}
+            </span>
+          </td>
+        </ng-container>
+
+        <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+        <tr
+          mat-row
+          *matRowDef="let row; columns: displayedColumns"
+          class="table-row"
+          [class.row-urgent]="row.sourcingStatus === 'URGENT'"
+          [class.row-rejected]="row.sourcingStatus === 'REJECTED'"
+        ></tr>
+
+        <!-- 空資料狀態 (Material 公式: *matNoDataRow) -->
+        <tr class="mat-row no-data-row" *matNoDataRow>
+          <td class="mat-cell empty-cell" [attr.colspan]="displayedColumns.length">
+            目前無符合條件的尋源品項，請點擊「+ 新增探索」開始探索！
+          </td>
+        </tr>
+      </table>
+    </mat-card-content>
+  </mat-card>
+
+  <!-- 底部規則與說明卡片 (Material Card) ─────────────────────── -->
+  <div class="guide-grid">
+    <!-- 卡片 ❷ -->
+    <mat-card class="guide-card mat-elevation-z1">
+      <mat-card-header class="guide-card-header">
+        <div mat-card-avatar class="step-badge-avatar">
+          <span class="step-badge">❷</span>
+        </div>
+        <mat-card-title class="guide-title">成案後轉入 A 軌</mat-card-title>
+      </mat-card-header>
+      <mat-card-content class="guide-content">
+        <p>
+          找到供應商並取得報價後，品項的 track_type 由 B 改為 A，開始套用完整因子（毛利、轉換率、風險扣分）評分。探索期間累積的熱度資料會一併帶入，不需重抓。
+        </p>
+      </mat-card-content>
+    </mat-card>
+
+    <!-- 卡片 ❸ -->
+    <mat-card class="guide-card mat-elevation-z1">
+      <mat-card-header class="guide-card-header">
+        <div mat-card-avatar class="step-badge-avatar">
+          <span class="step-badge">❸</span>
+        </div>
+        <mat-card-title class="guide-title">為什麼不給分數</mat-card-title>
+      </mat-card-header>
+      <mat-card-content class="guide-content">
+        <p>
+          B 軌沒有毛利率、沒有歷史轉換率、沒有自家評論。硬算一個「選品分數」會誤導——那個數字只反映熱度，卻長得跟 A 軌的綜合分數一樣。<br />
+          因此 B 軌只排優先序，不出分數。
+        </p>
+      </mat-card-content>
+    </mat-card>
+  </div>
+</div>
