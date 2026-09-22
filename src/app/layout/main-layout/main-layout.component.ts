@@ -35,6 +35,7 @@ export class MainLayoutComponent {
     { label: 'S-17 尋源探索', path: '/sourcing', icon: 'travel_explore' },
     { label: 'S-08 AI任務', path: '/ai-tasks', icon: 'smart_toy' },
     { label: 'S-09 權重設定', path: '/weights', icon: 'tune' },
+    { label: 'S-20 節慶檔期', path: '/festivals', icon: 'event' },
     { label: 'S-10 資料匯入', path: '/imports', icon: 'file_upload' },
     { label: 'S-11 風險示警', path: '/risks', icon: 'warning' },
     { label: 'S-12 決策紀錄', path: '/decisions', icon: 'history_edu' },

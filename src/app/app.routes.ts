@@ -50,6 +50,11 @@ export const routes: Routes = [
         m => m.WeightsComponent
       )
     },
+    {path:'festivals',loadComponent:()=>
+      import('./features/festivals/festivals.component').then(
+        m => m.FestivalsComponent
+      )
+    },
     {path:'imports',loadComponent:()=>
       import('./features/imports/imports.component').then(
         m => m.ImportsComponent
