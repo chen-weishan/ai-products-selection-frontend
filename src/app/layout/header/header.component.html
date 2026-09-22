@@ -1,17 +1,21 @@
 <div class="header">
   <div class="header-left">
-    <button mat-icon-button type="button"  (click)="layoutService.toggleSidebar()">
+    <button mat-icon-button type="button" (click)="layoutService.toggleSidebar()">
       <mat-icon class="menu-btn">menu</mat-icon>
     </button>
     <span class="title">莊敬選品</span>
   </div>
 
   <div class="header-right">
-<!-- 還沒放上超連結 -->
-      @for (item of navItems(); track item.path) {
-         <mat-icon class="right-icon">{{ item.icon }}</mat-icon>
-      }
+    @if (currentUser(); as user) {
+      <div class="user-badge">
+        <span class="user-name">{{ user.name }}</span>
+        <span class="role-tag">{{ roleLabel() }}</span>
+      </div>
+    }
 
+    <button mat-icon-button type="button" class="action-btn" title="登出" (click)="logout()">
+      <mat-icon class="right-icon">logout</mat-icon>
+    </button>
+  </div>
 </div>
-</div>
-

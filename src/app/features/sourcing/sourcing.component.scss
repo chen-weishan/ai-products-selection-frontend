@@ -1,0 +1,29 @@
+.title {
+    display: flex;
+    justify-content: space-between;
+
+    .btn {
+        background: #ffffff;
+        border: 1px solid #cbd5e1;
+        color: #475569;
+        padding: 8px 16px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: 500;
+        transition: all 0.2s;
+        height: 50px;
+
+        &:hover {
+            background: #f8fafc;
+            border-color: #94a3b8;
+        }
+
+    }
+}
+
+.directions {
+    .span {
+        color: rgb(183, 183, 183);
+        font-size: 8px;
+    }
+}

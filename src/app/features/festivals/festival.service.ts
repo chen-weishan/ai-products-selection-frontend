@@ -18,8 +18,9 @@ import {
  * 路徑走相對路徑 /api/v1，由 proxy.conf.json 轉到 localhost:8080，
  * 因此瀏覽器視為同源，不觸發 CORS。
  *
- * 後端 SecurityConfig 目前是 anyRequest().permitAll()，不需要送認證標頭。
- * TODO FR-01 收尾後改用 AuthService 的 JWT。
+ * 不自己加認證標頭：合併 dev 後已有全域的 loginInterceptor，
+ * 有登入就自動掛上 Authorization: Bearer。後端 SecurityConfig 目前是
+ * anyRequest().permitAll()，沒 token 也通得過。
  */
 @Injectable({ providedIn: 'root' })
 export class FestivalService {

@@ -1,1 +1,44 @@
-<p>login works!</p>
+<div class="login-wrapper">
+  <div class="login-main">
+    <h1 class="title">系統登入</h1>
+
+    <div class="input-field">
+      <label for="email">電子郵件</label>
+      <input id="email" type="text" [(ngModel)]="email" placeholder="user@company.com" (keydown.enter)="onLogin()" />
+    </div>
+
+    <div class="input-field">
+      <label for="password">密碼</label>
+      <div class="password-input-wrapper">
+        <input id="password" [type]="showPassword ? 'text' : 'password'" [(ngModel)]="password" placeholder="請輸入密碼"
+          (keydown.enter)="onLogin()" />
+        <button type="button" class="toggle-password-btn" (click)="togglePasswordVisibility()"
+          [attr.aria-label]="showPassword ? '隱藏密碼' : '顯示密碼'" [title]="showPassword ? '隱藏密碼' : '顯示密碼'" tabindex="-1">
+          <mat-icon>{{ showPassword ? 'visibility_off' : 'visibility' }}</mat-icon>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="password-group">
+    <div class="checkbox-group">
+      <input type="checkbox" name="remember-me" id="remember-me" [(ngModel)]="rememberMe">
+      <label for="remember-me">記住我</label>
+    </div>
+    <a href="javascript:void(0)" (click)="forget()" class="forget-password">忘記密碼?</a>
+  </div>
+
+  <div class="sign-btn">
+    <button [disabled]="!email.trim() || !password.trim() || isLoading" (click)="onLogin()">
+      {{ isLoading ? '驗證登入中...' : '登入' }}
+    </button>
+  </div>
+
+  <div class="error-group">
+    @if (errorMessage) {
+    <mat-icon class="error-icon">error_outline</mat-icon>
+    <span class="error">{{ errorMessage }}</span>
+    }
+  </div>
+
+</div>
