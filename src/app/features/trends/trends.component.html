@@ -1,62 +1,171 @@
-<!-- @for(item of trendList();track item.keywordId) {
- <p>{{item.keyword}}</p>
-<p>{{item.heatToday}}</p>
-<p>{{item.slope7d}}</p>
-<p>{{item.slope30d}}</p>
-<p>{{item.aiSignal}}</p> 
-} -->
+<!-- 頁首 ─────────────────────────────────────────────── -->
+<div class="mh">
+    <div>
+        <h3>趨勢探索 (Market Trends)</h3>
+        <div class="sub">
+            目前監控關鍵字：{{ trendList().length }} 個　·　每日自動排程計算
+        </div>
+    </div>
 
-<table mat-table [dataSource]="trendList()" class="mat-shadow-2">
+    <div class="tools">
+        <button type="button" class="btn" (click)="loadTrends()">
+            重新整理
+        </button>
+    </div>
+</div>
 
-    <!--- Note that these columns can be defined in any order.
-        The actual rendered columns are set as a property on the row definition" -->
+<!-- 搜尋與篩選列 (Material 風格) ─────────────────────── -->
+<div class="filter-bar">
+    <mat-form-field appearance="outline" class="filter-field search-field" subscriptSizing="dynamic">
+        <mat-label>搜尋關鍵字</mat-label>
+        <input matInput placeholder="輸入關鍵字…" [ngModel]="searchQuery()" (ngModelChange)="onSearchChange($event)" />
+    </mat-form-field>
 
-    <!-- Position Column -->
-    <ng-container matColumnDef="keyword">
-        <th mat-header-cell *matHeaderCellDef> 關鍵字 </th>
+    <mat-form-field appearance="outline" class="filter-field select-field" subscriptSizing="dynamic">
+        <mat-label>AI 判斷</mat-label>
+        <mat-select [ngModel]="aiFilter()" (ngModelChange)="onFilterChange($event)" panelClass="unified-mat-select-panel">
+            <mat-option value="ALL">全部狀態</mat-option>
+            <mat-option value="NORMAL">常態</mat-option>
+            <mat-option value="WARN">背離警示</mat-option>
+        </mat-select>
+    </mat-form-field>
 
-        <td mat-cell *matCellDef="let element"> {{element.keyword}} </td>
+    <button type="button" class="btn reset-filter-btn" [disabled]="!searchQuery() && aiFilter() === 'ALL'"
+        (click)="resetFilters()">
+        清除條件
+    </button>
+</div>
 
-    </ng-container>
+<!-- 訊息 ─────────────────────────────────────────────── -->
+@if (errorMessage(); as msg) {
+<div class="alert error">{{ msg }}</div>
+}
+@if (isLoading()) {
+<div class="alert busy">資料載入中…</div>
+}
 
-    <!-- Name Column -->
-    <ng-container matColumnDef="heatToday">
-        <th mat-header-cell *matHeaderCellDef> 熱度趨勢 </th>
+<!-- 主內容卡片 ───────────────────────────────────────── -->
+<div class="card table-card">
+    <table mat-table [dataSource]="paginatedTrends()" class="trend-table">
 
-        <td mat-cell *matCellDef="let element"> {{element.heatToday}} </td>
+        <!-- 關鍵字 Column -->
+        <ng-container matColumnDef="keyword">
+            <th mat-header-cell *matHeaderCellDef> 關鍵字 </th>
+            <td mat-cell *matCellDef="let element">
+                <span class="kw-text">{{element.keyword}}</span>
+            </td>
+        </ng-container>
 
-    </ng-container>
+        <!-- 熱度趨勢 Column -->
+        <ng-container matColumnDef="heatToday">
+            <th mat-header-cell *matHeaderCellDef> 熱度趨勢 </th>
+            <td mat-cell *matCellDef="let element">
+                <span class="heat-badge">{{element.heatToday}}</span>
+            </td>
+        </ng-container>
 
-    <!-- Weight Column -->
-    <ng-container matColumnDef="slope7d">
-        <th mat-header-cell *matHeaderCellDef> 7日均線 </th>
+        <!-- 7日均線 Column -->
+        <ng-container matColumnDef="slope7d">
+            <th mat-header-cell *matHeaderCellDef> 7日均線 </th>
+            <td mat-cell *matCellDef="let element">
+                <span [class.positive]="element.slope7d > 0" [class.negative]="element.slope7d < 0">
+                    {{formatSlope(element.slope7d)}}
+                </span>
+            </td>
+        </ng-container>
 
-        <td mat-cell *matCellDef="let element">
-            <span [class.positive]="element.slope7d > 0" [class.negative]="element.slope7d < 0">
-                {{formatSlope(element.slope7d)}}
-            </span>
-        </td>
+        <!-- 30日均線 Column -->
+        <ng-container matColumnDef="slope30d">
+            <th mat-header-cell *matHeaderCellDef> 30日均線 </th>
+            <td mat-cell *matCellDef="let element">
+                <span [class.positive]="element.slope30d > 0" [class.negative]="element.slope30d < 0">
+                    {{formatSlope(element.slope30d)}}
+                </span>
+            </td>
+        </ng-container>
 
-    </ng-container>
+        <!-- AI判斷 Column -->
+        <ng-container matColumnDef="aiSignal">
+            <th mat-header-cell *matHeaderCellDef> AI判斷 </th>
+            <td mat-cell *matCellDef="let element" class="status-cell">
+                @if (element.divergenceFlag) {
+                <span class="status-badge status-warn">背離警示</span>
+                } @else {
+                <span class="status-badge status-normal">常態</span>
+                }
+            </td>
+        </ng-container>
 
-    <!-- Symbol Column -->
-    <ng-container matColumnDef="slope30d">
-        <th mat-header-cell *matHeaderCellDef> 30日均線 </th>
+        <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+        <tr mat-row *matRowDef="let row; columns: displayedColumns;" class="clickable-row"
+            (click)="goToDetail(row.keywordId)"></tr>
 
-        <td mat-cell *matCellDef="let element">
-            <span [class.positive]="element.slope30d > 0" [class.negative]="element.slope30d < 0">
-                {{formatSlope(element.slope30d)}}
-            </span>
-        </td>
+        <!-- 無資料列 -->
+        <tr class="mat-row" *matNoDataRow>
+            <td class="mat-cell empty-cell" [attr.colspan]="displayedColumns.length">
+                無符合條件之關鍵字資料
+            </td>
+        </tr>
+    </table>
 
-    </ng-container>
+    <!-- 分頁器 (MatPaginator) ────────────────────────── -->
+    <mat-paginator
+        [length]="filteredTrends().length"
+        [pageSize]="pageSize()"
+        [pageIndex]="pageIndex()"
+        [pageSizeOptions]="pageSizeOptions"
+        [selectConfig]="{ panelClass: 'unified-mat-select-panel' }"
+        (page)="onPageChange($event)"
+        aria-label="選取分頁">
+    </mat-paginator>
+</div>
 
-    <ng-container matColumnDef="aiSignal">
-        <th mat-header-cell *matHeaderCellDef>AI判斷</th>
-        <td mat-cell *matCellDef="let element"> {{element.divergenceFlag}} </td>
-    </ng-container>
+<!-- 底部說明面板 (參照 heat-sources 結構與風格) ─────────────────── -->
+<div class="info-section">
+    <div class="info-header">
+        <div class="info-title">
 
-    <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-    <tr mat-row *matRowDef="let row; columns: displayedColumns;" class="clickable-row"
-        (click)="goToDetail(row.keywordId)"></tr>
-</table>
+            <h4>趨勢指標與 AI 判讀規則說明</h4>
+        </div>
+
+    </div>
+
+    <div class="info-grid">
+        <!-- 卡片 1: 熱度趨勢與動態 -->
+        <div class="info-card">
+            <div class="card-head">
+
+                <h5>熱度趨勢與均線斜率</h5>
+            </div>
+            <p>
+                <strong>7日 / 30日均線：</strong> 代表關鍵字在短期與中期的動能加速度。<br>
+                數值為正（<span class="positive-txt">+%</span>）代表熱度持續加溫；數值為負（<span
+                    class="negative-txt">-%</span>）則代表討論量與搜尋動能正在衰退。
+            </p>
+        </div>
+
+        <!-- 卡片 2: AI 背離訊號定義 -->
+        <div class="info-card">
+            <div class="card-head">
+
+                <h5>AI 判斷：背離警示 (Divergence)</h5>
+            </div>
+            <p>
+                當<strong>短期熱度急遽飆升（7日大幅向上）</strong>但<strong>全網基礎討論與長期均線未同步跟上</strong>時，系統將標記為
+                <span class="status-badge status-warn inline-b">背離警示</span>。可能屬於突發單一事件、迷因炒作或短期刷量，選品成案風險較高。
+            </p>
+        </div>
+
+        <!-- 卡片 3: 常態與建議處置 -->
+        <div class="info-card">
+            <div class="card-head">
+
+                <h5>AI 判斷：常態 (Normal)</h5>
+            </div>
+            <p>
+                標記為 <span class="status-badge status-normal inline-b">常態</span>
+                代表該品類/關鍵字熱度與各社群聲量曲線協同發展，數據健康度高，適合進一步進入尋源探索與品項評估。
+            </p>
+        </div>
+    </div>
+</div>

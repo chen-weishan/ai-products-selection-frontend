@@ -70,6 +70,11 @@ export class HeatSourcesComponent implements OnInit {
   });
 
   ngOnInit() {
+    this.loadSources();
+  }
+
+  loadSources() {
+    this.loading.set(true);
     this.dashboardApi.getHeatSources().subscribe({
       next: async (res) => {
         let responseData: any = res;
