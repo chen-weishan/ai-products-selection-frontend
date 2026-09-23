@@ -1,110 +1,119 @@
-<div class="title">
-    <h2>尋源探索</h2>
-    <button type="button" class="btn" (click)="goToQueue()">尋源優先序</button>
-</div>
-<div class="directions">
-    <span>本月已使用:{{frequency()}}·</span>
-    <span>ai探索為獨立預算池</span>
-</div>
-
-<div class="search">
-
+<!-- 頁首 ─────────────────────────────────────────────── -->
+<div class="mh">
     <div>
-        <input class="keyword-input-wrapper" type="text" placeholder="關鍵字搜尋" [value]="keyword()"
-            (input)="keyword.set($any($event.target).value)">
+        <h3>尋源探索 (Sourcing Scout)</h3>
+        <div class="sub">
+            本月已使用：{{ frequency() }} · AI 探索為獨立預算池
+        </div>
     </div>
 
-    <div class="category-search">
-        <mat-form-field>
-            <mat-label>品類</mat-label>
-            <mat-select [value]="selectedCategoryId()" (selectionChange)="selectedCategoryId.set($event.value)">
-                @for (item of categories(); track item.id) {
-                @if(item.children && item.children.length>0){
-                <mat-optgroup [label]="item.name||''">
-                    @for(child of item.children;track child.id){
-                    <mat-option [value]="child.id">{{child.name}}</mat-option>
-                    }
-                </mat-optgroup>
-                }@else{
-                <mat-option [value]="item.id">{{item.name}}</mat-option>
-                }
-                }
-            </mat-select>
-        </mat-form-field>
-    </div>
-    <div>
-        <button class="category-btn" (click)="startScout()">開始探索</button>
+    <div class="tools">
+        <button type="button" class="btn" routerLink="/sourcing-queue">
+            尋源優先序
+        </button>
     </div>
 </div>
 
+<!-- 搜尋與品類控制列 (Material 風格) ───────────────────── -->
+<div class="filter-bar">
+    <mat-form-field appearance="outline" class="filter-field search-field" subscriptSizing="dynamic">
+        <mat-label>輸入尋源關鍵字</mat-label>
+        <input matInput placeholder="輸入品項或關鍵字…" [ngModel]="keyword()" (ngModelChange)="keyword.set($event)" />
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" class="filter-field category-field" subscriptSizing="dynamic">
+        <mat-label>選擇所屬品類</mat-label>
+        <mat-select [ngModel]="selectedCategoryId()" (ngModelChange)="selectedCategoryId.set($event)"
+            panelClass="unified-mat-select-panel">
+            @for (item of categories(); track item.id) {
+            @if (item.children && item.children.length > 0) {
+            <mat-optgroup [label]="item.name || ''">
+                @for (child of item.children; track child.id) {
+                <mat-option [value]="child.id">{{ child.name }}</mat-option>
+                }
+            </mat-optgroup>
+            } @else {
+            <mat-option [value]="item.id">{{ item.name }}</mat-option>
+            }
+            }
+        </mat-select>
+    </mat-form-field>
+
+    <button type="button" class="btn pri start-scout-btn"
+        [disabled]="isScouting() || !keyword().trim() || !selectedCategoryId()" (click)="startScout()">
+        {{ isScouting() ? '尋源中…' : '開始探索' }}
+    </button>
+</div>
+
+<!-- 報告與評估主內容 ─────────────────────────────────── -->
 @if (scoutReport(); as report) {
-<div class="scout-card">
+<div class="card scout-card">
     <!-- 1. 卡片頂部標題列 -->
     <div class="card-header">
         <div class="header-title">
-            <span class="title-text">探索報告</span>
+            <h4>AI 尋源探索報告</h4>
         </div>
         <div class="header-meta">
-            SourcingScoutAgent · {{ executionSeconds()}}秒
+            SourcingScoutAgent · {{ executionSeconds() }}s
         </div>
     </div>
 
-    <!-- 2. 中間 AI 摘要長文 (report.report) -->
+    <!-- 2. 中間 AI 摘要長文 -->
     <div class="report-summary">
         {{ report.report }}
     </div>
 
-    <!-- 3. 機會訊號區塊 (report.opportunitySignals) -->
-    @if (report.opportunitySignals && report.opportunitySignals.length > 0) {
-    <div class="signal-section opportunity">
-        <div class="section-title">機會訊號</div>
-        <div class="signal-list">
-            @for (item of report.opportunitySignals; track item) {
-            <div class="signal-item">
-                <span class="icon">✓</span>
-                <span class="text">{{ item }}</span>
+    <!-- 3. 機會與風險訊號區塊 -->
+    <div class="signals-grid">
+        @if (report.opportunitySignals && report.opportunitySignals.length > 0) {
+        <div class="signal-section opportunity">
+            <div class="section-title">機會訊號</div>
+            <div class="signal-list">
+                @for (item of report.opportunitySignals; track item) {
+                <div class="signal-item">
+                    <span class="icon">✓</span>
+                    <span class="text">{{ item }}</span>
+                </div>
+                }
             </div>
-            }
         </div>
-    </div>
-    }
+        }
 
-    <!-- 4. 風險訊號區塊 (report.riskSignals) -->
-    @if (report.riskSignals && report.riskSignals.length > 0) {
-    <div class="signal-section risk">
-        <div class="section-title">風險訊號</div>
-        <div class="signal-list">
-            @for (item of report.riskSignals; track item) {
-            <div class="signal-item">
-                <span class="icon">⚠</span>
-                <span class="text">{{ item }}</span>
+        @if (report.riskSignals && report.riskSignals.length > 0) {
+        <div class="signal-section risk">
+            <div class="section-title">風險訊號</div>
+            <div class="signal-list">
+                @for (item of report.riskSignals; track item) {
+                <div class="signal-item">
+                    <span class="icon">⚠</span>
+                    <span class="text">{{ item }}</span>
+                </div>
+                }
             </div>
-            }
         </div>
+        }
     </div>
-    }
 
-    <!-- 5. 底部備註與「重新探索」按鈕 -->
+    <!-- 4. 底部備註與「重新探索」按鈕 -->
     <div class="card-footer">
         <span class="disclaimer">AI 探索結果為調查輔助，實際尋源可行性須由採購確認</span>
-        <button type="button" class="btn-re-scout" (click)="startScout()">重新探索</button>
+        <button type="button" class="btn" (click)="startScout()">重新探索</button>
     </div>
 </div>
 
 <div class="evaluation-grid">
-
     <!-- ❸ 時效落差評估卡片 -->
-    <div class="eval-card">
+    <div class="card eval-card">
         <div class="card-header">
-
-            <span class="title-text">時效落差評估</span>
+            <h4>時效落差評估</h4>
         </div>
         <div class="eval-body">
             <!-- 熱度階段 -->
             <div class="eval-row">
                 <span class="label">熱度階段</span>
-                <span class="stage-badge">{{ getHeatStageText(report.heatStage) }} {{ report.stageWeeks ? 'W' +
-                    report.stageWeeks : '' }}</span>
+                <span class="status-badge" [ngClass]="getHeatStageBadgeClass(report.heatStage)">
+                    {{ getHeatStageText(report.heatStage) }} {{ report.stageWeeks ? 'W' + report.stageWeeks : '' }}
+                </span>
             </div>
             <!-- 預估剩餘壽命 -->
             <div class="eval-row">
@@ -132,11 +141,11 @@
             </div>
         </div>
     </div>
+
     <!-- ❹ 否決規則卡片 -->
-    <div class="eval-card">
+    <div class="card eval-card">
         <div class="card-header">
-            <span class="step-num">4</span>
-            <span class="title-text">否決規則</span>
+            <h4>否決規則</h4>
         </div>
         <div class="rules-body">
             <div class="rule-item">
@@ -157,37 +166,41 @@
         </div>
     </div>
 </div>
+
 <!-- 底部操作按鈕列 -->
 <div class="action-bar">
-    <button type="button" class="btn-outline" (click)="saveAsWatching(report.productId)">
+    <button type="button" class="btn" (click)="saveAsWatching(report.productId)">
         存為觀察
     </button>
-    <button type="button" class="btn-primary" [disabled]="report.timeGapDays !== null && report.timeGapDays < 0"
+    <button type="button" class="btn pri" [disabled]="report.timeGapDays !== null && report.timeGapDays < 0"
         (click)="addToSourcingQueue(report)">
         加入尋源優先序
     </button>
 </div>
-}@else {
-<!-- 尚未有資料時：直接用現有的版面資料 -->
-<div class="scout-card">
+} @else {
+<!-- 尚未有資料時的引導卡片 -->
+<div class="card scout-card empty-card">
     <div class="card-header">
         <div class="header-title">
-            <span class="title-text">探索報告</span>
+            <h4>AI 尋源探索報告</h4>
         </div>
-        <div class="header-meta">
-            尚未進行探索
+        <div class="header-meta" [class.is-loading]="isScouting()">
+            {{ isScouting() ? '尋源中 請稍後' : '尚未進行探索' }}
         </div>
     </div>
-    <!-- 摘要文字區域顯示提示 -->
-    <div class="report-summary">
+    <div class="report-summary empty-prompt">
+        @if (isScouting()) {
+        AI SourcingScoutAgent 正在全網檢索市場熱度與供應鏈數據，請稍後…
+        } @else {
         請在上方輸入關鍵字並選擇品類，點擊「開始探索」以產出 AI 尋源評估報告。
+        }
     </div>
 </div>
-<div class="evaluation-grid">
-    <div class="eval-card">
-        <div class="card-header">
 
-            <span class="title-text">時效落差評估</span>
+<div class="evaluation-grid">
+    <div class="card eval-card">
+        <div class="card-header">
+            <h4>時效落差評估</h4>
         </div>
         <div class="eval-body">
             <div class="eval-row">
@@ -204,10 +217,10 @@
             </div>
         </div>
     </div>
-    <div class="eval-card">
-        <div class="card-header">
 
-            <span class="title-text">否決規則</span>
+    <div class="card eval-card">
+        <div class="card-header">
+            <h4>否決規則</h4>
         </div>
         <div class="rules-body">
             <div class="rule-item">
@@ -225,12 +238,52 @@
         </div>
     </div>
 </div>
+
 <div class="action-bar">
-    <button type="button" class="btn-outline" disabled>
-        存為觀察
-    </button>
-    <button type="button" class="btn-primary" disabled>
-        加入尋源優先序
-    </button>
+    <button type="button" class="btn" disabled>存為觀察</button>
+    <button type="button" class="btn pri" disabled>加入尋源優先序</button>
 </div>
 }
+
+<!-- 底部業務與 AI 說明面板 (參照 heat-sources 極簡規範) ────────── -->
+<div class="info-section">
+    <div class="info-header">
+        <div class="info-title">
+            <h4>尋源探索邏輯與時效落差演算規則說明</h4>
+        </div>
+    </div>
+
+    <div class="info-grid">
+        <!-- 卡片 1: 壽命預估與前置期差額 -->
+        <div class="info-card">
+            <div class="card-head">
+                <h5>壽命預估與前置期落差模型</h5>
+            </div>
+            <p>
+                <strong>時效落差 = 預估剩餘壽命 - 品類前置期</strong>。<br>
+                AI 依社群曲線推估熱度維持天數，扣除供應鏈打樣、量產與進倉上架所需時間，精準計算商品在市場熱度衰退前能有效銷售的黃金窗口。
+            </p>
+        </div>
+
+        <!-- 卡片 2: 硬性否決標準 -->
+        <div class="info-card">
+            <div class="card-head">
+                <h5>否決條件硬性風控原則</h5>
+            </div>
+            <p>
+                時效落差<strong>小於 0 天</strong>代表商品完成進倉時熱度已完全消退，屬於<strong>直接淘汰</strong>品項，系統鎖定禁止立案；落差在
+                <strong>0 ～ 14 天</strong>屬於高風險，需啟動加速尋源流程。
+            </p>
+        </div>
+
+        <!-- 卡片 3: 狀態分流與優先序 -->
+        <div class="info-card">
+            <div class="card-head">
+                <h5>狀態轉化與後續追蹤</h5>
+            </div>
+            <p>
+                探索完成後可點選<strong>「存為觀察」</strong>保留候選品項；或點選<strong>「加入尋源優先序」</strong>排入採購隊列，自動依時效急迫性與綜合得分進入排程清單。
+            </p>
+        </div>
+    </div>
+</div>

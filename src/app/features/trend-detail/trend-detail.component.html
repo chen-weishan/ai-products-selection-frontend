@@ -1,4 +1,11 @@
 @if (!isLoading()) {
+  <!-- 頂部導航列 (返回列表靠右對齊來源設定) ───────────── -->
+  <div class="top-nav-bar">
+    <button type="button" class="btn back-btn" (click)="goBack()">
+      返回列表
+    </button>
+  </div>
+
   <!-- 頁首 ─────────────────────────────────────────────── -->
   <div class="mh">
     <div>
@@ -24,9 +31,6 @@
 
     <!-- 右側工具列 (遵循 .tools 與 .btn 規範) -->
     <div class="tools">
-      <button type="button" class="btn" (click)="goBack()">
-        返回列表
-      </button>
       <button type="button" class="btn pri" routerLink="/heat-sources">
         來源設定
       </button>
@@ -158,10 +162,7 @@
         <ng-container matColumnDef="status">
           <th mat-header-cell *matHeaderCellDef> 狀態 </th>
           <td mat-cell *matCellDef="let element" class="status-cell">
-            <span class="status-badge"
-              [class.status-normal]="element.status === 'AVAILABLE'"
-              [class.status-quota]="element.status === 'INSUFFICIENT_QUOTA' || element.status === 'INSUFFICIENT_DATA'"
-              [class.status-warn]="element.status === 'DEGRADED'">
+            <span class="status-badge" [ngClass]="getSourceStatusBadgeClass(element.status)">
               {{ statusMap[element.status] || element.status }}
             </span>
           </td>

@@ -101,6 +101,27 @@ export class TrendDetailComponent implements OnInit, OnDestroy {
     return `${Math.round(val * 100)}%`;
   }
 
+  getSourceStatusBadgeClass(status?: string | null): string {
+    if (!status) return '';
+    switch (status) {
+      case 'AVAILABLE':
+      case '正常':
+        return 'status-normal';
+      case 'INSUFFICIENT_QUOTA':
+      case 'INSUFFICIENT_DATA':
+      case '額度不足':
+      case '數據不足':
+        return 'status-quota';
+      case 'DEGRADED':
+      case 'UNAVAILABLE':
+      case '降級':
+      case '異常':
+        return 'status-warn';
+      default:
+        return 'status-secondary';
+    }
+  }
+
   getAbnormalSources() {
     const sources = this.trendData()?.sourceDetails || [];
     return sources.filter(s => s.status !== 'AVAILABLE');

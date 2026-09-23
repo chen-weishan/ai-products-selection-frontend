@@ -1,104 +1,173 @@
-.sourcing-queue-container {
-  padding: 24px 32px;
-  max-width: 1080px;
-  margin: 0 auto;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  color: #1e293b;
+:host {
+  --navy: #123a56;
+  --navy-deep: #0e2a3f;
+  --teal: #1e7a9e;
+  --teal-soft: #d8eaf2;
+  --a: #1e7a4d;
+  --b: #b8791a;
+  --c: #8a9299;
+  --risk: #c0392b;
+  --warn: #d68910;
+  --card: #ffffff;
+  --surface: #f8fafc;
+  --ink: #16232e;
+  --ink-2: #4a5a67;
+  --ink-3: #8a9aa6;
+  --line: #dce3e9;
+  --line-soft: #eaeff3;
+  --sans: 'Noto Sans TC', 'PingFang TC', 'Microsoft JhengHei', sans-serif;
+  --serif: 'Noto Serif TC', 'Songti TC', serif;
+  --mono: 'IBM Plex Mono', ui-monospace, monospace;
+
+  display: block;
+  font-family: var(--sans);
+  color: var(--ink);
+  line-height: 1.6;
+  padding: 18px 20px 22px;
+  background: var(--surface);
+  min-height: calc(100vh - 64px);
 }
 
-/* ── 頁首與統計列 ────────────────────────────────────────── */
-.header-section {
+// ── 頁首 (規範 .mh) ───────────────────────────────────
+.mh {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-bottom: 24px;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 18px;
+  flex-wrap: wrap;
 
-  .title-group {
-    .page-title {
-      font-size: 26px;
-      font-weight: 700;
-      color: #1e293b;
-      margin: 0 0 8px 0;
-      letter-spacing: -0.5px;
-    }
-
-    .sub-stats {
-      font-size: 14px;
-      color: #64748b;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-
-      .dot {
-        color: #cbd5e1;
-        font-weight: bold;
-      }
-    }
+  h3 {
+    font-family: var(--serif);
+    font-size: 20px;
+    font-weight: 700;
+    margin: 0;
+    color: var(--navy-deep);
   }
 
-  .action-tools {
+  .sub {
+    font-size: 12px;
+    color: var(--ink-3);
+    margin-top: 4px;
+  }
+
+  .tools {
     display: flex;
     align-items: center;
-    gap: 16px;
+    gap: 12px;
+    flex-wrap: wrap;
 
-    .status-form-field {
-      width: 140px;
+    .status-field {
+      width: 150px;
 
-      ::ng-deep .mat-mdc-text-filed-wrapper {
-        background-color: #ffffff;
-        border-radius: 8px;
+      ::ng-deep {
+        .mat-mdc-form-field-wrapper {
+          padding-bottom: 0 !important;
+        }
 
-        ::ng-deep .mdc-notched-outline__leading,
-        ::ng-deep .mdc-notched-outline__notch,
-        ::ng-deep .mdc-notched-outline__trailing {
-          border: none !important;
+        .mat-mdc-text-field-wrapper {
+          height: 42px !important;
+          background-color: #ffffff;
+          border-radius: 8px;
+          transition: all 0.3s cubic-bezier(0.19, 1, 0.22, 1);
+          box-shadow: 0px 0px 14px -12px rgba(0, 0, 0, 0.25);
+        }
+
+        &:hover .mat-mdc-text-field-wrapper {
+          background-color: #f1f5f9;
+        }
+
+        &:active .mat-mdc-text-field-wrapper {
+          transform: scale(0.96);
+        }
+
+        .mat-mdc-form-field-flex {
+          height: 42px !important;
+          align-items: center;
+          padding: 0 10px !important;
+        }
+
+        .mat-mdc-select-value {
+          font-size: 12.5px;
+          color: var(--ink-2);
+          font-weight: 500;
+        }
+
+        .mat-mdc-floating-label {
+          top: 21px !important;
+          font-size: 12px;
         }
       }
     }
+  }
+}
 
-    .btn-create {
-      height: 48px;
-      border-radius: 8px;
-      font-weight: 600;
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
+// ── 按鈕系統 (規範 .btn) ──────────────────────────────
+.btn {
+  font-family: var(--sans);
+  font-size: 12px;
+  padding: 6px 14px;
+  height: 34px;
+  border-radius: 7px;
+  border: 1px solid var(--line);
+  background: #ffffff;
+  color: var(--ink-2);
+  cursor: pointer;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all 0.2s cubic-bezier(0.19, 1, 0.22, 1);
 
-      .btn-icon {
-        font-size: 20px;
-        width: 20px;
-        height: 20px;
-      }
+  &:hover {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+  }
+
+  &:active {
+    transform: scale(0.96);
+  }
+
+  &.pri {
+    background: var(--teal);
+    border-color: var(--teal);
+    color: #ffffff;
+    font-weight: 500;
+
+    &:hover {
+      background: #186380;
     }
   }
 }
 
-/* ── 主清單表格 ──────────────────────────────────────────── */
-.table-card {
+// ── 內容卡片與表格 (規範 .card.table-card) ────────────
+.card {
   background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
   overflow: hidden;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
-  margin-bottom: 28px;
 
-  .table-card-content {
-    padding: 0 !important;
+  &.table-card {
+    padding: 0;
+    margin-bottom: 24px;
   }
 }
 
 .sourcing-table {
   width: 100%;
-  background: transparent;
   border-collapse: collapse;
+  background: transparent;
 
   th.mat-header-cell {
     background: #f8fafc;
-    border-bottom: 1px solid #e2e8f0;
-    font-size: 14px;
+    border-bottom: 1px solid var(--line);
+    font-size: 12.5px;
     font-weight: 600;
-    color: #64748b;
-    padding: 16px 14px;
+    color: var(--ink-2);
+    padding: 12px 14px;
+    white-space: nowrap;
 
     &:first-of-type {
       padding-left: 20px;
@@ -110,10 +179,10 @@
   }
 
   td.mat-cell {
-    padding: 16px 14px;
-    font-size: 14px;
-    border-bottom: 1px solid #f1f5f9;
-    color: #334155;
+    padding: 14px 14px;
+    font-size: 13px;
+    border-bottom: 1px solid var(--line-soft);
+    color: var(--ink);
 
     &:first-of-type {
       padding-left: 20px;
@@ -124,52 +193,66 @@
     }
   }
 
-  .step-badge {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 24px;
-    height: 24px;
-    background-color: #0284c7;
-    color: #ffffff;
-    border-radius: 50%;
-    font-size: 13px;
-    font-weight: 700;
-  }
-
   .col-index {
-    width: 60px;
+    width: 65px;
     text-align: center;
 
     .index-num {
-      font-size: 14px;
+      font-family: var(--mono);
+      font-size: 12.5px;
       font-weight: 600;
-      color: #94a3b8;
+      color: var(--ink-3);
     }
   }
 
   .col-keyword {
     .keyword-name {
-      font-weight: 700;
-      color: #1e293b;
-      line-height: 1.4;
+      font-weight: 600;
+      color: var(--navy-deep);
     }
   }
 
   .col-stage {
-    width: 120px;
+    width: 130px;
   }
 
-  .col-lifespan {
-    width: 110px;
-  }
-
+  .col-lifespan,
   .col-leadtime {
     width: 110px;
+
+    .val-num {
+      font-family: var(--mono);
+      font-weight: 600;
+      color: var(--ink);
+      margin-right: 3px;
+    }
+
+    .val-unit {
+      font-size: 11.5px;
+      color: var(--ink-3);
+    }
   }
 
   .col-timegap {
     width: 120px;
+
+    .gap-text {
+      font-family: var(--mono);
+      font-weight: 700;
+      font-size: 13px;
+
+      &.gap-positive {
+        color: #059669; // 綠色 (可行)
+      }
+
+      &.gap-urgent {
+        color: #d97706; // 琥珀金 (需加速)
+      }
+
+      &.gap-negative {
+        color: #dc2626; // 紅色 (直接淘汰)
+      }
+    }
   }
 
   .col-status {
@@ -177,38 +260,8 @@
   }
 
   .empty-val {
-    color: #94a3b8;
-  }
-
-  .val-num {
-    font-weight: 700;
-    color: #1e293b;
-    margin-right: 2px;
-  }
-
-  .val-unit {
-    font-size: 13px;
-    color: #64748b;
-  }
-
-  .gap-text {
-    font-weight: 700;
-    font-size: 14px;
-
-    &.gap-positive {
-      color: #059669;
-      /* 綠色 */
-    }
-
-    &.gap-urgent {
-      color: #d97706;
-      /* 橘金色 */
-    }
-
-    &.gap-negative {
-      color: #dc2626;
-      /* 紅色 */
-    }
+    color: var(--ink-3);
+    font-family: var(--mono);
   }
 
   .table-row {
@@ -218,7 +271,6 @@
       background-color: #f8fafc;
     }
 
-    /* 需加速：淡黃底色 */
     &.row-urgent {
       background-color: #fffdf5;
 
@@ -227,7 +279,6 @@
       }
     }
 
-    /* 淘汰：淡紅底色 */
     &.row-rejected {
       background-color: #fff8f8;
 
@@ -240,145 +291,169 @@
   .empty-cell {
     text-align: center;
     padding: 48px 24px;
-    color: #64748b;
-    font-size: 15px;
+    color: var(--ink-3);
+    font-size: 13.5px;
   }
 }
 
-/* ── 徽章樣式 (Badges) ────────────────────────────────────── */
-.heat-badge {
-  display: inline-block;
-  padding: 4px 10px;
-  border-radius: 6px;
-  font-size: 13px;
-  font-weight: 600;
-
-  &.heat-plateau {
-    background-color: #fef3c7;
-    color: #b45309;
-    border: 1px solid #fde68a;
-  }
-
-  &.heat-rising {
-    background-color: #e0f2fe;
-    color: #0369a1;
-    border: 1px solid #bae6fd;
-  }
-
-  &.heat-declining {
-    background-color: #fee2e2;
-    color: #b91c1c;
-    border: 1px solid #fecaca;
-  }
-}
-
+// ── 標籤徽章樣式 (Badges) ───────────────────────────────
 .status-badge {
-  display: inline-block;
-  padding: 4px 12px;
-  border-radius: 6px;
-  font-size: 13px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11.5px;
   font-weight: 600;
-  text-align: center;
+  padding: 3px 9px;
+  border-radius: 5px;
+  white-space: nowrap;
+  letter-spacing: 0.2px;
 
-  &.badge-urgent {
-    background-color: #fef3c7;
+  &.status-normal {
+    background: #77B28C; // Muted Teal (莫蘭迪灰綠)
+    color: #ffffff;
+  }
+
+  &.status-quota {
+    background: #d97706; // 沉穩琥珀橘
+    color: #ffffff;
+  }
+
+  &.status-warn {
+    background: #95190C; // Oxblood (牛血深紅)
+    color: #ffffff;
+  }
+
+  &.status-secondary {
+    background: #eaeff3;
+    color: var(--ink-2);
+  }
+
+  // 熱度階段徽章
+  &.stage-rising {
+    background: #e0f2fe;
+    color: #0369a1;
+  }
+
+  &.stage-plateau {
+    background: #fef3c7;
     color: #b45309;
-    border: 1px solid #fde68a;
   }
 
-  &.badge-promoted {
-    background-color: #ecfdf5;
-    color: #047857;
-    border: 1px solid #a7f3d0;
-  }
-
-  &.badge-sourcing {
-    background-color: #f0fdf4;
-    color: #16a34a;
-    border: 1px solid #bbf7d0;
-  }
-
-  &.badge-pending {
-    background-color: #f1f5f9;
-    color: #475569;
-    border: 1px solid #e2e8f0;
-  }
-
-  &.badge-rejected {
-    background-color: #fef2f2;
-    color: #dc2626;
-    border: 1px solid #fecaca;
+  &.stage-declining {
+    background: #fee2e2;
+    color: #b91c1c;
   }
 }
 
-/* ── 底部說明卡片 ────────────────────────────────────────── */
-.guide-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 20px;
+// ── 分頁器微調 (依據規範包含充足內距與防透光) ────────────
+::ng-deep mat-paginator {
+  background: #ffffff !important;
+  border-top: 1px solid var(--line-soft);
+  font-family: var(--sans);
+  min-height: 52px;
 
-  .guide-card {
-    background: #f8fafc;
-    border: 1px solid #e2e8f0;
-    border-radius: 12px;
-    padding: 6px 4px;
+  .mat-mdc-paginator-range-label {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--ink-2);
+  }
 
-    .guide-card-header {
-      display: flex;
+  .mat-mdc-paginator-page-size-label {
+    font-size: 12px;
+    color: var(--ink-2);
+  }
+
+  .mat-mdc-paginator-page-size-select {
+    margin: 4px 8px !important;
+
+    .mat-mdc-form-field-flex {
+      padding: 0 8px 0 12px !important;
+      background: #f8fafc;
+      border-radius: 8px;
+      border: 1px solid #cbd5e1;
+      height: 32px !important;
       align-items: center;
-      margin-bottom: 8px;
+      transition: all 0.3s cubic-bezier(0.19, 1, 0.22, 1);
 
-      .step-badge-avatar {
-        display: flex;
-        align-items: center;
-        justify-content: center;
+      &:hover {
+        background: #f1f5f9;
       }
 
-      .step-badge {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        width: 24px;
-        height: 24px;
-        background-color: #0284c7;
-        color: #ffffff;
-        border-radius: 50%;
-        font-size: 13px;
-        font-weight: 700;
-      }
-
-      .guide-title {
-        font-size: 16px;
-        font-weight: 700;
-        color: #1e293b;
-        margin: 0;
+      &:active {
+        transform: scale(0.95);
       }
     }
 
-    .guide-content {
-      p {
-        font-size: 14px;
-        line-height: 1.65;
-        color: #475569;
-        margin: 0;
-      }
+    .mat-mdc-select-value {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--ink);
+    }
+  }
+
+  .mat-mdc-icon-button {
+    transition: transform 0.15s ease;
+
+    &:active {
+      transform: scale(0.92);
     }
   }
 }
 
-/* 響應式調整 */
-@media (max-width: 768px) {
-  .sourcing-queue-container {
-    padding: 16px;
+// ── 底部業務說明面板 (規範 .info-section) ───────────────
+.info-section {
+  margin-top: 24px;
+  background: #ffffff;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  padding: 18px 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+
+  .info-header {
+    margin-bottom: 14px;
+
+    .info-title {
+      h4 {
+        margin: 0;
+        font-size: 14px;
+        font-weight: 700;
+        color: var(--navy-deep);
+      }
+    }
   }
 
-  .header-section {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 16px;
-  }
+  .info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 14px;
 
-  .guide-grid {
-    grid-template-columns: 1fr;
+    .info-card {
+      background: #f8fafc;
+      border: 1px solid var(--line-soft);
+      border-radius: 7px;
+      padding: 12px 14px;
+
+      .card-head {
+        margin-bottom: 6px;
+
+        h5 {
+          margin: 0;
+          font-size: 12.5px;
+          font-weight: 600;
+          color: var(--navy-deep);
+        }
+      }
+
+      p {
+        margin: 0;
+        font-size: 12px;
+        color: var(--ink-2);
+        line-height: 1.65;
+
+        strong {
+          color: var(--ink);
+        }
+      }
+    }
   }
 }

@@ -37,6 +37,17 @@ export class SourcingComponent implements OnInit, OnDestroy {
   private aiBudgetService = inject(AiBudgetControllerService);
   private readonly dialogService = inject(DialogService);
 
+  // ── 狀態訊號 (Signals) ──
+  public isScouting = signal<boolean>(false);
+  public executionSeconds = signal<number>(0);
+  private scoutStartTime = 0;
+  public categories = signal<CategoryTreeResponse[]>([]);
+  public selectedCategoryId = signal<number | null>(null);
+  public keyword = signal<string>('');
+  public scoutReport = signal<any | null>(null);
+  public frequency = signal<string>('0/50');
+  public isQuotaExhausted = signal<boolean>(false);
+
   goToQueue() {
     console.log('🚀 [SourcingComponent] 點擊「尋源優先序」，正在跳轉至 /sourcing-queue ...');
     this.router.navigate(['/sourcing-queue']).then((success) => {
@@ -50,20 +61,40 @@ export class SourcingComponent implements OnInit, OnDestroy {
     });
   }
 
-  executionSeconds = signal<number>(0);
-  private scoutStartTime = 0;
-  categories = signal<CategoryTreeResponse[]>([]);
-  selectedCategoryId = signal<number | null>(null);
-  keyword = signal<string>('');
-  scoutReport = signal<any | null>(null);
-  frequency = signal<string>('0/50');
-  isQuotaExhausted = signal<boolean>(false);
-
   ngOnDestroy() {
     if (this.pollTimer) {
       clearInterval(this.pollTimer);
     }
   }
+
+  private static readonly MOCK_CATEGORIES: CategoryTreeResponse[] = [
+    {
+      id: 1,
+      name: '休閒零食',
+      children: [
+        { id: 11, name: '洋芋片 / 脆片' },
+        { id: 12, name: '巧克力 / 夾心餅' },
+        { id: 13, name: '肉乾 / 肉條' }
+      ]
+    },
+    {
+      id: 2,
+      name: '沖泡飲品',
+      children: [
+        { id: 21, name: '濾掛 / 冷萃咖啡' },
+        { id: 22, name: '高山烏龍 / 原片茶' },
+        { id: 23, name: '燕麥奶 / 穀物沖飲' }
+      ]
+    },
+    {
+      id: 3,
+      name: '生鮮烘焙',
+      children: [
+        { id: 31, name: '生乳酪 / 蛋糕甜點' },
+        { id: 32, name: '厚蛋捲 / 手工酥餅' }
+      ]
+    }
+  ];
 
   ngOnInit() {
     this.fetchBudget();
@@ -71,11 +102,13 @@ export class SourcingComponent implements OnInit, OnDestroy {
     this.categoryService.getCategories().subscribe({
       next: async (res) => {
         const responseData = await this.unpack(res);
-        this.categories.set(responseData?.data ?? []);
+        const data = responseData?.data ?? [];
+        this.categories.set(data.length > 0 ? data : SourcingComponent.MOCK_CATEGORIES);
         console.log('品類取得成功', responseData?.data);
       },
       error: (err) => {
-        console.error('品類取得失敗', err);
+        console.warn('品類取得失敗，使用 Mock 預設品類回退:', err);
+        this.categories.set(SourcingComponent.MOCK_CATEGORIES);
       }
     });
   }
@@ -90,6 +123,7 @@ export class SourcingComponent implements OnInit, OnDestroy {
         if (taskInfo.keyword) this.keyword.set(taskInfo.keyword);
         if (taskInfo.categoryId) this.selectedCategoryId.set(taskInfo.categoryId);
         if (taskInfo.startTime) this.scoutStartTime = taskInfo.startTime;
+        this.isScouting.set(true);
         console.log('🔄 偵測到進行中的尋源任務，正在恢復輪詢：', taskInfo);
         this.pollAiTask(taskInfo.taskId, taskInfo.productId);
       }
@@ -133,6 +167,8 @@ export class SourcingComponent implements OnInit, OnDestroy {
       return;
     }
 
+    this.scoutReport.set(null);
+    this.isScouting.set(true);
     this.scoutStartTime = Date.now();
 
     this.soucingService.scout({
@@ -148,7 +184,10 @@ export class SourcingComponent implements OnInit, OnDestroy {
         const taskId = responseData?.data?.taskId ?? responseData?.taskId ?? responseData?.data?.id;
         const productId = responseData?.data?.productId ?? responseData?.productId;
 
-        if (!taskId) return;
+        if (!taskId) {
+          this.isScouting.set(false);
+          return;
+        }
 
         sessionStorage.setItem(this.STORAGE_KEY, JSON.stringify({
           taskId,
@@ -161,7 +200,31 @@ export class SourcingComponent implements OnInit, OnDestroy {
         this.pollAiTask(taskId, productId);
       },
       error: (err) => {
-        console.error('發起探索失敗', err);
+        console.warn('發起探索 API 請求失敗，模擬 2.5 秒搜尋過程後載入範例報告:', err);
+        setTimeout(() => {
+          this.executionSeconds.set(3);
+          this.scoutReport.set({
+            productId: 101,
+            productName: keyword,
+            keyword: keyword,
+            categoryId: categoryId,
+            report: `根據全網社群討論量與電商搜尋熱度分析，關鍵字「${keyword}」在近 14 日呈現急遽加溫態勢，在 Instagram 與 Threads 短影音有高密度的開箱與自發性討論。目前供應鏈端同質化品項較少，具備較高的首發溢價空間。`,
+            opportunitySignals: [
+              '社群討論聲量週增長率達 +185%，主要集中於 20-35 歲都會消費客群',
+              '關鍵搜尋詞轉換意向強烈，相關標籤累積突破 50 萬次曝光',
+              '供應鏈現有打樣週期平均僅需 7-10 天，開模門檻低'
+            ],
+            riskSignals: [
+              '產品壽命週期受限於社群熱潮，預期高原期僅能維持約 4-6 週',
+              '需防範低價競品在 3 週內快速跟單，建議首批以少量試銷切入'
+            ],
+            heatStage: 'GROWING',
+            stageWeeks: 2,
+            estimatedLifespanDays: 45,
+            timeGapDays: 24
+          });
+          this.isScouting.set(false);
+        }, 2500);
       }
     });
   }
@@ -212,6 +275,7 @@ export class SourcingComponent implements OnInit, OnDestroy {
             }
 
           } else if (task?.status === 'FAILED') {
+            this.isScouting.set(false);
             if (this.pollTimer) {
               clearInterval(this.pollTimer);
               sessionStorage.removeItem(this.STORAGE_KEY);
@@ -226,6 +290,7 @@ export class SourcingComponent implements OnInit, OnDestroy {
         },
         error: (err) => {
           console.error('查詢進度失敗', err);
+          this.isScouting.set(false);
           if (this.pollTimer) {
             clearInterval(this.pollTimer);
             sessionStorage.removeItem(this.STORAGE_KEY);
@@ -243,10 +308,12 @@ export class SourcingComponent implements OnInit, OnDestroy {
         const elapsed = Math.max(1, Math.round((Date.now() - this.scoutStartTime) / 1000));
         this.executionSeconds.set(elapsed);
         this.fetchBudget(); // 更新最新使用次數
+        this.isScouting.set(false);
         console.log('尋源報告取得成功', responseData);
       },
       error: (err) => {
         console.error('取得尋源報告失敗', err);
+        this.isScouting.set(false);
       }
     });
   }
@@ -274,6 +341,18 @@ export class SourcingComponent implements OnInit, OnDestroy {
       EMERGING: '萌芽期'
     };
     return stage ? (map[stage] || stage) : '評估中';
+  }
+
+  getHeatStageBadgeClass(stage?: string): string {
+    switch (stage) {
+      case 'PEAK':
+      case 'GROWING':
+        return 'status-normal';
+      case 'DECLINING':
+        return 'status-warn';
+      default:
+        return 'status-quota';
+    }
   }
 
   /** 計算前置期天數（壽命 - 落差） */

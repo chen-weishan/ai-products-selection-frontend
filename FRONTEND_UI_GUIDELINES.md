@@ -7,9 +7,16 @@
 ## 目錄
 1. [設計理念與核心維度](#1-設計理念與核心維度)
 2. [全域版面骨架 (參照 `weights`)](#2-全域版面骨架-參照-weights)
+   - [2.2 次級頁面頂部導航列 (`.top-nav-bar`)](#22-次級頁面頂部導航列-top-nav-bar---back-button-navigation)
+   - [2.3 頁首標題列 (`.mh`)](#23-頁首標題列-mh---main-header)
+   - [2.4 頁首與操作按鈕規格 (`.btn`)](#24-頁首與操作按鈕規格-btn---button-system)
+   - [2.5 內容卡片 (`.card`)](#25-內容卡片-card)
 3. [表單與控制項微互動 (Material + 特效)](#3-表單與控制項微互動-material--特效)
 4. [狀態標籤規範 (Status Badges)](#4-狀態標籤規範-status-badges)
-5. [底部業務與 AI 說明面板 (參照 `heat-sources`)](#5-底部業務與-ai-說明面板-參照-heat-sources)
+5. [業務與 AI 決策卡片與說明面板](#5-業務與-ai-決策卡片與說明面板)
+   - [5.1 底部說明面板結構組成 (`.info-section`)](#51-結構組成)
+   - [5.2 尋源探索與生命週期決策卡片 (`.card.scout-card`)](#52-尋源探索與生命週期決策卡片-cardscout-card--evaluation-grid)
+   - [5.3 非同步 AI 任務與探索載入反饋 (`.header-meta.is-loading`)](#53-非同步-ai-任務與探索中載入反饋-header-metais-loading)
 6. [程式碼範例與實作指南](#6-程式碼範例與實作指南)
 
 ---
@@ -36,7 +43,20 @@
   --mono: 'IBM Plex Mono', ui-monospace, monospace;
   ```
 
-### 2.2 頁首標題列 (`.mh` - Main Header)
+### 2.2 次級頁面頂部導航列 (`.top-nav-bar` - Back Button Navigation)
+適用於具備上一層清單之次級/詳情頁面（如 `heat-sources`、`trend-detail` 等）：
+* **佈局原則**：獨立置於 `.mh` 主頁首上方，靠右對齊（`display: flex; justify-content: flex-end; margin-bottom: 12px;`）。
+* **對齊標準**：垂直精準對齊下方 `.mh .tools` 中的主要操作按鈕（例如 `heat-sources` 的「新增來源」或 `trend-detail` 的「來源設定」上方）。
+* **按鈕樣式**：使用次要按鈕 `.btn.back-btn`，文字固定為「返回列表」，避免混在主頁首工具列造成按鈕焦點混亂。
+```html
+<div class="top-nav-bar">
+  <button type="button" class="btn back-btn" (click)="goBack()">
+    返回列表
+  </button>
+</div>
+```
+
+### 2.3 頁首標題列 (`.mh` - Main Header)
 * **佈局**：`display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;`。
 * **左側標題**：
   * 主標題（`h3`）：`font-size: 18px; font-weight: 600; color: #0e2a3f;`。
@@ -44,7 +64,7 @@
 * **右側工具列 (`.tools`)**：
   * 水平排列操作按鈕，間距固定 `gap: 8px;`，可容納次要與主要操作按鈕或版本切換選單。
 
-### 2.3 頁首與操作按鈕規格 (`.btn` / Button System)
+### 2.4 頁首與操作按鈕規格 (`.btn` / Button System)
 頁首右側與頁面通用的操作按鈕統一規格如下：
 
 | 按鈕類型 | 類別名稱 (Class) | 外觀與樣式 | 適用時機 |
@@ -99,7 +119,7 @@
 }
 ```
 
-### 2.4 內容卡片 (`.card`)
+### 2.5 內容卡片 (`.card`)
 * **規格**：白底（`#ffffff`）、`border: 1px solid #dce3e9`、圓角 `9px`、柔和陰影 `box-shadow: 0 1px 3px rgba(0,0,0,0.04)`。
 * 表格卡片（`.table-card`）內距設為 0，讓表格框線貼齊邊緣。
 
@@ -197,9 +217,9 @@ font-family: var(--mono); // 'IBM Plex Mono', monospace
 
 ---
 
-## 5. 底部業務與 AI 說明面板 (參照 `heat-sources`)
+## 5. 業務與 AI 決策卡片與說明面板
 
-放置在主數據表格下方，作為演算法邏輯、欄位名詞解釋與使用者引導面板。
+放置在主數據表格下方，作為演算法邏輯、欄位名詞解釋、決策網格與使用者引導面板。
 
 ### 5.1 結構組成
 1. **面板外框 (`.info-section`)**：
@@ -212,6 +232,46 @@ font-family: var(--mono); // 'IBM Plex Mono', monospace
      - 熱度趨勢與均線斜率說明
      - AI 背離警示成因與選品風險
      - 常態發展與後續流程建議
+
+### 5.2 尋源探索與生命週期決策卡片 (`.card.scout-card` & `.evaluation-grid`)
+適用於 AI 尋源評估（`sourcing`）等決策頁面：
+* **主報告卡片 (`.scout-card`)**：
+  * 卡片頂部具備深海軍藍大標題與右側狀態/執行時間標籤。
+  * 摘要區（`.report-summary`）採用淺灰底（`#f8fafc`）與等寬縮排呈現 AI 摘要。
+  * 機會訊號（綠底 Check 標籤）與風險訊號（紅底 Warning 標籤）分流並列。
+* **雙欄評估網格 (`.evaluation-grid`)**：
+  * **時效落差評估卡片**：包含熱度階段、預估剩餘壽命、品類前置期，並以高亮警示框（`.gap-highlight-box`）呈現最終落差天數：
+    * `> +14 天`：綠框（`.success`），判定為「可行，正常排序」。
+    * `0 ～ +14 天`：黃橘框（`.warning`），判定為「高風險，標示需加速尋源」。
+    * `< 0 天`：紅框（`.danger`），判定為「直接淘汰，不論熱度多高」。
+  * **否決規則卡片**：條理列出時效落差硬性風控門檻。
+* **底部操作按鈕列 (`.action-bar`)**：
+  * 次要操作：`.btn`（「存為觀察」）。
+  * 主要操作：`.btn.pri`（「加入尋源優先序」），若時效落差 `< 0 天` 則強制 `[disabled]` 鎖定。
+
+### 5.3 非同步 AI 任務與探索中載入反饋 (`.header-meta.is-loading`)
+當使用者發起 AI 探索但結果尚未產出時，卡片應提供清楚且具物理質感的即時反饋：
+* **狀態文字與呼吸燈切換**：
+  ```html
+  <div class="header-meta" [class.is-loading]="isScouting()">
+    {{ isScouting() ? '尋源中 請稍後' : '尚未進行探索' }}
+  </div>
+  ```
+* **脈衝呼吸動畫 (Pulse Animation)**：
+  ```scss
+  .header-meta.is-loading {
+    background: #e0f2fe;
+    color: #0369a1;
+    animation: pulse-loading 1.6s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+  @keyframes pulse-loading {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.65; transform: scale(0.98); }
+  }
+  ```
+* **引導區域動態文案**：
+  * 探索中：`AI SourcingScoutAgent 正在全網檢索市場熱度與供應鏈數據，請稍後…`
+  * 尚未探索：`請在上方輸入關鍵字並選擇品類，點擊「開始探索」以產出 AI 尋源評估報告。`
 
 ---
 
@@ -274,4 +334,4 @@ font-family: var(--mono); // 'IBM Plex Mono', monospace
 
 ---
 *文件維護：前端研發團隊*  
-*生效版本：v1.0 (已驗證於 `/trends`)*
+*生效版本：v1.3 (已全數驗證於 `/trends`、`/trend-detail`、`/heat-sources`、`/sourcing`、`/sourcing-queue`)*

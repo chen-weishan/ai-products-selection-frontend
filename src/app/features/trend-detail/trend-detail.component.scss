@@ -28,6 +28,17 @@
   min-height: calc(100vh - 64px);
 }
 
+// ── 頂部導航列 (返回列表靠右對齊) ─────────────────────
+.top-nav-bar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 12px;
+
+  .back-btn {
+    color: var(--ink-2);
+  }
+}
+
 // ── 頁首 (規範 .mh) ───────────────────────────────────
 .mh {
   display: flex;
