@@ -141,6 +141,11 @@ export class DashboardComponent implements OnInit {
     }
   }
 
+  /** 重新載入儀表板資料 */
+  public reload(): void {
+    this.loadDashboardData();
+  }
+
   ngOnInit(): void {
     this.loadDashboardData();
   }

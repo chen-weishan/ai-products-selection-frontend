@@ -1,168 +1,256 @@
+<!-- 頁首 ─────────────────────────────────────────────── -->
 <div class="mh">
   <div>
     <h3>本週選品建議</h3>
     <div class="sub">{{ currentPeriodDisplay }}　·　權重版本 v3（2026-06-01 生效）</div>
   </div>
+
   <div class="tools">
-    <span class="trk">
-      <span [class.on]="activeTrack === 'A'" (click)="switchTrack('A')">A 軌　有供應商</span>
-      <span [class.on]="activeTrack === 'B'" (click)="switchTrack('B')">B 軌　尋源中</span>
-    </span>
+    <div class="range-tabs">
+      <button type="button" class="range-btn" [class.active]="activeTrack === 'A'" (click)="switchTrack('A')">
+        A 軌　有供應商
+      </button>
+      <button type="button" class="range-btn" [class.active]="activeTrack === 'B'" (click)="switchTrack('B')">
+        B 軌　尋源中
+      </button>
+    </div>
+    <button type="button" class="btn" (click)="reload()">重新整理</button>
     <button type="button" class="btn pri" (click)="navigateToQuickMark()">＋ 我看到一個</button>
   </div>
 </div>
 
-<div class="srcbar">
-  @if (heatSources && heatSources.length > 0) {
-    @for (source of heatSources; track source.sourceCode) {
-      <span class="s" [class.deg]="source.availability === 'DEGRADED'" [class.err]="source.availability === 'UNAVAILABLE'">
-        <i></i>
-        {{ getSourceName(source.sourceCode) }}　{{ getLastFetchedTime(source.lastFetchedAt) }}
-        @if (source.quotaLimit !== null && source.quotaLimit !== undefined) {
-          <span class="quota">　{{ source.quotaUsed }}／{{ source.quotaLimit }}</span>
-        } @else {
-          <span class="quota">　{{ source.quotaUsed }}／無上限</span>
-        }
-      </span>
+<!-- 資料來源狀態列 ────────────────────────────────────── -->
+<div class="card source-bar">
+  <div class="source-items">
+    @if (heatSources && heatSources.length > 0) {
+      @for (source of heatSources; track source.sourceCode) {
+        <span class="source-item" [class.deg]="source.availability === 'DEGRADED'" [class.err]="source.availability === 'UNAVAILABLE'">
+          <i class="dot-indicator"></i>
+          <span class="source-name">{{ getSourceName(source.sourceCode) }}</span>
+          <span class="source-time">{{ getLastFetchedTime(source.lastFetchedAt) }}</span>
+          @if (source.quotaLimit !== null && source.quotaLimit !== undefined) {
+            <span class="source-quota mono">{{ source.quotaUsed }}／{{ source.quotaLimit }}</span>
+          } @else {
+            <span class="source-quota mono">{{ source.quotaUsed }}／無上限</span>
+          }
+        </span>
+      }
+    } @else {
+      <span class="source-item"><i class="dot-indicator"></i>Threads　今日 06:00</span>
+      <span class="source-item"><i class="dot-indicator"></i>Google Trends　今日 06:00</span>
+      <span class="source-item deg"><i class="dot-indicator"></i>Instagram　<span class="mono">額度剩 4／30</span></span>
+      <span class="source-item"><i class="dot-indicator"></i>人工標記　<span class="mono">本週 12 筆</span></span>
     }
-  } @else {
-    <span class="s"><i></i>Threads　今日 06:00</span>
-    <span class="s"><i></i>Google Trends　今日 06:00</span>
-    <span class="s deg"><i></i>Instagram　額度剩 4／30</span>
-    <span class="s"><i></i>人工標記　本週 12 筆</span>
-  }
-  <a (click)="navigateToSourceSettings(); $event.preventDefault()" style="margin-left:auto;color:var(--teal);font-size:11px;text-decoration:none;cursor:pointer">來源設定 →</a>
+  </div>
+  <button type="button" class="source-link-btn" (click)="navigateToSourceSettings()">
+    來源設定 →
+  </button>
 </div>
 
-<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
-  <span style="font-size:11px;color:var(--ink-3)">全域彙總 KPI</span>
-</div>
-
+<!-- 全域 KPI 彙總卡片 ──────────────────────────────────── -->
+<div class="section-title">全域彙總 KPI</div>
 <div class="kpis">
-  <div class="kpi">
-    <div class="v">{{ dashboardSummary.totalCandidates ?? 0 }}</div>
+  <div class="card kpi-card">
+    <div class="v mono">{{ dashboardSummary.totalCandidates ?? 0 }}</div>
     <div class="l">候選品項</div>
-    <div class="delta">＋{{ weeklyNewCount }} 本週新增</div>
+    <div class="delta mono">＋{{ weeklyNewCount }} 本週新增</div>
   </div>
-  <div class="kpi">
-    <div class="v">{{ dashboardSummary.aGradeCount ?? 0 }}</div>
-    <div class="l">A 級主推（四榜合計，依品項去重）</div>
+  <div class="card kpi-card">
+    <div class="v mono">{{ dashboardSummary.aGradeCount ?? 0 }}</div>
+    <div class="l">A 級主推（四榜合計，去重）</div>
+    <div class="sub-hint">優先採購與上架推進</div>
   </div>
-  <div class="kpi alert">
-    <div class="v">{{ dashboardSummary.openRiskCount ?? 0 }}</div>
+  <div class="card kpi-card alert">
+    <div class="v mono">{{ dashboardSummary.openRiskCount ?? 0 }}</div>
     <div class="l">高風險示警</div>
+    <div class="sub-hint risk-hint">負向背離或品類風險</div>
   </div>
-  <div class="kpi">
-    <div class="v">{{ dashboardSummary.overdueFeedbackCount ?? 0 }}</div>
+  <div class="card kpi-card">
+    <div class="v mono">{{ dashboardSummary.overdueFeedbackCount ?? 0 }}</div>
     <div class="l">結案未回填</div>
-    <div class="delta" style="color:var(--b)">已逾 7 天</div>
+    <div class="sub-hint warn-hint mono">已逾 7 天</div>
   </div>
 </div>
 
-<div style="display:flex;align-items:center;gap:12px;margin-top:12px">
-  <span style="font-size:11px;color:var(--ink-3)">週期切換</span>
-  <div class="trk">
-    <span [class.on]="activePeriod === 'week'" (click)="switchPeriod('week')">本週</span>
-    <span [class.on]="activePeriod === 'lastWeek'" (click)="switchPeriod('lastWeek')">上週</span>
-    <span [class.on]="activePeriod === 'custom'" (click)="switchPeriod('custom')">自訂區間</span>
+<!-- 排行榜導航與週期切換 ──────────────────────────────── -->
+<div class="ranking-header">
+  <div class="range-tabs main-tabs">
+    <button type="button" class="range-btn" [class.active]="activeTab === 'viral'" (click)="activeTab = 'viral'">話題爆款榜</button>
+    <button type="button" class="range-btn" [class.active]="activeTab === 'festival'" (click)="activeTab = 'festival'">節慶檔期榜</button>
+    <button type="button" class="range-btn" [class.active]="activeTab === 'replenishment'" (click)="activeTab = 'replenishment'">常態補貨榜</button>
+    <button type="button" class="range-btn" [class.active]="activeTab === 'seasonal'" (click)="activeTab = 'seasonal'">季節導向榜</button>
+  </div>
+
+  <div class="period-switcher">
+    <span class="switcher-label">週期切換</span>
+    <div class="range-tabs">
+      <button type="button" class="range-btn" [class.active]="activePeriod === 'week'" (click)="switchPeriod('week')">本週</button>
+      <button type="button" class="range-btn" [class.active]="activePeriod === 'lastWeek'" (click)="switchPeriod('lastWeek')">上週</button>
+      <button type="button" class="range-btn" [class.active]="activePeriod === 'custom'" (click)="switchPeriod('custom')">自訂區間</button>
+    </div>
   </div>
 </div>
 
-<div class="tabs">
-  <button type="button" [class.on]="activeTab === 'viral'" (click)="activeTab = 'viral'">話題爆款榜</button>&nbsp;
-  <button type="button" [class.on]="activeTab === 'festival'" (click)="activeTab = 'festival'">節慶檔期榜</button>&nbsp;
-  <button type="button" [class.on]="activeTab === 'replenishment'" (click)="activeTab = 'replenishment'">常態補貨榜</button>&nbsp;
-  <button type="button" [class.on]="activeTab === 'seasonal'" (click)="activeTab = 'seasonal'">季節導向榜</button>
-</div>
-
-<table>
-  <thead>
-    <tr>
-      <th style="width:28px">#</th>
-      <th>品項</th>
-      <th style="width:22%">選品分數</th>
-      <th>分數</th>
-      <th>級</th>
-      <th>情境判定</th>
-      <th style="width:52px">風險</th>
-    </tr>
-  </thead>
-  <tbody>
-    @for (item of getRankingsForTab(activeTab); track item.productId || $index; let i = $index) {
+<!-- 排行資料表格卡片 ──────────────────────────────────── -->
+<div class="card table-card">
+  <table class="ranking-table">
+    <thead>
       <tr>
-        <td class="rank">{{ i + 1 }}</td>
-        <td class="name" (click)="navigateToProduct(item.productId)" style="cursor:pointer" title="點擊檢視品項">{{ item.productName }}</td>
-        <td>
-          <div class="bar">
-            <i [style.width.%]="item.finalScore || 0"></i>
-          </div>
-        </td>
-        <td class="num">{{ item.finalScore }}</td>
-        <td>
-          <span class="chip" [class.A]="item.grade === 'A'" [class.B]="item.grade === 'B'" [class.C]="item.grade === 'C'">{{ item.grade }}</span>
-        </td>
-        <td>
-          <span class="tag teal">{{ sceneMap[item.sceneType] || item.sceneType }}</span>
-        </td>
-        <td>
-          @if (item.riskLevel === 'HIGH') {
-            <span class="dot" title="高風險示警"></span>
-          } @else if (item.riskLevel === 'MEDIUM') {
-            <span class="dot mid" title="中風險示警"></span>
-          }
-          @if (item.sceneOverridden) {
-            <span class="tag amber" style="margin-left:4px;font-size:9.5px;padding:1px 4px" title="人工覆寫情境">覆寫</span>
-          }
-        </td>
+        <th class="col-rank">#</th>
+        <th class="col-name">品項名稱</th>
+        <th class="col-progress">選品分數進度</th>
+        <th class="col-score">分數</th>
+        <th class="col-grade">評級</th>
+        <th class="col-scene">情境判定</th>
+        <th class="col-risk">風險示警</th>
       </tr>
-    } @empty {
-      <tr>
-        <td colspan="7" style="text-align:center;padding:24px;color:var(--ink-3)">此榜單暫無排行資料</td>
-      </tr>
-    }
-  </tbody>
-</table>
-
-<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px">
-  <div class="card soft">
-    <h5>待回填結案（{{ overdueCampaigns.length }}）</h5>
-    @if (overdueCampaigns && overdueCampaigns.length > 0) {
-      @for (campaign of overdueCampaigns; track campaign.productName || $index) {
-        <div style="font-size:11.5px;color:var(--ink-2);line-height:2">
-          <div style="display:flex;gap:8px">
-            <span>{{ campaign.productName }}</span>
-            <span class="tag amber" style="margin-left:auto">逾 {{ campaign.overdueDays }} 天</span>
-          </div>
-        </div>
+    </thead>
+    <tbody>
+      @for (item of getRankingsForTab(activeTab); track item.productId || $index; let i = $index) {
+        <tr class="clickable-row">
+          <td class="rank mono">{{ i + 1 }}</td>
+          <td class="name" (click)="navigateToProduct(item.productId)" title="點擊檢視品項">
+            <span class="product-name-link">{{ item.productName }}</span>
+          </td>
+          <td>
+            <div class="score-progress">
+              <i [style.width.%]="item.finalScore || 0"></i>
+            </div>
+          </td>
+          <td class="score-num mono">{{ item.finalScore }}</td>
+          <td class="cell-center">
+            <span class="grade-chip" [class.grade-a]="item.grade === 'A'" [class.grade-b]="item.grade === 'B'" [class.grade-c]="item.grade === 'C'">
+              {{ item.grade }}
+            </span>
+          </td>
+          <td>
+            <span class="scene-tag">{{ sceneMap[item.sceneType] || item.sceneType }}</span>
+          </td>
+          <td class="cell-center">
+            <div class="risk-flags">
+              @if (item.riskLevel === 'HIGH') {
+                <span class="status-badge status-warn compact" title="高風險示警">高風險</span>
+              } @else if (item.riskLevel === 'MEDIUM') {
+                <span class="status-badge status-quota compact" title="中風險示警">中風險</span>
+              } @else {
+                <span class="status-badge status-normal compact" title="無異常">正常</span>
+              }
+              @if (item.sceneOverridden) {
+                <span class="status-badge override-badge compact" title="人工覆寫情境">覆寫</span>
+              }
+            </div>
+          </td>
+        </tr>
+      } @empty {
+        <tr>
+          <td colspan="7" class="empty-cell">此榜單暫無排行資料</td>
+        </tr>
       }
-    } @else {
-      <div style="font-size:11.5px;color:var(--ink-2);margin-top:7px">
-        無待回填結案
-      </div>
-    }
-    <div class="mini" style="margin-top:7px">沒有回填就沒有校準資料，權重不會變準。</div>
+    </tbody>
+  </table>
+</div>
+
+<!-- 雙欄操作面板 (待回填結案 & B 軌尋源中) ──────────────── -->
+<div class="dual-section">
+  <!-- 卡片 1: 待回填結案 -->
+  <div class="card op-card">
+    <div class="op-header">
+      <h5>待回填結案 ({{ overdueCampaigns.length }})</h5>
+    </div>
+    <div class="op-body">
+      @if (overdueCampaigns && overdueCampaigns.length > 0) {
+        <div class="op-list">
+          @for (campaign of overdueCampaigns; track campaign.productName || $index) {
+            <div class="op-item">
+              <span class="item-title">{{ campaign.productName }}</span>
+              <span class="status-badge status-warn compact mono">逾 {{ campaign.overdueDays }} 天</span>
+            </div>
+          }
+        </div>
+      } @else {
+        <div class="op-empty">目前無待回填之結案活動</div>
+      }
+    </div>
+    <div class="op-footer">
+      <span class="footnote">沒有回填就沒有校準資料，權重不會變準。</span>
+    </div>
   </div>
 
-  <div class="card soft">
-    <h5>B 軌　尋源中（{{ sourcingSummary?.items?.length || 0 }}）</h5>
-    @if (sourcingSummary?.items && sourcingSummary.items.length > 0) {
-      @for (item of sourcingSummary.items; track item.productId || $index) {
-        <div style="font-size:11.5px;color:var(--ink-2);line-height:2">
-          <div style="display:flex;gap:8px">
-            <span>{{ item.productName }}</span>
-            @if (item.timeGapDays !== null && item.timeGapDays !== undefined && item.timeGapDays >= 0) {
-              <span class="gap-ok" style="margin-left:auto">時效 +{{ item.timeGapDays }} 天</span>
-            } @else if (item.timeGapDays !== null && item.timeGapDays !== undefined) {
-              <span class="gap-bad" style="margin-left:auto">時效 {{ item.timeGapDays }} 天　已淘汰</span>
-            }
-          </div>
+  <!-- 卡片 2: B 軌尋源中 -->
+  <div class="card op-card">
+    <div class="op-header">
+      <h5>B 軌　尋源中 ({{ sourcingSummary?.items?.length || 0 }})</h5>
+    </div>
+    <div class="op-body">
+      @if (sourcingSummary?.items && sourcingSummary.items.length > 0) {
+        <div class="op-list">
+          @for (item of sourcingSummary.items; track item.productId || $index) {
+            <div class="op-item">
+              <span class="item-title">{{ item.productName }}</span>
+              @if (item.timeGapDays !== null && item.timeGapDays !== undefined && item.timeGapDays >= 0) {
+                <span class="status-badge status-normal compact mono">時效 +{{ item.timeGapDays }} 天</span>
+              } @else if (item.timeGapDays !== null && item.timeGapDays !== undefined) {
+                <span class="status-badge status-warn compact mono">時效 {{ item.timeGapDays }} 天　已淘汰</span>
+              }
+            </div>
+          }
         </div>
+      } @else {
+        <div class="op-empty">目前無尋源中品項</div>
       }
-    } @else {
-      <div style="font-size:11.5px;color:var(--ink-2);margin-top:6px">
-        無尋源中品項
+    </div>
+    <div class="op-footer">
+      <button type="button" class="btn" (click)="navigateToSourcingSummary()">
+        查看尋源優先序 →
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- 底部說明面板 (遵循 FRONTEND_UI_GUIDELINES.md 5.1 規範) ────── -->
+<div class="info-section">
+  <div class="info-header">
+    <div class="info-title">
+      <h4>選品決策與 AI 判讀規則說明</h4>
+    </div>
+  </div>
+
+  <div class="info-grid">
+    <!-- 卡片 1: 選品評分與分級門檻 -->
+    <div class="info-card">
+      <div class="card-head">
+        <h5>選品評分與分級門檻</h5>
       </div>
-    }
-    <a (click)="navigateToSourcingSummary(); $event.preventDefault()" style="color:var(--teal);font-size:11px;text-decoration:none;display:inline-block;margin-top:6px;cursor:pointer">查看尋源優先序 →</a>
+      <p>
+        綜合市場趨勢斜率、社群討論熱度、品類毛利空間與客訴風險等因子，透過<strong>情境加權矩陣</strong>計算綜合分數。<br>
+        <strong>A 級主推（≥ 80 分）：</strong> 優先採購與上架行銷。<br>
+        <strong>B 級備選（60 ～ 79 分）：</strong> 依庫存與檔期評估備取。
+      </p>
+    </div>
+
+    <!-- 卡片 2: 四大情境榜單定義 -->
+    <div class="info-card">
+      <div class="card-head">
+        <h5>四大情境榜單定義</h5>
+      </div>
+      <p>
+        <strong>話題爆款：</strong> 短期社群聲量猛烈竄升。<br>
+        <strong>節慶檔期：</strong> 鎖定特定節日採購窗口。<br>
+        <strong>常態補貨：</strong> 長期需求平穩且毛利優良。<br>
+        <strong>季節導向：</strong> 符合季節更替與氣候特徵之品項。
+      </p>
+    </div>
+
+    <!-- 卡片 3: 雙軌尋源與回填閉環 -->
+    <div class="info-card">
+      <div class="card-head">
+        <h5>雙軌尋源與回填閉環</h5>
+      </div>
+      <p>
+        <strong>A 軌：</strong> 現有供應商快速上架。<br>
+        <strong>B 軌：</strong> 尋源評估，以「剩餘熱度壽命 - 前置期」計算<strong>時效落差</strong>。<br>
+        <strong>結案回填：</strong> 銷售成效需於結案 7 天內回填，閉環校準模型權重。
+      </p>
+    </div>
   </div>
 </div>

@@ -386,7 +386,7 @@ export class SourcingComponent implements OnInit, OnDestroy {
       return;
     }
 
-    this.productService.update1({
+    this.productService.updateProduct({
       id: productId,
       productUpdateRequest: {
         name: kw,
@@ -396,7 +396,7 @@ export class SourcingComponent implements OnInit, OnDestroy {
         keywordIds: report?.keywordId ? new Set([report.keywordId]) : undefined
       } as any
     }).subscribe({
-      next: async (res) => {
+      next: async (res: any) => {
         await this.unpack(res);
         this.dialogService.Confirm({
           title: '操作成功',
@@ -405,7 +405,7 @@ export class SourcingComponent implements OnInit, OnDestroy {
           isDanger: false
         });
       },
-      error: (err) => {
+      error: (err: any) => {
         console.error('儲存為觀察失敗', err);
         this.dialogService.Confirm({
           title: '儲存失敗',
@@ -434,7 +434,7 @@ export class SourcingComponent implements OnInit, OnDestroy {
     const kw = this.keyword() || report.productName || report.keyword;
     const targetStatus: 'SOURCING' | 'URGENT' = (report.timeGapDays !== null && report.timeGapDays <= 14) ? 'URGENT' : 'SOURCING';
 
-    this.productService.update1({
+    this.productService.updateProduct({
       id: productId,
       productUpdateRequest: {
         name: kw,
@@ -444,7 +444,7 @@ export class SourcingComponent implements OnInit, OnDestroy {
         keywordIds: report.keywordId ? new Set([report.keywordId]) : undefined
       } as any
     }).subscribe({
-      next: async (res) => {
+      next: async (res: any) => {
         await this.unpack(res);
         const statusText = targetStatus === 'URGENT' ? '需加速尋源' : '尋源中';
         this.dialogService.Confirm({
@@ -454,7 +454,7 @@ export class SourcingComponent implements OnInit, OnDestroy {
           isDanger: false
         });
       },
-      error: (err) => {
+      error: (err: any) => {
         console.error('加入尋源優先序失敗', err);
         this.dialogService.Confirm({
           title: '操作失敗',
