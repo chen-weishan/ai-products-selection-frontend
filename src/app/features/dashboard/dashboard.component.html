@@ -1,43 +1,65 @@
 <div class="mh">
   <div>
     <h3>本週選品建議</h3>
-    <div class="sub">2026 / W30　·　權重版本 v3（2026-06-01 生效）</div>
+    <div class="sub">{{ currentPeriodDisplay }}　·　權重版本 v3（2026-06-01 生效）</div>
   </div>
-<div class="tools">
-  <span class="trk"><span [class.on]="activeTrack === 'A'" (click)="switchTrack('A')">A 軌　有供應商</span><span [class.on]="activeTrack === 'B'" (click)="switchTrack('B')">B 軌　尋源中</span></span>
-  <span class="btn pri" (click)="navigateToQuickMark()">＋ 我看到一個</span>
-</div>
+  <div class="tools">
+    <span class="trk">
+      <span [class.on]="activeTrack === 'A'" (click)="switchTrack('A')">A 軌　有供應商</span>
+      <span [class.on]="activeTrack === 'B'" (click)="switchTrack('B')">B 軌　尋源中</span>
+    </span>
+    <button type="button" class="btn pri" (click)="navigateToQuickMark()">＋ 我看到一個</button>
+  </div>
 </div>
 
 <div class="srcbar">
-  
-  <ng-container *ngIf="heatSources.length > 0; else fallbackHeatSources">
-    <span *ngFor="let source of heatSources" class="s" [class.deg]="source.availability === 'DEGRADED'" [class.unavail]="source.availability === 'UNAVAILABLE'">
-      <i></i>
-      {{ getSourceName(source.sourceCode) }}　{{ getLastFetchedTime(source.lastFetchedAt) }}
-      <span *ngIf="source.quotaLimit !== null" class="quota">　{{ source.quotaUsed }}／{{ source.quotaLimit }}</span>
-      <span *ngIf="source.quotaLimit === null" class="quota">　{{ source.quotaUsed }}／無上限</span>
-    </span>
-  </ng-container>
-  <ng-template #fallbackHeatSources>
+  @if (heatSources && heatSources.length > 0) {
+    @for (source of heatSources; track source.sourceCode) {
+      <span class="s" [class.deg]="source.availability === 'DEGRADED'" [class.err]="source.availability === 'UNAVAILABLE'">
+        <i></i>
+        {{ getSourceName(source.sourceCode) }}　{{ getLastFetchedTime(source.lastFetchedAt) }}
+        @if (source.quotaLimit !== null && source.quotaLimit !== undefined) {
+          <span class="quota">　{{ source.quotaUsed }}／{{ source.quotaLimit }}</span>
+        } @else {
+          <span class="quota">　{{ source.quotaUsed }}／無上限</span>
+        }
+      </span>
+    }
+  } @else {
     <span class="s"><i></i>Threads　今日 06:00</span>
     <span class="s"><i></i>Google Trends　今日 06:00</span>
     <span class="s deg"><i></i>Instagram　額度剩 4／30</span>
     <span class="s"><i></i>人工標記　本週 12 筆</span>
-  </ng-template>
-  <a href="#" (click)="navigateToSourceSettings()" style="margin-left:auto;color:var(--teal);font-size:11px;text-decoration:none">來源設定 →</a>
+  }
+  <a (click)="navigateToSourceSettings(); $event.preventDefault()" style="margin-left:auto;color:var(--teal);font-size:11px;text-decoration:none;cursor:pointer">來源設定 →</a>
 </div>
 
-<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px"><span style="font-size:11px;color:var(--ink-3)">全域彙總 KPI</span></div>
+<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+  <span style="font-size:11px;color:var(--ink-3)">全域彙總 KPI</span>
+</div>
+
 <div class="kpis">
-  <div class="kpi"><div class="v">{{dashboardSummary.totalCandidates}}</div><div class="l">候選品項</div><div class="delta">＋{{weeklyNewCount}} 本週新增</div></div>
-  <div class="kpi"><div class="v">{{dashboardSummary.aGradeCount}}</div><div class="l">A 級主推（四榜合計，依品項去重）</div></div>
-  <div class="kpi alert"><div class="v">{{dashboardSummary.openRiskCount}}</div><div class="l">高風險示警</div></div>
-  <div class="kpi"><div class="v">{{dashboardSummary.overdueFeedbackCount}}</div><div class="l">結案未回填</div><div class="delta" style="color:var(--b)">已逾 7 天</div></div>
+  <div class="kpi">
+    <div class="v">{{ dashboardSummary.totalCandidates ?? 0 }}</div>
+    <div class="l">候選品項</div>
+    <div class="delta">＋{{ weeklyNewCount }} 本週新增</div>
+  </div>
+  <div class="kpi">
+    <div class="v">{{ dashboardSummary.aGradeCount ?? 0 }}</div>
+    <div class="l">A 級主推（四榜合計，依品項去重）</div>
+  </div>
+  <div class="kpi alert">
+    <div class="v">{{ dashboardSummary.openRiskCount ?? 0 }}</div>
+    <div class="l">高風險示警</div>
+  </div>
+  <div class="kpi">
+    <div class="v">{{ dashboardSummary.overdueFeedbackCount ?? 0 }}</div>
+    <div class="l">結案未回填</div>
+    <div class="delta" style="color:var(--b)">已逾 7 天</div>
+  </div>
 </div>
 
 <div style="display:flex;align-items:center;gap:12px;margin-top:12px">
-  
   <span style="font-size:11px;color:var(--ink-3)">週期切換</span>
   <div class="trk">
     <span [class.on]="activePeriod === 'week'" (click)="switchPeriod('week')">本週</span>
@@ -47,7 +69,6 @@
 </div>
 
 <div class="tabs">
-  
   <button type="button" [class.on]="activeTab === 'viral'" (click)="activeTab = 'viral'">話題爆款榜</button>&nbsp;
   <button type="button" [class.on]="activeTab === 'festival'" (click)="activeTab = 'festival'">節慶檔期榜</button>&nbsp;
   <button type="button" [class.on]="activeTab === 'replenishment'" (click)="activeTab = 'replenishment'">常態補貨榜</button>&nbsp;
@@ -55,60 +76,93 @@
 </div>
 
 <table>
-  <tr>
-    <th style="width:22px">#</th>
-    <th>品項</th>
-    <th style="width:22%">選品分數</th>
-    <th>分數</th>
-    <th>級</th>
-    <th>情境判定</th>
-    <th style="width:52px">風險</th>
-  </tr>
-  <tr *ngFor="let item of getRankingsForTab(activeTab); let i = index">
-    <td class="rank">{{i + 1}}</td>
-    <td class="name">{{item.productName}}</td>
-    <td>
-      <div class="bar">
-        <i [style.width.%]="item.finalScore"></i>
-      </div>
-    </td>
-    <td class="num">{{item.finalScore}}</td>
-    <td><span class="chip" [class.A]="item.grade === 'A'" [class.B]="item.grade === 'B'" [class.C]="item.grade === 'C'">{{item.grade}}</span></td>
-    <td><span class="tag teal">{{item.sceneType}}</span></td>
-    <td>
-      <span *ngIf="item.sceneOverridden" class="dot"></span>
-      <span *ngIf="item.riskLevel === 'HIGH'" class="dot mid"></span>
-      <span *ngIf="item.riskLevel === 'LOW'" class="dot"></span>
-    </td>
-  </tr>
+  <thead>
+    <tr>
+      <th style="width:28px">#</th>
+      <th>品項</th>
+      <th style="width:22%">選品分數</th>
+      <th>分數</th>
+      <th>級</th>
+      <th>情境判定</th>
+      <th style="width:52px">風險</th>
+    </tr>
+  </thead>
+  <tbody>
+    @for (item of getRankingsForTab(activeTab); track item.productId || $index; let i = $index) {
+      <tr>
+        <td class="rank">{{ i + 1 }}</td>
+        <td class="name" (click)="navigateToProduct(item.productId)" style="cursor:pointer" title="點擊檢視品項">{{ item.productName }}</td>
+        <td>
+          <div class="bar">
+            <i [style.width.%]="item.finalScore || 0"></i>
+          </div>
+        </td>
+        <td class="num">{{ item.finalScore }}</td>
+        <td>
+          <span class="chip" [class.A]="item.grade === 'A'" [class.B]="item.grade === 'B'" [class.C]="item.grade === 'C'">{{ item.grade }}</span>
+        </td>
+        <td>
+          <span class="tag teal">{{ sceneMap[item.sceneType] || item.sceneType }}</span>
+        </td>
+        <td>
+          @if (item.riskLevel === 'HIGH') {
+            <span class="dot" title="高風險示警"></span>
+          } @else if (item.riskLevel === 'MEDIUM') {
+            <span class="dot mid" title="中風險示警"></span>
+          }
+          @if (item.sceneOverridden) {
+            <span class="tag amber" style="margin-left:4px;font-size:9.5px;padding:1px 4px" title="人工覆寫情境">覆寫</span>
+          }
+        </td>
+      </tr>
+    } @empty {
+      <tr>
+        <td colspan="7" style="text-align:center;padding:24px;color:var(--ink-3)">此榜單暫無排行資料</td>
+      </tr>
+    }
+  </tbody>
 </table>
 
 <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px">
   <div class="card soft">
-    <h5>待回填結案（{{overdueCampaigns.length}}）</h5>
-    <div *ngFor="let campaign of overdueCampaigns" style="font-size:11.5px;color:var(--ink-2);line-height:2">
-      <div style="display:flex;gap:8px">
-        <span>{{campaign.productName}}</span>
-        <span class="tag amber" style="margin-left:auto">逾 {{campaign.overdueDays}} 天</span>
+    <h5>待回填結案（{{ overdueCampaigns.length }}）</h5>
+    @if (overdueCampaigns && overdueCampaigns.length > 0) {
+      @for (campaign of overdueCampaigns; track campaign.productName || $index) {
+        <div style="font-size:11.5px;color:var(--ink-2);line-height:2">
+          <div style="display:flex;gap:8px">
+            <span>{{ campaign.productName }}</span>
+            <span class="tag amber" style="margin-left:auto">逾 {{ campaign.overdueDays }} 天</span>
+          </div>
+        </div>
+      }
+    } @else {
+      <div style="font-size:11.5px;color:var(--ink-2);margin-top:7px">
+        無待回填結案
       </div>
-    </div>
-    <div *ngIf="!overdueCampaigns || overdueCampaigns.length === 0" style="font-size:11.5px;color:var(--ink-2);margin-top:7px">
-      無待回填結案
-    </div>
+    }
     <div class="mini" style="margin-top:7px">沒有回填就沒有校準資料，權重不會變準。</div>
   </div>
+
   <div class="card soft">
-    <h5>B 軌　尋源中（{{sourcingSummary?.items?.length}}）</h5>
-    <div *ngFor="let item of sourcingSummary?.items; let i = index" style="font-size:11.5px;color:var(--ink-2);line-height:2">
-      <div style="display:flex;gap:8px">
-        <span>{{item.productName}}</span>
-        <span *ngIf="item.timeGapDays >= 0" class="gap-ok" style="margin-left:auto">時效 +{{item.timeGapDays}} 天</span>
-        <span *ngIf="item.timeGapDays < 0" class="gap-bad" style="margin-left:auto">時效 {{item.timeGapDays}} 天　已淘汰</span>
+    <h5>B 軌　尋源中（{{ sourcingSummary?.items?.length || 0 }}）</h5>
+    @if (sourcingSummary?.items && sourcingSummary.items.length > 0) {
+      @for (item of sourcingSummary.items; track item.productId || $index) {
+        <div style="font-size:11.5px;color:var(--ink-2);line-height:2">
+          <div style="display:flex;gap:8px">
+            <span>{{ item.productName }}</span>
+            @if (item.timeGapDays !== null && item.timeGapDays !== undefined && item.timeGapDays >= 0) {
+              <span class="gap-ok" style="margin-left:auto">時效 +{{ item.timeGapDays }} 天</span>
+            } @else if (item.timeGapDays !== null && item.timeGapDays !== undefined) {
+              <span class="gap-bad" style="margin-left:auto">時效 {{ item.timeGapDays }} 天　已淘汰</span>
+            }
+          </div>
+        </div>
+      }
+    } @else {
+      <div style="font-size:11.5px;color:var(--ink-2);margin-top:6px">
+        無尋源中品項
       </div>
-    </div>
-    <div *ngIf="!sourcingSummary?.items || sourcingSummary.items.length === 0" style="font-size:11.5px;color:var(--ink-2);margin-top:6px">
-      無尋源中品項
-    </div>
-    <a href="#" (click)="navigateToSourcingSummary()" style="color:var(--teal);font-size:11px;text-decoration:none;display:inline-block;margin-top:6px">查看尋源優先序 →</a>
+    }
+    <a (click)="navigateToSourcingSummary(); $event.preventDefault()" style="color:var(--teal);font-size:11px;text-decoration:none;display:inline-block;margin-top:6px;cursor:pointer">查看尋源優先序 →</a>
   </div>
 </div>

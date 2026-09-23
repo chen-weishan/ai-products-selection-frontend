@@ -1,12 +1,11 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnInit } from '@angular/core';
-import { Router } from '@angular/router';
+import { Router, RouterModule } from '@angular/router';
 import { DashboardControllerService } from '../../api/api/dashboardController.service';
-import { Observable } from 'rxjs';
 
 @Component({
   selector: 'app-dashboard',
-  imports: [CommonModule],
+  imports: [CommonModule, RouterModule],
   templateUrl: './dashboard.component.html',
   styleUrl: './dashboard.component.scss'
 })
@@ -16,28 +15,52 @@ export class DashboardComponent implements OnInit {
   festivalRankings: any[] = [];
   replenishmentRankings: any[] = [];
   seasonalRankings: any[] = [];
-  sourcingSummary: any = {};
+  sourcingSummary: any = { items: [] };
   overdueCampaigns: any[] = [];
-  heatSources: any[] = []; // 新增：熱度來源狀態列表
-  weeklyNewCount = 9; // This would typically come from API as well
+  heatSources: any[] = [];
+  weeklyNewCount = 9;
   activeTab: string = 'viral';
-  activeTrack: string = 'A'; // A or B
-  activePeriod: 'week' | 'lastWeek' | 'custom' = 'week'; // week, lastWeek, custom
+  activeTrack: string = 'A';
+  activePeriod: 'week' | 'lastWeek' | 'custom' = 'week';
+
+  readonly sceneMap: Record<string, string> = {
+    VIRAL: '話題爆款',
+    FESTIVAL: '節慶檔期',
+    REPLENISHMENT: '常態補貨',
+    SEASONAL: '季節導向'
+  };
 
   constructor(private dashboardService: DashboardControllerService, private router: Router) {}
+
+  get currentPeriodDisplay(): string {
+    const period = this.getIsoWeekStringForPeriod(this.activePeriod);
+    const year = period.substring(0, 4);
+    const week = period.substring(4);
+    return `${year} / ${week}`;
+  }
+
+  /** 解析可能為 Blob 的 API 回應 */
+  private async unpack<T = any>(raw: any): Promise<T> {
+    if (raw instanceof Blob) {
+      try {
+        const text = await raw.text();
+        return JSON.parse(text);
+      } catch (e) {
+        console.error('[DashboardComponent] 解析 Blob 失敗:', e);
+        return raw as T;
+      }
+    }
+    return raw as T;
+  }
 
   /** 根據 activePeriod 回傳對應的 ISO 週字串 (如 2026W30) */
   private getIsoWeekStringForPeriod(period: 'week' | 'lastWeek' | 'custom'): string {
     const now = new Date();
     if (period === 'week') {
-      // 本週 (ISO week)
       return this.getIsoWeekString(now);
     } else if (period === 'lastWeek') {
-      // 上週
       return this.getIsoWeekString(new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000));
     } else {
-      // 自訂區間：規格書未定義 API 如何接受日期範圍，暫時使用本週
-      // 實際應該由日期選擇器傳入具備起訖日，此處僅作為備援
       return this.getIsoWeekString(now);
     }
   }
@@ -78,13 +101,11 @@ export class DashboardComponent implements OnInit {
       const date = new Date(lastFetchedAt);
       const now = new Date();
       
-      // 檢查是否是今天
       const isToday = date.toDateString() === now.toDateString();
       if (isToday) {
         return `今日 ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
       }
       
-      // 檢查是否是昨天
       const yesterday = new Date(now);
       yesterday.setDate(yesterday.getDate() - 1);
       const isYesterday = date.toDateString() === yesterday.toDateString();
@@ -92,29 +113,32 @@ export class DashboardComponent implements OnInit {
         return `昨日 ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
       }
       
-      // 其他情況顯示月份和日期
       return `${date.getMonth() + 1}/${date.getDate()} ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
     } catch (e) {
-      return lastFetchedAt; // 如果解析失敗，返回原始字符串
+      return lastFetchedAt;
     }
   }
 
   /** 導航到快速標記入口頁面（FR-14-1） */
   public navigateToQuickMark(): void {
-    // 根據路由配置推測：快速標記可能對應到 ai-tasks
-    this.router.navigate(['/ai-tasks']);
+    this.router.navigate(['/heat-tags']);
   }
 
   /** 導航到熱度來源設定頁面（S-16） */
   public navigateToSourceSettings(): void {
-    // 根據路由配置推測：熱度來源設定可能對應到 heat-tags
-    this.router.navigate(['/heat-tags']);
+    this.router.navigate(['/heat-sources']);
   }
 
   /** 導航到尋源優先序頁面（S-18） */
   public navigateToSourcingSummary(): void {
-    // 根據路由配置推測：尋源優先序可能對應到 sourcing
-    this.router.navigate(['/sourcing']);
+    this.router.navigate(['/sourcing-queue']);
+  }
+
+  /** 點擊商品名稱導航至品項頁面 */
+  public navigateToProduct(productId: number | undefined): void {
+    if (productId) {
+      this.router.navigate(['/products'], { queryParams: { id: productId } });
+    }
   }
 
   ngOnInit(): void {
@@ -122,25 +146,20 @@ export class DashboardComponent implements OnInit {
   }
 
   loadDashboardData(): void {
-    // Determine period parameter based on activePeriod
-    let periodParam = this.getIsoWeekStringForPeriod(this.activePeriod);
+    const periodParam = this.getIsoWeekStringForPeriod(this.activePeriod);
     console.log('Loading dashboard data for period:', periodParam, 'track:', this.activeTrack);
 
-    // Load summary data (KPIs) - always show A track data for KPIs as per spec
+    // 1. KPI 彙總（固定查 A 軌）
     this.dashboardService.getSummary({ track: 'A', period: periodParam }).subscribe({
-      next: (response: any) => {
+      next: async (raw: any) => {
+        const response = await this.unpack(raw);
         console.log('Dashboard summary response:', response);
-        if (response.success && response.data) {
-          this.dashboardSummary = response.data.kpi || {};
-          // Extract weekly new count from summary if available
-          if (response.data.weeklyNewCount !== undefined) {
-            this.weeklyNewCount = response.data.weeklyNewCount;
-          } else {
-              // This is just a placeholder - in reality this would come from the API
-              this.weeklyNewCount = 9; 
-          }
+        const data = response?.data || response;
+        if (data && (data.kpi || data.totalCandidates !== undefined)) {
+          this.dashboardSummary = data.kpi || data;
+          this.weeklyNewCount = data.weeklyNewCount ?? 9;
         } else {
-          console.warn('Dashboard summary unsuccessful or missing data:', response);
+          this.loadMockSummary();
         }
       },
       error: (error: any) => {
@@ -149,83 +168,39 @@ export class DashboardComponent implements OnInit {
       }
     });
 
-    // Load rankings based on active track and period
+    // 2. 四榜排行（後端一支 API 回傳四大情境榜單）
     const trackParam = this.activeTrack === 'A' ? 'A' : 'B';
-    console.log('Loading rankings for track:', trackParam);
-
-    // Load viral rankings (話題爆款榜)
-    this.dashboardService.getRankings({ track: trackParam, scene: 'VIRAL', limit: 5, period: periodParam }).subscribe({
-      next: (response: any) => {
-        console.log('Viral rankings response:', response);
-        if (response.success && response.data) {
-          this.viralRankings = response.data.viral || [];
+    this.dashboardService.getRankings({ track: trackParam, limit: 5, period: periodParam } as any).subscribe({
+      next: async (raw: any) => {
+        const response = await this.unpack(raw);
+        console.log('Rankings response:', response);
+        const data = response?.data || response;
+        if (data) {
+          this.viralRankings = data.viral || [];
+          this.festivalRankings = data.festival || [];
+          this.replenishmentRankings = data.replenishment || [];
+          this.seasonalRankings = data.seasonal || [];
         } else {
-          console.warn('Viral rankings unsuccessful or missing data:', response);
+          this.loadMockRankings();
         }
       },
       error: (error: any) => {
-        console.error('Failed to load viral rankings:', error);
-        this.loadMockViralRankings();
+        console.error('Failed to load rankings:', error);
+        this.loadMockRankings();
       }
     });
 
-    // Load festival rankings (節慶檔期榜)
-    this.dashboardService.getRankings({ track: trackParam, scene: 'FESTIVAL', limit: 5, period: periodParam }).subscribe({
-      next: (response: any) => {
-        console.log('Festival rankings response:', response);
-        if (response.success && response.data) {
-          this.festivalRankings = response.data.festival || [];
-        } else {
-          console.warn('Festival rankings unsuccessful or missing data:', response);
-        }
-      },
-      error: (error: any) => {
-        console.error('Failed to load festival rankings:', error);
-        this.loadMockFestivalRankings();
-      }
-    });
-
-    // Load replenishment rankings (常態補貨榜)
-    this.dashboardService.getRankings({ track: trackParam, scene: 'REPLENISHMENT', limit: 5, period: periodParam }).subscribe({
-      next: (response: any) => {
-        console.log('Replenishment rankings response:', response);
-        if (response.success && response.data) {
-          this.replenishmentRankings = response.data.replenishment || [];
-        } else {
-          console.warn('Replenishment rankings unsuccessful or missing data:', response);
-        }
-      },
-      error: (error: any) => {
-        console.error('Failed to load replenishment rankings:', error);
-        this.loadMockReplenishmentRankings();
-      }
-    });
-
-    // Load seasonal rankings (季節導向榜)
-    this.dashboardService.getRankings({ track: trackParam, scene: 'SEASONAL', limit: 5, period: periodParam }).subscribe({
-      next: (response: any) => {
-        console.log('Seasonal rankings response:', response);
-        if (response.success && response.data) {
-          this.seasonalRankings = response.data.seasonal || [];
-        } else {
-          console.warn('Seasonal rankings unsuccessful or missing data:', response);
-        }
-      },
-      error: (error: any) => {
-        console.error('Failed to load seasonal rankings:', error);
-        this.loadMockSeasonalRankings();
-      }
-    });
-
-    // Load sourcing summary (B 軌摘要) - only relevant for B track
+    // 3. B 軌尋源中摘要
     if (this.activeTrack === 'B') {
       this.dashboardService.getSourcingSummary({ limit: 5 }).subscribe({
-        next: (response: any) => {
+        next: async (raw: any) => {
+          const response = await this.unpack(raw);
           console.log('Sourcing summary response:', response);
-          if (response.success && response.data) {
-            this.sourcingSummary = response.data;
+          const data = response?.data || response;
+          if (data && data.items) {
+            this.sourcingSummary = data;
           } else {
-            console.warn('Sourcing summary unsuccessful or missing data:', response);
+            this.loadMockSourcingSummary();
           }
         },
         error: (error: any) => {
@@ -234,35 +209,37 @@ export class DashboardComponent implements OnInit {
         }
       });
     } else {
-      // For A track, show empty sourcing summary
       this.sourcingSummary = { items: [] };
     }
 
-    // Load overdue campaigns (待回填結案) - always show regardless of track
+    // 4. 待回填結案
     this.dashboardService.getTodos().subscribe({
-      next: (response: any) => {
+      next: async (raw: any) => {
+        const response = await this.unpack(raw);
         console.log('Overdue campaigns response:', response);
-        if (response.success && response.data) {
-          this.overdueCampaigns = response.data.overdueCampaigns || [];
+        const data = response?.data || response;
+        if (data && data.overdueCampaigns) {
+          this.overdueCampaigns = data.overdueCampaigns;
         } else {
-          console.warn('Overdue campaigns unsuccessful or missing data:', response);
+          this.overdueCampaigns = this.getMockOverdueCampaigns();
         }
       },
       error: (error: any) => {
         console.error('Failed to load overdue campaigns:', error);
-        // Provide fallback empty array
         this.overdueCampaigns = this.getMockOverdueCampaigns();
       }
     });
 
-    // Load heat sources status (熱度來源狀態列表)
+    // 5. 熱度來源狀態
     this.dashboardService.getHeatSources().subscribe({
-      next: (response: any) => {
+      next: async (raw: any) => {
+        const response = await this.unpack(raw);
         console.log('Heat sources response:', response);
-        if (response.success && response.data) {
-          this.heatSources = response.data.items || [];
+        const data = response?.data || response;
+        if (data && data.items) {
+          this.heatSources = data.items;
         } else {
-          console.warn('Heat sources unsuccessful or missing data:', response);
+          this.heatSources = this.getMockHeatSources();
         }
       },
       error: (error: any) => {
@@ -281,6 +258,13 @@ export class DashboardComponent implements OnInit {
       overdueFeedbackCount: 3
     };
     this.weeklyNewCount = 9;
+  }
+
+  private loadMockRankings(): void {
+    this.loadMockViralRankings();
+    this.loadMockFestivalRankings();
+    this.loadMockReplenishmentRankings();
+    this.loadMockSeasonalRankings();
   }
 
   private loadMockViralRankings(): void {

@@ -394,7 +394,7 @@ export class SourcingComponent implements OnInit, OnDestroy {
         trackType: 'B',
         sourcingStatus: 'PENDING',
         keywordIds: report?.keywordId ? new Set([report.keywordId]) : undefined
-      }
+      } as any
     }).subscribe({
       next: async (res) => {
         await this.unpack(res);
@@ -442,7 +442,7 @@ export class SourcingComponent implements OnInit, OnDestroy {
         trackType: 'B',
         sourcingStatus: targetStatus,
         keywordIds: report.keywordId ? new Set([report.keywordId]) : undefined
-      }
+      } as any
     }).subscribe({
       next: async (res) => {
         await this.unpack(res);
