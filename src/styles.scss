@@ -13,3 +13,150 @@ html, body {
     padding: 0 !important;
   }
 }
+
+// 全域統一規格：Material 下拉選單面板（實色灰底、邊框、防穿透重疊）
+.mat-mdc-select-panel,
+.unified-mat-select-panel {
+  background-color: #f8fafc !important; // 實色灰底，絕不透明穿透
+  border: 1px solid #cbd5e1 !important;
+  border-radius: 8px !important;
+  box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.15), 0 8px 10px -6px rgba(15, 23, 42, 0.1) !important;
+  padding: 4px 0 !important;
+
+  .mat-mdc-option {
+    font-size: 13px !important;
+    min-height: 38px !important;
+    color: #1e293b !important;
+
+    &:hover:not(.mdc-list-item--disabled) {
+      background-color: #e2e8f0 !important;
+    }
+
+    &.mdc-list-item--selected:not(.mdc-list-item--disabled) {
+      background-color: #e0f2fe !important; // 柔和藍色標記選中
+      color: #0369a1 !important;
+      font-weight: 600 !important;
+    }
+  }
+}
+
+// 補強 CDK 浮層背景，防止 MDC menu surface 底色穿透
+.cdk-overlay-pane {
+  .mat-mdc-select-panel.mdc-menu-surface {
+    background-color: #f8fafc !important;
+  }
+}
+
+// 全域統一規格：Material 分頁器與每頁筆數下拉框（充足 Padding、防文字貼邊、微互動回饋）
+.mat-mdc-paginator {
+  .mat-mdc-paginator-page-size-label {
+    margin-right: 8px !important;
+    font-size: 12.5px !important;
+    color: #4a5a67 !important;
+  }
+
+  .mat-mdc-paginator-range-label {
+    margin: 0 16px 0 24px !important;
+    font-size: 12.5px !important;
+    color: #4a5a67 !important;
+  }
+
+  .mat-mdc-paginator-page-size-select {
+    margin: 0 8px 0 4px !important;
+
+    .mat-mdc-text-field-wrapper {
+      background-color: #f8fafc !important;
+      border-radius: 8px !important;
+      transition: all 0.3s cubic-bezier(0.19, 1, 0.22, 1) !important;
+      box-shadow: 0px 0px 20px -18px rgba(0, 0, 0, 0.5) !important;
+      padding: 0 !important;
+    }
+
+    .mat-mdc-form-field-flex {
+      height: 36px !important;
+      align-items: center !important;
+      padding: 0 8px 0 12px !important; // 左側內縮 12px，徹底解決數字擠壓貼邊問題
+    }
+
+    .mat-mdc-select-trigger {
+      padding: 0 4px !important;
+      display: flex !important;
+      align-items: center !important;
+    }
+
+    .mat-mdc-select-value {
+      padding-left: 2px !important;
+      font-family: 'IBM Plex Mono', ui-monospace, monospace !important;
+      font-size: 13px !important;
+      font-weight: 500 !important;
+      color: #16232e !important;
+    }
+
+    .mdc-notched-outline__leading {
+      border-radius: 8px 0 0 8px !important;
+      width: 10px !important;
+    }
+
+    .mdc-notched-outline__trailing {
+      border-radius: 0 8px 8px 0 !important;
+    }
+
+    .mdc-notched-outline__leading,
+    .mdc-notched-outline__notch,
+    .mdc-notched-outline__trailing {
+      border-color: #cbd5e1 !important;
+      border-width: 1px !important;
+      transition: all 0.2s ease !important;
+    }
+
+    &:hover {
+      .mat-mdc-text-field-wrapper {
+        background-color: #f1f5f9 !important;
+        box-shadow: 0px 0px 20px -17px rgba(0, 0, 0, 0.6) !important;
+      }
+      .mdc-notched-outline__leading,
+      .mdc-notched-outline__notch,
+      .mdc-notched-outline__trailing {
+        border-color: #94a3b8 !important;
+        border-width: 1.5px !important;
+      }
+    }
+
+    &:active {
+      .mat-mdc-text-field-wrapper {
+        transform: scale(0.95) !important;
+      }
+    }
+
+    &.mat-focused {
+      .mat-mdc-text-field-wrapper {
+        background-color: #ffffff !important;
+      }
+      .mdc-notched-outline__leading,
+      .mdc-notched-outline__notch,
+      .mdc-notched-outline__trailing {
+        border-color: #64748b !important;
+        border-width: 1.5px !important;
+      }
+    }
+  }
+
+  .mat-mdc-icon-button {
+    color: #4a5a67 !important;
+    transition: all 0.2s cubic-bezier(0.19, 1, 0.22, 1) !important;
+
+    &:hover:not(:disabled) {
+      background-color: #f1f5f9 !important;
+      color: #123a56 !important;
+    }
+
+    &:active:not(:disabled) {
+      transform: scale(0.92) !important;
+    }
+
+    &:disabled {
+      opacity: 0.35 !important;
+    }
+  }
+}
+

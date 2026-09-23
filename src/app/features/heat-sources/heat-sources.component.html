@@ -1,0 +1,164 @@
+<!-- 頂部導航列 (返回列表靠右對齊新增來源) ───────────── -->
+<div class="top-nav-bar">
+  <button type="button" class="btn back-btn" (click)="goBack()">
+    返回列表
+  </button>
+</div>
+
+<!-- 頁首 (遵循規範 .mh 結構) ───────────────────────── -->
+<div class="mh">
+  <div>
+    <h3>熱度來源 (Heat Sources)</h3>
+    <div class="sub">
+      目前運作狀態：{{ activeCount() }} 個已啟用　·　{{ degradedCount() }} 個降級中　·　定時排程拉取
+    </div>
+  </div>
+
+  <!-- 右側操作按鈕列 -->
+  <div class="tools">
+    <button type="button" class="btn" (click)="loadSources()">
+      測試連線
+    </button>
+    <button type="button" class="btn pri">
+      新增來源
+    </button>
+  </div>
+</div>
+
+<!-- 核心卡片 1：來源列表表格 (遵循規範 .card.table-card) ───── -->
+<div class="card table-card">
+  <table mat-table [dataSource]="sources()" class="sources-table">
+
+    <!-- Name Column -->
+    <ng-container matColumnDef="name">
+      <th mat-header-cell *matHeaderCellDef> 來源 </th>
+      <td mat-cell *matCellDef="let row">
+        <span class="source-primary-name">{{ row.name }}</span>
+      </td>
+    </ng-container>
+
+    <!-- Type Column -->
+    <ng-container matColumnDef="type">
+      <th mat-header-cell *matHeaderCellDef> 類型 </th>
+      <td mat-cell *matCellDef="let row">
+        <span class="cell-light">{{ row.type }}</span>
+      </td>
+    </ng-container>
+
+    <!-- Granularity Column -->
+    <ng-container matColumnDef="granularity">
+      <th mat-header-cell *matHeaderCellDef> 粒度 </th>
+      <td mat-cell *matCellDef="let row">
+        <span class="cell-light">{{ row.granularity }}</span>
+      </td>
+    </ng-container>
+
+    <!-- Weight Column -->
+    <ng-container matColumnDef="weight">
+      <th mat-header-cell *matHeaderCellDef> 合成權重 </th>
+      <td mat-cell *matCellDef="let row" class="percentile-cell">
+        <div class="percentile-wrap">
+          <div class="percentile-bar-track">
+            <div class="percentile-bar-fill" [class.bar-muted]="row.status === '降級'" [style.width.%]="row.weight"></div>
+          </div>
+          <span class="weight-number-text">{{ row.weight }}%</span>
+        </div>
+      </td>
+    </ng-container>
+
+    <!-- Quota Column -->
+    <ng-container matColumnDef="quota">
+      <th mat-header-cell *matHeaderCellDef> 額度用量 </th>
+      <td mat-cell *matCellDef="let row">
+        <span class="cell-mono">{{ formatQuota(row) }}</span>
+      </td>
+    </ng-container>
+
+    <!-- Last Fetched Column -->
+    <ng-container matColumnDef="lastFetched">
+      <th mat-header-cell *matHeaderCellDef> 最後更新 </th>
+      <td mat-cell *matCellDef="let row">
+        <span class="cell-mono">{{ formatLastFetched(row.lastFetchedAt) }}</span>
+      </td>
+    </ng-container>
+
+    <!-- Status Column (遵循規範：無邊框實心色塊 + 純白字) -->
+    <ng-container matColumnDef="status">
+      <th mat-header-cell *matHeaderCellDef> 狀態 </th>
+      <td mat-cell *matCellDef="let row" class="status-cell">
+        <span class="status-badge"
+          [class.status-normal]="row.status === '正常' || row.status === 'AVAILABLE'"
+          [class.status-warn]="row.status === '降級' || row.status === 'DEGRADED'">
+          {{ row.status }}
+        </span>
+      </td>
+    </ng-container>
+
+    <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+    <tr mat-row *matRowDef="let row; columns: displayedColumns;" [class.row-highlight-degraded]="row.status === '降級'"></tr>
+  </table>
+</div>
+
+<!-- 核心卡片 2：底部說明面板 (遵循規範 .info-section，純文字標題) ─ -->
+<div class="info-section">
+  <div class="info-header">
+    <h4>熱度來源排程與容錯降級機制</h4>
+  </div>
+
+  <div class="info-grid">
+    <!-- 卡片 1: 降級行為 -->
+    <div class="info-card">
+      <div class="card-head">
+        <h5>容錯與權重動態重分配</h5>
+      </div>
+      <p>
+        <strong>來源不可用時：</strong> 該來源合成權重歸零，其餘可用來源按比例重新正規化。
+        品項分數照常產生，不阻斷選品評分流程，亦不影響榜單即時產出。
+      </p>
+      <div class="degrade-box" *ngIf="degradedSources().length > 0; else noDegrade">
+        <div class="degrade-label">
+          <ng-container *ngFor="let source of degradedSources(); let last = last">
+            {{ source.name.replace('官方 API', '').replace('Hashtag', '').trim() }}
+            <ng-container *ngIf="!last">、</ng-container>
+          </ng-container>
+          降級後分攤：
+        </div>
+        <div class="degrade-values">
+          <span *ngFor="let source of recalculatedWeights(); let i = index">
+            <ng-container *ngIf="i > 0">→ </ng-container>
+            {{ source.name }} {{ source.newWeight }}%
+          </span>
+        </div>
+      </div>
+      <ng-template #noDegrade>
+        <div class="degrade-box ok">
+          <div class="degrade-label">目前所有來源皆正常運作，皆按原定權重分配。</div>
+        </div>
+      </ng-template>
+    </div>
+
+    <!-- 卡片 2: 不採用的來源 -->
+    <div class="info-card">
+      <div class="card-head">
+        <h5>未採用第三方平台之說明</h5>
+      </div>
+      <div class="rejected-list">
+        <div class="reject-item">
+          <span class="reject-name">Facebook</span>
+          <span class="reject-reason">CrowdTangle 已關閉，替代品僅開放學術/非營利資格</span>
+        </div>
+        <div class="reject-item">
+          <span class="reject-name">TikTok</span>
+          <span class="reject-reason">Research API 排除商業使用者，台灣不在適用資格地區</span>
+        </div>
+        <div class="reject-item">
+          <span class="reject-name">小紅書</span>
+          <span class="reject-reason">無公開 API，第三方平台條款禁止爬蟲轉供商業使用</span>
+        </div>
+        <div class="reject-footer-note">
+          以上三者一律改由 S-15 人工標記涵蓋。系統不建置未授權爬蟲。
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

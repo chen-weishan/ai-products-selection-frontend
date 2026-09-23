@@ -1,184 +1,222 @@
-@if(!isLoading()){
-<div class="header-bar">
-  <button class="back-btn" (click)="goBack()">
-    返回列表
-  </button>
-</div>
-}
-
-@if(errorMessage()){
-<div class="state-container error">
-  <p>{{ errorMessage() }}</p>
-  <button class="retry-btn" (click)="loadTrendDetail()">
-    重試
-  </button>
-</div>
-}
-@else if(trendData(); as data){
-<div class="title-wrap">
-  <h2>{{data.keyword}}</h2>
-  <div>
-    <button>來源設定</button>
+@if (!isLoading()) {
+  <!-- 頂部導航列 (返回列表靠右對齊來源設定) ───────────── -->
+  <div class="top-nav-bar">
+    <button type="button" class="btn back-btn" (click)="goBack()">
+      返回列表
+    </button>
   </div>
-</div>
-<div class="heatToday">
-  <span>趨勢熱度:{{data.heatToday}}</span>
-  <span>更新日期:{{latesDate()}}</span>
-</div>
 
-<!-- 圖表區塊 -->
-
-<div class="chart-section">
-
-  <div class="chart-header">
-
-    <h3>歷史趨勢圖</h3>
-
-    <!-- 時間區間切換按鈕 -->
-
-    <div class="range-tabs">
-
-      @for (option of dateRangeOptions; track option.value) {
-
-      <button class="tab-btn" [class.active]="selectedRange() === option.value" (click)="onRangeChange(option.value)">
-        {{ option.label }}
-
-      </button>
+  <!-- 頁首 ─────────────────────────────────────────────── -->
+  <div class="mh">
+    <div>
+      @if (trendData(); as data) {
+        <div class="title-with-badge">
+          <h3>{{ data.keyword }}</h3>
+          @if (data.stage) {
+            <span class="status-badge stage-badge">
+              {{ stageMap[data.stage] }} (第 {{ data.stageWeeks }} 週)
+            </span>
+          }
+          @if (data.divergenceFlag) {
+            <span class="status-badge status-warn">異動警示</span>
+          }
+        </div>
+        <div class="sub">
+          趨勢熱度：<strong>{{ data.heatToday }}</strong>　·　最後更新日期：{{ latesDate() }}
+        </div>
+      } @else {
+        <h3>趨勢詳情分析</h3>
       }
     </div>
 
-  </div>
-
-  <div class="badge">
-    @if (data.stage) {
-
-    <span class="badge stage-badge">
-      {{ stageMap[data.stage] }} (第 {{ data.stageWeeks }} 週)</span>
-
-    }
-    @if (data.divergenceFlag) {
-    <span class="badge warning-badge">異動警示</span>
-    }
-  </div>
-
-  <!-- Canvas 繪圖區 -->
-
-  <div class="canvas-wrapper">
-
-    <canvas #chartCanvas></canvas>
-  </div>
-</div>
-
-
-@if (data.sourceDetails && data.sourceDetails.length > 0) {
-<div class="sources-section">
-  <h2>資料來源明細</h2>
-
-  <table mat-table [dataSource]="data.sourceDetails" class="sources-table mat-shadow-2">
-
-    <!-- 來源 Column -->
-    <ng-container matColumnDef="sourceName">
-      <th mat-header-cell *matHeaderCellDef> 來源 </th>
-      <td mat-cell *matCellDef="let element" class="source-cell">
-        <div class="source-info-wrap">
-          <div class="source-primary-name">{{ element.sourceName }}</div>
-          @if (element.subName) {
-            <div class="source-sub-name" [class.sub-muted]="element.isMuted">{{ element.subName }}</div>
-          }
-          @if (element.badge) {
-            <div class="source-badge-chip">{{ element.badge }}</div>
-          }
-        </div>
-      </td>
-    </ng-container>
-
-    <!-- 7日斜率 Column -->
-    <ng-container matColumnDef="slope7d">
-      <th mat-header-cell *matHeaderCellDef> 7 日斜率 </th>
-      <td mat-cell *matCellDef="let element" class="slope-cell">
-        @if (element.isManual) {
-          <div class="manual-slope-stack">
-            <span class="manual-from-val">4.1 &rarr;</span>
-            <span class="manual-to-val">4.8</span>
-          </div>
-        } @else {
-          <span class="slope-val" [class.positive]="(element.slope7d ?? 0) > 0" [class.subtle-positive]="element.isMuted">
-            {{ element.slope7dDisplay || formatSlope(element.slope7d) }}
-          </span>
-        }
-      </td>
-    </ng-container>
-
-    <!-- 30日斜率 Column -->
-    <ng-container matColumnDef="slope30d">
-      <th mat-header-cell *matHeaderCellDef> 30 日斜率 </th>
-      <td mat-cell *matCellDef="let element" class="slope-cell">
-        @if (element.isManual) {
-          <div class="manual-slope-stack">
-            <span class="manual-from-val">2.6 &rarr;</span>
-            <span class="manual-to-val">4.8</span>
-          </div>
-        } @else {
-          <span class="slope-val" [class.positive]="(element.slope30d ?? 0) > 0">
-            {{ element.slope30dDisplay || formatSlope(element.slope30d) }}
-          </span>
-        }
-      </td>
-    </ng-container>
-
-    <!-- 同源百分位 Column -->
-    <ng-container matColumnDef="percentile">
-      <th mat-header-cell *matHeaderCellDef> 同源百分位 </th>
-      <td mat-cell *matCellDef="let element" class="percentile-cell">
-        <div class="percentile-bar-track">
-          <div class="percentile-bar-fill"
-               [class.bar-muted]="element.isMuted"
-               [style.width.%]="element.percentile || 0">
-          </div>
-        </div>
-      </td>
-    </ng-container>
-
-    <!-- 合成權重 Column -->
-    <ng-container matColumnDef="appliedWeight">
-      <th mat-header-cell *matHeaderCellDef> 合成權重 </th>
-      <td mat-cell *matCellDef="let element" class="weight-cell">
-        <span class="weight-number-text">{{ formatWeight(element.appliedWeight) }}</span>
-      </td>
-    </ng-container>
-
-    <!-- 狀態 Column -->
-    <ng-container matColumnDef="status">
-      <th mat-header-cell *matHeaderCellDef> 狀態 </th>
-      <td mat-cell *matCellDef="let element" class="status-cell">
-        <span class="status-badge"
-              [class.status-normal]="element.status === 'AVAILABLE'"
-              [class.status-quota]="element.status === 'INSUFFICIENT_QUOTA' || element.status === 'INSUFFICIENT_DATA'">
-          {{ statusMap[element.status] || element.status }}
-        </span>
-      </td>
-    </ng-container>
-
-    <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-    <tr mat-row *matRowDef="let row; columns: displayedColumns;" [class.row-highlight-manual]="row.isManual"></tr>
-  </table>
-</div>
-} @else {
-<p style="color: #64748b; margin-top: 16px;">尚無來源明細資料</p>
-}
-}
-
-<div class="line"></div>
-
-<div class="ai-returns">
-  <div class="Synthesis-Logic">
-    <h3>合成邏輯</h3>
-  </div>
-  <div class="dual-windows">
-    <div class="description">
-      <h3>雙窗口</h3>
-      <p>7 日斜率抓短期竄升，30 日斜率確認不是單日雜訊。
-        兩者背離時（7 日轉負、30 日仍正）系統標記為可能見頂，提示採購加速決策或觀望。</p>
+    <!-- 右側工具列 (遵循 .tools 與 .btn 規範) -->
+    <div class="tools">
+      <button type="button" class="btn pri" routerLink="/heat-sources">
+        來源設定
+      </button>
     </div>
   </div>
-</div>
+}
+
+<!-- 錯誤狀態提示 ─────────────────────────────────────── -->
+@if (errorMessage()) {
+  <div class="alert error">
+    <span>{{ errorMessage() }}</span>
+    <button type="button" class="btn pri" style="margin-left: 12px;" (click)="loadTrendDetail()">
+      重新載入
+    </button>
+  </div>
+}
+
+@else if (trendData(); as data) {
+  <!-- 核心卡片 1：歷史走勢圖表 ───────────────────────────── -->
+  <div class="card chart-card">
+    <div class="card-header-bar">
+      <div class="card-title-group">
+        <h4>歷史趨勢圖</h4>
+        <span class="sub-hint">點選時間週期切換觀測窗口</span>
+      </div>
+
+      <!-- 時間區間切換按鈕組 -->
+      <div class="range-tabs">
+        @for (option of dateRangeOptions; track option.value) {
+          <button
+            type="button"
+            class="range-btn"
+            [class.active]="selectedRange() === option.value"
+            (click)="onRangeChange(option.value)"
+          >
+            {{ option.label }}
+          </button>
+        }
+      </div>
+    </div>
+
+    <!-- Canvas 繪圖區 -->
+    <div class="canvas-wrapper">
+      <canvas #chartCanvas></canvas>
+    </div>
+  </div>
+
+  <!-- 核心卡片 2：資料來源明細表格 ───────────────────────── -->
+  @if (data.sourceDetails && data.sourceDetails.length > 0) {
+    <div class="card table-card" style="margin-top: 20px;">
+      <div class="table-header-title">
+        <h4>資料來源明細</h4>
+        <span class="sub-hint">各平台訊號加權與百分位統計</span>
+      </div>
+
+      <table mat-table [dataSource]="data.sourceDetails" class="sources-table">
+
+        <!-- 來源 Column -->
+        <ng-container matColumnDef="sourceName">
+          <th mat-header-cell *matHeaderCellDef> 來源 </th>
+          <td mat-cell *matCellDef="let element" class="source-cell">
+            <div class="source-info-wrap">
+              <span class="source-primary-name">{{ formatSourceName(element.sourceName).toLowerCase() }}</span>
+              @if (element.subName) {
+                <span class="source-sub-name" [class.sub-muted]="element.isMuted">{{ element.subName }}</span>
+              }
+              @if (element.badge) {
+                <span class="source-badge-chip">{{ element.badge }}</span>
+              }
+            </div>
+          </td>
+        </ng-container>
+
+        <!-- 7日斜率 Column -->
+        <ng-container matColumnDef="slope7d">
+          <th mat-header-cell *matHeaderCellDef> 7 日斜率 </th>
+          <td mat-cell *matCellDef="let element" class="slope-cell">
+            @if (element.isManual) {
+              <div class="manual-slope-stack">
+                <span class="manual-from-val">4.1 &rarr;</span>
+                <span class="manual-to-val">4.8</span>
+              </div>
+            } @else {
+              <span class="slope-val" [class.positive]="(element.slope7d ?? 0) > 0" [class.negative]="(element.slope7d ?? 0) < 0">
+                {{ element.slope7dDisplay || formatSlope(element.slope7d) }}
+              </span>
+            }
+          </td>
+        </ng-container>
+
+        <!-- 30日斜率 Column -->
+        <ng-container matColumnDef="slope30d">
+          <th mat-header-cell *matHeaderCellDef> 30 日斜率 </th>
+          <td mat-cell *matCellDef="let element" class="slope-cell">
+            @if (element.isManual) {
+              <div class="manual-slope-stack">
+                <span class="manual-from-val">2.6 &rarr;</span>
+                <span class="manual-to-val">4.8</span>
+              </div>
+            } @else {
+              <span class="slope-val" [class.positive]="(element.slope30d ?? 0) > 0" [class.negative]="(element.slope30d ?? 0) < 0">
+                {{ element.slope30dDisplay || formatSlope(element.slope30d) }}
+              </span>
+            }
+          </td>
+        </ng-container>
+
+        <!-- 同源百分位 Column -->
+        <ng-container matColumnDef="percentile">
+          <th mat-header-cell *matHeaderCellDef> 同源百分位 </th>
+          <td mat-cell *matCellDef="let element" class="percentile-cell">
+            <div class="percentile-bar-track">
+              <div class="percentile-bar-fill" [class.bar-muted]="element.isMuted"
+                [style.width.%]="element.percentile || 0">
+              </div>
+            </div>
+          </td>
+        </ng-container>
+
+        <!-- 合成權重 Column -->
+        <ng-container matColumnDef="appliedWeight">
+          <th mat-header-cell *matHeaderCellDef> 合成權重 </th>
+          <td mat-cell *matCellDef="let element" class="weight-cell">
+            <span class="weight-number-text">{{ formatWeight(element.appliedWeight) }}</span>
+          </td>
+        </ng-container>
+
+        <!-- 狀態 Column -->
+        <ng-container matColumnDef="status">
+          <th mat-header-cell *matHeaderCellDef> 狀態 </th>
+          <td mat-cell *matCellDef="let element" class="status-cell">
+            <span class="status-badge" [ngClass]="getSourceStatusBadgeClass(element.status)">
+              {{ statusMap[element.status] || element.status }}
+            </span>
+          </td>
+        </ng-container>
+
+        <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+        <tr mat-row *matRowDef="let row; columns: displayedColumns;" [class.row-highlight-manual]="row.isManual"></tr>
+      </table>
+    </div>
+  } @else {
+    <div class="card" style="padding: 24px; text-align: center; color: var(--ink-3); margin-top: 20px;">
+      尚無來源明細資料
+    </div>
+  }
+
+  <!-- 核心卡片 3：底部說明面板 (參照 heat-sources 結構) ─────── -->
+  <div class="info-section">
+    <div class="info-header">
+      <div class="info-title">
+        <h4>趨勢合成邏輯與觀測規則說明</h4>
+      </div>
+    </div>
+
+    <div class="info-grid">
+      <!-- 卡片 1: 合成邏輯 -->
+      <div class="info-card">
+        <div class="card-head">
+          <h5>多源百分位正規化合成</h5>
+        </div>
+        <p>
+          各來源量級不可比（如 Threads 的 200 則 vs Google Trends 指數 78），因此先在各來源內做百分位正規化，再依合成權重加總。
+          @for (source of getAbnormalSources(); track source.sourceName) {
+            <br />
+            <strong>{{ formatSourceName(source.sourceName).toLowerCase() }}</strong>
+            本期狀態為「{{ statusMap[source.status || ''] || source.status }}」，其權重已按比例分攤給其餘正常來源。
+          }
+        </p>
+        <div class="weights-summary">
+          {{ getDefaultWeightsSummary().toLowerCase() }}<br>
+          {{ getAppliedWeightsSummary().toLowerCase() }}
+        </div>
+      </div>
+
+      <!-- 卡片 2: 雙窗口觀測 -->
+      <div class="info-card">
+        <div class="card-head">
+          <h5>雙窗口動能判讀機制</h5>
+        </div>
+        <p>
+          <strong>7 日斜率：</strong> 抓取短期急遽竄升的關鍵字動能。<br>
+          <strong>30 日斜率：</strong> 用於確認並非單日炒作雜訊。<br>
+          當兩者背離時（如 7 日轉負、30 日仍正），系統將標記為可能見頂，提示採購加速決策或轉入觀察。
+        </p>
+      </div>
+    </div>
+  </div>
+}
