@@ -25,6 +25,7 @@ export interface ImportUploadResponse {
   async: boolean;
   headers: string[];
   mappingSuggestions: ImportColumnSuggestion[];
+  savedMappings?: Record<string, string>;
 }
 
 export interface ImportField {
@@ -55,6 +56,7 @@ export interface ImportPreviewResponse {
   duplicateRows: number;
   async: boolean;
   previewRows: ImportPreviewRow[];
+  audienceChanges?: { category: string; before: Record<string, number>; after: Record<string, number> }[];
 }
 
 export interface ImportBatchResponse {
@@ -72,6 +74,12 @@ export interface ImportBatchResponse {
   createdBy?: string;
   createdAt: string;
   finishedAt?: string;
+  failureReason?: string | null;
+  hasCorrectableErrors?: boolean;
+  skippedRows?: number;
+  unprocessedRows?: number;
+  canDownloadUnprocessed?: boolean;
+  recalculation?: Partial<Record<string, number>>;
 }
 
 export interface ImportMappingTemplate {

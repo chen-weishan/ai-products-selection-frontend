@@ -131,20 +131,11 @@ h2 {
   background: #edf8f7;
 }
 
-.record-row.child {
-  padding-left: 30px;
-}
-
 .record-name {
   overflow: hidden;
   font-weight: 700;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.tree-line {
-  margin-right: 7px;
-  color: #849896;
 }
 
 .record-meta {
@@ -154,10 +145,86 @@ h2 {
   white-space: nowrap;
 }
 
+.category-row {
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  min-height: 68px;
+}
+
+.category-row.child {
+  width: calc(100% - 24px);
+  margin-left: 24px;
+  border-left: 3px solid #b7d9d5;
+  background: #f9fcfb;
+}
+
+.category-row.child:hover,
+.category-row.child.selected {
+  border-left-color: #087b77;
+  background: #edf8f7;
+}
+
+.category-content {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.category-parent {
+  overflow: hidden;
+  color: #607574;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.category-details {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #607574;
+  white-space: nowrap;
+}
+
+.category-level {
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: #edf3f2;
+  color: #466b68;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.category-row.child .category-level {
+  background: #e4f4f1;
+  color: #087b77;
+}
+
+.category-order {
+  font-size: 13px;
+}
+
 .form-card form {
   display: grid;
   gap: 6px;
   margin-top: 22px;
+}
+
+.category-form-card .card-heading {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 14px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid #e6eeec;
+}
+
+.category-form-card form {
+  gap: 16px;
+  margin-top: 26px;
+}
+
+.category-form-card .edit-actions {
+  justify-self: end;
 }
 
 .two-columns {
@@ -176,6 +243,11 @@ h2 {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.edit-actions button {
+  flex: none;
+  white-space: nowrap;
 }
 
 .delete-button {
@@ -213,6 +285,20 @@ h2 {
   .record-meta {
     grid-column: 1 / -1;
     grid-row: 2;
+  }
+
+  .category-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .category-details {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  .category-row > mat-icon {
+    grid-column: 2;
+    grid-row: 1;
   }
 
   .two-columns {

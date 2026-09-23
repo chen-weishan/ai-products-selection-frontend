@@ -3,6 +3,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { TestBed } from '@angular/core/testing';
 import { firstValueFrom } from 'rxjs';
 import { environment } from '../../../environments/environment';
+import { SKIP_GLOBAL_LOADING } from '../../core/http/loading-interceptor';
 import { ImportService } from './import.service';
 
 describe('ImportService', () => {
@@ -31,6 +32,17 @@ describe('ImportService', () => {
     await expect(result).resolves.toMatchObject({ batchId: 1 });
   });
 
+  it('reloads pending upload metadata from its batch', async () => {
+    const result = firstValueFrom(service.resumePending(12));
+    const request = http.expectOne(`${baseUrl}/12/resume`);
+    expect(request.request.method).toBe('GET');
+    request.flush({ success: true, data: {
+      batchId: 12, dataType: 'SALES', headers: ['訂單日期', '品名'],
+      mappingSuggestions: [],
+    } });
+    await expect(result).resolves.toMatchObject({ batchId: 12, headers: ['訂單日期', '品名'] });
+  });
+
   it('sends the same mappings to preview, error download and confirm', async () => {
     const mappings = { 品名: 'productName', 評論內容: 'content' };
     const preview = firstValueFrom(service.preview(7, mappings));
@@ -53,7 +65,9 @@ describe('ImportService', () => {
 
   it('supports progress polling and final error download', async () => {
     const batch = firstValueFrom(service.batch(9));
-    http.expectOne(`${baseUrl}/9`).flush({
+    const batchRequest = http.expectOne(`${baseUrl}/9`);
+    expect(batchRequest.request.context.get(SKIP_GLOBAL_LOADING)).toBe(true);
+    batchRequest.flush({
       success: true,
       data: { batchId: 9, status: 'RUNNING', progressPercent: 40 },
     });
@@ -64,6 +78,19 @@ describe('ImportService', () => {
     expect(request.request.responseType).toBe('blob');
     request.flush(new Blob(['errors']));
     await errors;
+  });
+
+  it('downloads the unprocessed tail and retries failed recalculations', async () => {
+    const tail = firstValueFrom(service.downloadUnprocessed(9));
+    const download = http.expectOne(`${baseUrl}/9/unprocessed/download`);
+    expect(download.request.responseType).toBe('blob');
+    download.flush(new Blob(['productName\n奶茶']));
+    await tail;
+    const retry = firstValueFrom(service.retryRecalculation(9));
+    const request = http.expectOne(`${baseUrl}/9/recalculation/retry`);
+    expect(request.request.method).toBe('POST');
+    request.flush({ success: true, data: 2 });
+    await expect(retry).resolves.toBe(2);
   });
 
   it('supports mapping template CRUD', async () => {

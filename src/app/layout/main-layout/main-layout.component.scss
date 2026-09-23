@@ -70,6 +70,14 @@ $bg-page: #F4F6F8;
     padding-top: 0;
 
     .nav-link-item {
+      // Angular Material 21 uses component tokens for list labels and icons,
+      // so `color` alone no longer reaches the rendered MDC elements.
+      --mat-list-list-item-label-text-color: #E0E6ED;
+      --mat-list-list-item-leading-icon-color: #E0E6ED;
+      --mat-list-list-item-hover-label-text-color: #E0E6ED;
+      --mat-list-list-item-hover-leading-icon-color: #E0E6ED;
+      --mat-list-list-item-focus-label-text-color: #E0E6ED;
+      --mat-list-list-item-focus-leading-icon-color: #E0E6ED;
       color: #E0E6ED !important;
       border-radius: 0;
 
@@ -82,6 +90,12 @@ $bg-page: #F4F6F8;
       }
 
       &.active {
+        --mat-list-list-item-label-text-color: #FFFFFF;
+        --mat-list-list-item-leading-icon-color: #FFFFFF;
+        --mat-list-list-item-hover-label-text-color: #FFFFFF;
+        --mat-list-list-item-hover-leading-icon-color: #FFFFFF;
+        --mat-list-list-item-focus-label-text-color: #FFFFFF;
+        --mat-list-list-item-focus-leading-icon-color: #FFFFFF;
         background-color: $accent-blue !important;
         color: #FFFFFF !important;
         font-weight: 600;

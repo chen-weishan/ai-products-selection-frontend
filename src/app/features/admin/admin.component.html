@@ -43,18 +43,20 @@
               @for (category of flatCategories(); track category.id) {
                 <button
                   type="button"
-                  class="record-row"
+                  class="record-row category-row"
                   [class.child]="category.depth > 0"
                   [class.selected]="editingCategoryId() === category.id"
                   (click)="editCategory(category)"
                 >
-                  <span class="record-name">
-                    @if (category.depth > 0) { <span class="tree-line">└</span> }
-                    {{ category.name }}
+                  <span class="category-content">
+                    <span class="record-name">{{ category.name }}</span>
+                    @if (category.parentName) {
+                      <span class="category-parent">隸屬 {{ category.parentName }}</span>
+                    }
                   </span>
-                  <span class="record-meta">
-                    {{ category.parentName ? '上層：' + category.parentName : '頂層類別' }} · 排序
-                    {{ category.sortOrder }}
+                  <span class="category-details">
+                    <span class="category-level">{{ category.depth > 0 ? '子類別' : '頂層類別' }}</span>
+                    <span class="category-order">排序 {{ category.sortOrder }}</span>
                   </span>
                   <mat-icon>edit</mat-icon>
                 </button>
@@ -64,7 +66,7 @@
             </div>
           </section>
 
-          <section class="form-card">
+          <section class="form-card category-form-card">
             <div class="card-heading">
               <div>
                 <h2>{{ editingCategoryId() == null ? '新增類別' : '修改類別' }}</h2>

@@ -1,7 +1,8 @@
-import { HttpClient, HttpErrorResponse, HttpParams } from '@angular/common/http';
+import { HttpClient, HttpContext, HttpErrorResponse, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, catchError, map, throwError } from 'rxjs';
 import { environment } from '../../../environments/environment';
+import { SKIP_GLOBAL_LOADING } from '../../core/http/loading-interceptor';
 import {
   ImportBatchResponse,
   ImportDataType,
@@ -38,6 +39,10 @@ export class ImportService {
       .pipe(this.unwrap('上傳匯入檔案失敗'));
   }
 
+  resumePending(batchId: number): Observable<ImportUploadResponse> {
+    return this.get<ImportUploadResponse>(`${this.baseUrl}/${batchId}/resume`);
+  }
+
   preview(
     batchId: number,
     mappings: Record<string, string>,
@@ -65,7 +70,11 @@ export class ImportService {
   }
 
   batch(batchId: number): Observable<ImportBatchResponse> {
-    return this.get<ImportBatchResponse>(`${this.baseUrl}/${batchId}`);
+    return this.http
+      .get<ApiResponse<ImportBatchResponse>>(`${this.baseUrl}/${batchId}`, {
+        context: new HttpContext().set(SKIP_GLOBAL_LOADING, true),
+      })
+      .pipe(this.unwrap('取得匯入進度失敗'));
   }
 
   downloadPreviewErrors(
@@ -79,6 +88,15 @@ export class ImportService {
 
   downloadErrors(batchId: number): Observable<Blob> {
     return this.http.get(`${this.baseUrl}/${batchId}/errors/download`, { responseType: 'blob' });
+  }
+
+  downloadUnprocessed(batchId: number): Observable<Blob> {
+    return this.http.get(`${this.baseUrl}/${batchId}/unprocessed/download`, { responseType: 'blob' });
+  }
+
+  retryRecalculation(batchId: number): Observable<number> {
+    return this.http.post<ApiResponse<number>>(`${this.baseUrl}/${batchId}/recalculation/retry`, {})
+      .pipe(this.unwrap('重新排入評分更新失敗'));
   }
 
   templates(dataType: ImportDataType): Observable<ImportMappingTemplate[]> {
@@ -136,7 +154,9 @@ export class ImportService {
 
   private rethrow(error: unknown): Observable<never> {
     if (error instanceof HttpErrorResponse) {
-      const message = error.error?.error?.message;
+      const details = error.error?.error?.fieldErrors;
+      const detailText = Array.isArray(details) ? details.map((item: { message?: string }) => item.message).filter(Boolean).join('；') : '';
+      const message = detailText || error.error?.error?.message;
       return throwError(() => new Error(typeof message === 'string' ? message : error.message));
     }
     return throwError(() => error);
