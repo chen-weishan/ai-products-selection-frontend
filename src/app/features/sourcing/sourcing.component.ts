@@ -1,5 +1,5 @@
 import { Component } from '@angular/core';
-import { CategoryControllerService, CategoryTreeResponse } from '../../api'
+import { ProductReferenceControllerService, CategoryTreeResponse } from '../../api'
 import { inject } from '@angular/core';
 import { signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -14,7 +14,7 @@ import { CommonModule } from '@angular/common';
   styleUrl: './sourcing.component.scss'
 })
 export class SourcingComponent {
-  private readonly categoryservice = inject(CategoryControllerService);
+  private readonly categoryservice = inject(ProductReferenceControllerService);
   categories = signal<CategoryTreeResponse[]>([]);
   selectedCategoryId = signal<number | null>(null);
 
