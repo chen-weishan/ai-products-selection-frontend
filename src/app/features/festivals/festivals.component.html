@@ -1,1 +1,241 @@
-<p>festivals works!</p>
+<!-- 頁首 ─────────────────────────────────────────────── -->
+<div class="mh">
+  <div>
+    <h3>節慶檔期維護</h3>
+    <div class="sub">
+      節慶不是固定的加分欄位，而是時間窗函數：月餅在七月分數要高（備貨期），十月要歸零。
+    </div>
+  </div>
+  <div class="tools">
+    <label class="fld">
+      年度
+      <input type="number" min="1900" max="2100" [value]="year()"
+             (change)="onYearChange($any($event.target).value)" />
+    </label>
+    <button type="button" class="btn pri" (click)="toggleCreateForm()">
+      {{ showCreateForm() ? '取消' : '新增檔期' }}
+    </button>
+  </div>
+</div>
+
+@if (errorMessage(); as msg) { <div class="alert error">{{ msg }}</div> }
+@if (successMessage(); as msg) { <div class="alert ok">{{ msg }}</div> }
+
+<!-- 標記 1：時間窗示意 ─────────────────────────────────── -->
+<section class="card">
+  <h4>時間窗示意</h4>
+
+  @if (selectedFestival(); as sel) {
+    <div class="sub">
+      {{ sel.festivalName }}（{{ sel.festivalDate }}）
+      　·　前置
+      <input class="inline-num" type="number" min="0" max="365"
+             [value]="previewLeadDays()"
+             (change)="previewLeadDays.set(+$any($event.target).value)" />
+      天
+      　·　距節慶 {{ daysUntilSelected() }} 天　·　{{ currentWindowLabel() }}
+    </div>
+
+    <div class="window-bar">
+      @for (seg of windowSegments(); track seg.label) {
+        <div class="seg" [class.zero]="seg.tone === 'zero'"
+             [class.gold]="seg.tone === 'gold'" [class.half]="seg.tone === 'half'"
+             [style.width.%]="seg.width">
+          <span class="seg-label">{{ seg.label }}</span>
+          <span class="seg-weight">{{ seg.weight }}</span>
+        </div>
+      }
+    </div>
+    <div class="axis">
+      <span>← 距節慶越久</span>
+      <span>節慶日 d = 0</span>
+    </div>
+    <p class="note">
+      四段互斥且涵蓋全數線（§FR-17-1）：d &gt; L+30 為 0.0、L ≤ d ≤ L+30 為 1.0、
+      0 ≤ d &lt; L 為 0.5、d &lt; 0 為 0.0。端點 d = L 與 d = L+30 都屬於黃金備貨期。
+    </p>
+  } @else {
+    <p class="empty">這個年度沒有檔期資料。</p>
+  }
+</section>
+
+<!-- 標記 2：年度檔期 ───────────────────────────────────── -->
+<section class="card">
+  <h4>
+    {{ year() }} 年度檔期
+    <small>{{ festivals().length }} 個檔期　·　含農曆換算</small>
+  </h4>
+
+  @if (showCreateForm()) {
+    <form class="create" (ngSubmit)="submitCreate()">
+      <label class="fld">代碼
+        <input required maxlength="32" [ngModel]="createForm().festivalCode"
+               name="festivalCode"
+               (ngModelChange)="patchForm('festivalCode', $event)" />
+      </label>
+      <label class="fld">名稱
+        <input required maxlength="50" [ngModel]="createForm().festivalName"
+               name="festivalName"
+               (ngModelChange)="patchForm('festivalName', $event)" />
+      </label>
+      <label class="fld">曆別
+        <select [ngModel]="createForm().calendarType" name="calendarType"
+                (ngModelChange)="onCalendarTypeChange($event)">
+          <option value="SOLAR">國曆</option>
+          <option value="LUNAR">農曆</option>
+        </select>
+      </label>
+
+      @if (createForm().calendarType === 'SOLAR') {
+        <label class="fld">國曆日期
+          <input type="date" required [ngModel]="createForm().festivalDate"
+                 name="festivalDate"
+                 (ngModelChange)="patchForm('festivalDate', $event)" />
+        </label>
+      } @else {
+        <label class="fld">農曆月
+          <input type="number" min="1" max="12" required
+                 [ngModel]="createForm().lunarMonth" name="lunarMonth"
+                 (ngModelChange)="patchForm('lunarMonth', +$event)" />
+        </label>
+        <label class="fld">農曆日
+          <input type="number" min="1" max="30" required
+                 [ngModel]="createForm().lunarDay" name="lunarDay"
+                 (ngModelChange)="patchForm('lunarDay', +$event)" />
+        </label>
+        <p class="note full">
+          AC-17-1：農曆檔期的國曆日期由系統換算產生，這裡不提供手動輸入。
+        </p>
+      }
+
+      <button type="submit" class="btn pri" [disabled]="loading()">送出</button>
+    </form>
+  }
+
+  <table class="tbl">
+    <thead>
+      <tr>
+        <th>檔期</th><th>日期</th><th>曆別</th><th>關聯品類</th><th>狀態</th><th></th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (f of festivals(); track f.id) {
+        <tr [class.sel]="f.id === selectedFestivalId()" (click)="select(f.id)">
+          <td>{{ f.festivalName }}</td>
+          <td class="mono">{{ f.festivalDate }}</td>
+          <td>{{ calendarLabels[f.calendarType] }}</td>
+          <td>{{ f.relatedCategoryCount }} 類</td>
+          <td>
+            <span class="chip" [class.gold]="f.windowStatus === 'IN_WINDOW'"
+                  [class.half]="f.windowStatus === 'SUPPLEMENTARY'"
+                  [class.past]="f.windowStatus === 'PASSED'">
+              {{ statusLabels[f.windowStatus] }}
+            </span>
+          </td>
+          <td>
+            <button type="button" class="btn sm" (click)="remove(f); $event.stopPropagation()">
+              刪除
+            </button>
+          </td>
+        </tr>
+      } @empty {
+        <tr><td colspan="6" class="empty">這個年度還沒有建立任何檔期。</td></tr>
+      }
+    </tbody>
+  </table>
+</section>
+
+<!-- 標記 3：品類前置天數 ───────────────────────────────── -->
+<section class="card">
+  <h4>品類前置天數</h4>
+  <p class="note">
+    AC-17-3：同一份資料同時作為 B 軌時效落差計算的輸入，只維護一份。
+    空白代表這個品類還沒設定過——不是 0 天。
+  </p>
+  <table class="tbl">
+    <thead><tr><th>品類</th><th>前置天數</th><th></th></tr></thead>
+    <tbody>
+      @for (row of categories(); track row.id) {
+        <tr>
+          <td>{{ row.name }}</td>
+          <td>
+            <input class="inline-num" type="number" min="0" max="365"
+                   [value]="row.leadTimeDays ?? ''"
+                   (change)="patchCategory(row.id, { leadTimeDays: parseNullableNumber($any($event.target).value) })" />
+            天
+          </td>
+          <td><button type="button" class="btn sm" (click)="saveLeadTime(row)">存檔</button></td>
+        </tr>
+      }
+    </tbody>
+  </table>
+</section>
+
+<!-- 標記 4：品項×節慶關聯度 ────────────────────────────── -->
+<section class="card">
+  <h4>品項×節慶關聯度</h4>
+  <p class="note">
+    關聯度是逐品項的屬性（0–1），初期由採購人工建立，累積後可由 AI 提建議、人審核。
+    維護入口在<strong>品項編輯頁</strong>，本頁不重複建置——與示意圖的說明一致。
+  </p>
+</section>
+
+<!-- 標記 5：品類氣候基準 ───────────────────────────────── -->
+<section class="card">
+  <h4>品類氣候基準　<small>適溫區間 &amp; TOLERANCE</small></h4>
+  <table class="tbl">
+    <thead>
+      <tr><th>品類</th><th>適溫下限</th><th>適溫上限</th><th>TOLERANCE</th><th></th></tr>
+    </thead>
+    <tbody>
+      @for (row of categories(); track row.id) {
+        <tr>
+          <td>{{ row.name }}</td>
+          <td>
+            <input class="inline-num" type="number" step="0.1"
+                   [value]="row.idealTempMin ?? ''"
+                   (change)="patchCategory(row.id, { idealTempMin: parseNullableNumber($any($event.target).value) })" />°C
+          </td>
+          <td>
+            <input class="inline-num" type="number" step="0.1"
+                   [value]="row.idealTempMax ?? ''"
+                   (change)="patchCategory(row.id, { idealTempMax: parseNullableNumber($any($event.target).value) })" />°C
+          </td>
+          <td>
+            <input class="inline-num" type="number" step="0.1" placeholder="12"
+                   [value]="row.tolerance ?? ''"
+                   (change)="patchCategory(row.id, { tolerance: parseNullableNumber($any($event.target).value) })" />°C
+          </td>
+          <td>
+            <button type="button" class="btn sm" (click)="saveClimateProfile(row)">存檔</button>
+          </td>
+        </tr>
+      }
+    </tbody>
+  </table>
+  <p class="note">
+    品項未填適溫區間時沿用品類預設；兩者皆無則該因子標為<strong>無資料</strong>，
+    不扣分，權重分攤給其餘因子（AC-17-5）。TOLERANCE 留空代表沿用系統預設 12°C。
+  </p>
+
+  <h5>歷史同期氣候統計</h5>
+  <table class="tbl narrow">
+    <thead><tr><th>月</th><th>月均溫</th><th>降雨機率</th></tr></thead>
+    <tbody>
+      @for (n of climateNormals(); track n.month) {
+        <tr>
+          <td>{{ n.month }} 月</td>
+          <td class="mono">{{ n.avgTemp }} °C</td>
+          <td class="mono">{{ n.rainProbability }} %</td>
+        </tr>
+      } @empty {
+        <tr><td colspan="3" class="empty">尚無此區域的氣候基準資料。</td></tr>
+      }
+    </tbody>
+  </table>
+  <p class="note">
+    AC-17-4：<strong>只有上表的歷史同期統計進評分</strong>。未來 7–14 天的短期天氣預報
+    僅用於開團時機提醒，不寫入分數——預報只有 7–14 天可信，備貨週期常超過三週，時序對不上。
+    降雨機率目前僅供顯示，不進 CLIMATE 的 fit 計算。
+  </p>
+</section>

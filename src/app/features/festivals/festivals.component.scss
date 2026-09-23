@@ -1,0 +1,182 @@
+/* S-20 節慶檔期維護。配色沿用 weights 頁的 CSS 變數，維持全站一致。 */
+
+:host {
+  display: block;
+  padding: 16px;
+  font-size: 13px;
+  color: var(--ink-1, #1f2933);
+}
+
+.mh {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+
+  h3 { margin: 0 0 4px; font-size: 18px; }
+  .sub { font-size: 12px; color: var(--ink-2, #6b7785); line-height: 1.7; }
+  .tools { display: flex; gap: 8px; align-items: flex-end; }
+}
+
+.alert {
+  padding: 8px 12px;
+  border-radius: 6px;
+  margin-bottom: 12px;
+  font-size: 12px;
+
+  &.error { background: #fdecea; color: #a4262c; }
+  &.ok { background: #e8f5e9; color: #1b5e20; }
+}
+
+.card {
+  border: 1px solid var(--line, #e3e8ee);
+  border-radius: 8px;
+  padding: 14px 16px;
+  margin-bottom: 14px;
+  background: #fff;
+
+  h4 {
+    margin: 0 0 10px;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    small { font-weight: 400; color: var(--ink-2, #6b7785); font-size: 12px; }
+  }
+
+  h5 { margin: 18px 0 8px; font-size: 13px; }
+}
+
+/* 時間窗示意 ─────────────────────────────── */
+.window-bar {
+  display: flex;
+  height: 44px;
+  border-radius: 6px;
+  overflow: hidden;
+  margin: 10px 0 4px;
+
+  .seg {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    color: #fff;
+    min-width: 0;
+
+    &.zero { background: #c3ccd6; color: #3d4852; }
+    &.gold { background: #0f766e; }
+    &.half { background: #5eaaa8; }
+
+    .seg-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+    .seg-weight { font-weight: 700; }
+  }
+}
+
+.axis {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--ink-2, #6b7785);
+}
+
+/* 表格 ───────────────────────────────────── */
+.tbl {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+
+  &.narrow { max-width: 360px; }
+
+  th, td {
+    text-align: left;
+    padding: 6px 8px;
+    border-bottom: 1px solid var(--line, #e3e8ee);
+  }
+
+  th { color: var(--ink-2, #6b7785); font-weight: 600; }
+
+  tbody tr.sel { background: #eef6f5; }
+  tbody tr:hover { background: #f7f9fa; }
+
+  .mono { font-family: var(--mono, ui-monospace, monospace); }
+}
+
+.chip {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 10px;
+  background: #eceff3;
+  color: #3d4852;
+
+  &.gold { background: #0f766e; color: #fff; }
+  &.half { background: #d7ede9; color: #0f766e; }
+  &.past { background: #eceff3; color: #98a2ae; }
+}
+
+/* 表單 ───────────────────────────────────── */
+.create {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: flex-end;
+  padding: 10px;
+  border: 1px dashed var(--line, #e3e8ee);
+  border-radius: 6px;
+  margin-bottom: 12px;
+}
+
+.fld {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 11px;
+  color: var(--ink-2, #6b7785);
+
+  input, select {
+    font-size: 12px;
+    padding: 4px 6px;
+    border: 1px solid var(--line, #cfd7df);
+    border-radius: 4px;
+    min-width: 120px;
+  }
+}
+
+.inline-num {
+  width: 68px;
+  font-size: 12px;
+  padding: 3px 5px;
+  border: 1px solid var(--line, #cfd7df);
+  border-radius: 4px;
+}
+
+.btn {
+  font-size: 12px;
+  padding: 5px 12px;
+  border: 1px solid var(--line, #cfd7df);
+  border-radius: 4px;
+  background: #fff;
+  cursor: pointer;
+
+  &.pri { background: var(--teal, #0f766e); color: #fff; border-color: transparent; }
+  &.sm { padding: 3px 8px; }
+  &:disabled { opacity: .5; cursor: default; }
+}
+
+.note {
+  font-size: 11px;
+  color: var(--ink-2, #6b7785);
+  line-height: 1.8;
+  margin: 8px 0 0;
+
+  &.full { flex-basis: 100%; }
+}
+
+.empty {
+  color: var(--ink-2, #98a2ae);
+  font-size: 12px;
+  padding: 10px 0;
+}
