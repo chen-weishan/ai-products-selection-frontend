@@ -23,23 +23,24 @@
 <div class="card source-bar">
   <div class="source-items">
     @if (heatSources && heatSources.length > 0) {
-      @for (source of heatSources; track source.sourceCode) {
-        <span class="source-item" [class.deg]="source.availability === 'DEGRADED'" [class.err]="source.availability === 'UNAVAILABLE'">
-          <i class="dot-indicator"></i>
-          <span class="source-name">{{ getSourceName(source.sourceCode) }}</span>
-          <span class="source-time">{{ getLastFetchedTime(source.lastFetchedAt) }}</span>
-          @if (source.quotaLimit !== null && source.quotaLimit !== undefined) {
-            <span class="source-quota mono">{{ source.quotaUsed }}／{{ source.quotaLimit }}</span>
-          } @else {
-            <span class="source-quota mono">{{ source.quotaUsed }}／無上限</span>
-          }
-        </span>
+    @for (source of heatSources; track source.sourceCode) {
+    <span class="source-item" [class.deg]="source.availability === 'DEGRADED'"
+      [class.err]="source.availability === 'UNAVAILABLE'">
+      <i class="dot-indicator"></i>
+      <span class="source-name">{{ getSourceName(source.sourceCode) }}</span>
+      <span class="source-time">{{ getLastFetchedTime(source.lastFetchedAt) }}</span>
+      @if (source.quotaLimit !== null && source.quotaLimit !== undefined) {
+      <span class="source-quota mono">{{ source.quotaUsed }}／{{ source.quotaLimit }}</span>
+      } @else {
+      <span class="source-quota mono">{{ source.quotaUsed }}／無上限</span>
       }
+    </span>
+    }
     } @else {
-      <span class="source-item"><i class="dot-indicator"></i>Threads　今日 06:00</span>
-      <span class="source-item"><i class="dot-indicator"></i>Google Trends　今日 06:00</span>
-      <span class="source-item deg"><i class="dot-indicator"></i>Instagram　<span class="mono">額度剩 4／30</span></span>
-      <span class="source-item"><i class="dot-indicator"></i>人工標記　<span class="mono">本週 12 筆</span></span>
+    <span class="source-item"><i class="dot-indicator"></i>Threads　今日 06:00</span>
+    <span class="source-item"><i class="dot-indicator"></i>Google Trends　今日 06:00</span>
+    <span class="source-item deg"><i class="dot-indicator"></i>Instagram　<span class="mono">額度剩 4／30</span></span>
+    <span class="source-item"><i class="dot-indicator"></i>人工標記　<span class="mono">本週 12 筆</span></span>
     }
   </div>
   <button type="button" class="source-link-btn" (click)="navigateToSourceSettings()">
@@ -75,18 +76,25 @@
 <!-- 排行榜導航與週期切換 ──────────────────────────────── -->
 <div class="ranking-header">
   <div class="range-tabs main-tabs">
-    <button type="button" class="range-btn" [class.active]="activeTab === 'viral'" (click)="activeTab = 'viral'">話題爆款榜</button>
-    <button type="button" class="range-btn" [class.active]="activeTab === 'festival'" (click)="activeTab = 'festival'">節慶檔期榜</button>
-    <button type="button" class="range-btn" [class.active]="activeTab === 'replenishment'" (click)="activeTab = 'replenishment'">常態補貨榜</button>
-    <button type="button" class="range-btn" [class.active]="activeTab === 'seasonal'" (click)="activeTab = 'seasonal'">季節導向榜</button>
+    <button type="button" class="range-btn" [class.active]="activeTab === 'viral'"
+      (click)="activeTab = 'viral'">話題爆款榜</button>
+    <button type="button" class="range-btn" [class.active]="activeTab === 'festival'"
+      (click)="activeTab = 'festival'">節慶檔期榜</button>
+    <button type="button" class="range-btn" [class.active]="activeTab === 'replenishment'"
+      (click)="activeTab = 'replenishment'">常態補貨榜</button>
+    <button type="button" class="range-btn" [class.active]="activeTab === 'seasonal'"
+      (click)="activeTab = 'seasonal'">季節導向榜</button>
   </div>
 
   <div class="period-switcher">
     <span class="switcher-label">週期切換</span>
     <div class="range-tabs">
-      <button type="button" class="range-btn" [class.active]="activePeriod === 'week'" (click)="switchPeriod('week')">本週</button>
-      <button type="button" class="range-btn" [class.active]="activePeriod === 'lastWeek'" (click)="switchPeriod('lastWeek')">上週</button>
-      <button type="button" class="range-btn" [class.active]="activePeriod === 'custom'" (click)="switchPeriod('custom')">自訂區間</button>
+      <button type="button" class="range-btn" [class.active]="activePeriod === 'week'"
+        (click)="switchPeriod('week')">本週</button>
+      <button type="button" class="range-btn" [class.active]="activePeriod === 'lastWeek'"
+        (click)="switchPeriod('lastWeek')">上週</button>
+      <button type="button" class="range-btn" [class.active]="activePeriod === 'custom'"
+        (click)="switchPeriod('custom')">自訂區間</button>
     </div>
   </div>
 </div>
@@ -107,44 +115,45 @@
     </thead>
     <tbody>
       @for (item of getRankingsForTab(activeTab); track item.productId || $index; let i = $index) {
-        <tr class="clickable-row">
-          <td class="rank mono">{{ i + 1 }}</td>
-          <td class="name" (click)="navigateToProduct(item.productId)" title="點擊檢視品項">
-            <span class="product-name-link">{{ item.productName }}</span>
-          </td>
-          <td>
-            <div class="score-progress">
-              <i [style.width.%]="item.finalScore || 0"></i>
-            </div>
-          </td>
-          <td class="score-num mono">{{ item.finalScore }}</td>
-          <td class="cell-center">
-            <span class="grade-chip" [class.grade-a]="item.grade === 'A'" [class.grade-b]="item.grade === 'B'" [class.grade-c]="item.grade === 'C'">
-              {{ item.grade }}
-            </span>
-          </td>
-          <td>
-            <span class="scene-tag">{{ sceneMap[item.sceneType] || item.sceneType }}</span>
-          </td>
-          <td class="cell-center">
-            <div class="risk-flags">
-              @if (item.riskLevel === 'HIGH') {
-                <span class="status-badge status-warn compact" title="高風險示警">高風險</span>
-              } @else if (item.riskLevel === 'MEDIUM') {
-                <span class="status-badge status-quota compact" title="中風險示警">中風險</span>
-              } @else {
-                <span class="status-badge status-normal compact" title="無異常">正常</span>
-              }
-              @if (item.sceneOverridden) {
-                <span class="status-badge override-badge compact" title="人工覆寫情境">覆寫</span>
-              }
-            </div>
-          </td>
-        </tr>
+      <tr class="clickable-row">
+        <td class="rank mono">{{ i + 1 }}</td>
+        <td class="name" (click)="navigateToProduct(item.productId)" title="點擊檢視品項">
+          <span class="product-name-link">{{ item.productName }}</span>
+        </td>
+        <td>
+          <div class="score-progress">
+            <i [style.width.%]="item.finalScore || 0"></i>
+          </div>
+        </td>
+        <td class="score-num mono">{{ item.finalScore }}</td>
+        <td class="cell-center">
+          <span class="grade-chip" [class.grade-a]="item.grade === 'A'" [class.grade-b]="item.grade === 'B'"
+            [class.grade-c]="item.grade === 'C'">
+            {{ item.grade }}
+          </span>
+        </td>
+        <td>
+          <span class="scene-tag">{{ sceneMap[item.sceneType] || item.sceneType }}</span>
+        </td>
+        <td class="cell-center">
+          <div class="risk-flags">
+            @if (item.riskLevel === 'HIGH') {
+            <span class="status-badge status-warn compact" title="高風險示警">高風險</span>
+            } @else if (item.riskLevel === 'MEDIUM') {
+            <span class="status-badge status-quota compact" title="中風險示警">中風險</span>
+            } @else {
+            <span class="status-badge status-normal compact" title="無異常">正常</span>
+            }
+            @if (item.sceneOverridden) {
+            <span class="status-badge override-badge compact" title="人工覆寫情境">覆寫</span>
+            }
+          </div>
+        </td>
+      </tr>
       } @empty {
-        <tr>
-          <td colspan="7" class="empty-cell">此榜單暫無排行資料</td>
-        </tr>
+      <tr>
+        <td colspan="7" class="empty-cell">此榜單暫無排行資料</td>
+      </tr>
       }
     </tbody>
   </table>
@@ -159,16 +168,16 @@
     </div>
     <div class="op-body">
       @if (overdueCampaigns && overdueCampaigns.length > 0) {
-        <div class="op-list">
-          @for (campaign of overdueCampaigns; track campaign.productName || $index) {
-            <div class="op-item">
-              <span class="item-title">{{ campaign.productName }}</span>
-              <span class="status-badge status-warn compact mono">逾 {{ campaign.overdueDays }} 天</span>
-            </div>
-          }
+      <div class="op-list">
+        @for (campaign of overdueCampaigns; track campaign.productName || $index) {
+        <div class="op-item">
+          <span class="item-title">{{ campaign.productName }}</span>
+          <span class="status-badge status-warn compact mono">逾 {{ campaign.overdueDays }} 天</span>
         </div>
+        }
+      </div>
       } @else {
-        <div class="op-empty">目前無待回填之結案活動</div>
+      <div class="op-empty">目前無待回填之結案活動</div>
       }
     </div>
     <div class="op-footer">
@@ -183,20 +192,20 @@
     </div>
     <div class="op-body">
       @if (sourcingSummary?.items && sourcingSummary.items.length > 0) {
-        <div class="op-list">
-          @for (item of sourcingSummary.items; track item.productId || $index) {
-            <div class="op-item">
-              <span class="item-title">{{ item.productName }}</span>
-              @if (item.timeGapDays !== null && item.timeGapDays !== undefined && item.timeGapDays >= 0) {
-                <span class="status-badge status-normal compact mono">時效 +{{ item.timeGapDays }} 天</span>
-              } @else if (item.timeGapDays !== null && item.timeGapDays !== undefined) {
-                <span class="status-badge status-warn compact mono">時效 {{ item.timeGapDays }} 天　已淘汰</span>
-              }
-            </div>
+      <div class="op-list">
+        @for (item of sourcingSummary.items; track item.productId || $index) {
+        <div class="op-item">
+          <span class="item-title">{{ item.productName }}</span>
+          @if (item.timeGapDays !== null && item.timeGapDays !== undefined && item.timeGapDays >= 0) {
+          <span class="status-badge status-normal compact mono">時效 +{{ item.timeGapDays }} 天</span>
+          } @else if (item.timeGapDays !== null && item.timeGapDays !== undefined) {
+          <span class="status-badge status-warn compact mono">時效 {{ item.timeGapDays }} 天　已淘汰</span>
           }
         </div>
+        }
+      </div>
       } @else {
-        <div class="op-empty">目前無尋源中品項</div>
+      <div class="op-empty">目前無尋源中品項</div>
       }
     </div>
     <div class="op-footer">
