@@ -1,11 +1,10 @@
 <section class="admin-page">
-  <header class="page-heading">
+  <header class="mh">
     <div>
-      <p class="eyebrow">S-14 系統設定</p>
-      <h1>主檔管理</h1>
-      <p>維護品項建檔與篩選所使用的類別及供應商資料。</p>
+      <h3>系統設定</h3>
+      <div class="sub">主檔管理 · 維護品項建檔與篩選所使用的類別及供應商資料</div>
     </div>
-    <button mat-stroked-button type="button" [disabled]="loading()" (click)="reload()">
+    <button mat-stroked-button class="btn" type="button" [disabled]="loading()" (click)="reload()">
       <mat-icon>refresh</mat-icon>
       重新載入
     </button>
@@ -33,7 +32,7 @@
                 <h2>品類樹</h2>
                 <p>目前共 {{ flatCategories().length }} 個類別，最多支援兩層。</p>
               </div>
-              <button mat-flat-button type="button" (click)="newCategory()">
+              <button mat-flat-button class="btn pri" type="button" (click)="newCategory()">
                 <mat-icon>add</mat-icon>
                 新增類別
               </button>
@@ -74,8 +73,8 @@
               </div>
               @if (editingCategoryId() != null) {
                 <div class="edit-actions">
-                  <button mat-button type="button" (click)="newCategory()">取消編輯</button>
-                  <button mat-stroked-button class="delete-button" type="button"
+                  <button mat-button class="btn" type="button" (click)="newCategory()">取消編輯</button>
+                  <button mat-stroked-button class="btn danger delete-button" type="button"
                     [disabled]="saving()" (click)="deleteCategory()">
                     <mat-icon>delete</mat-icon>
                     刪除
@@ -85,7 +84,7 @@
             </div>
 
             <form [formGroup]="categoryForm" (ngSubmit)="saveCategory()">
-              <mat-form-field appearance="outline">
+              <mat-form-field appearance="outline" subscriptSizing="dynamic">
                 <mat-label>類別名稱</mat-label>
                 <input matInput formControlName="name" maxlength="50" />
                 @if (categoryForm.controls.name.hasError('required')) {
@@ -93,9 +92,9 @@
                 }
               </mat-form-field>
 
-              <mat-form-field appearance="outline">
+              <mat-form-field appearance="outline" subscriptSizing="dynamic">
                 <mat-label>上層類別</mat-label>
-                <mat-select formControlName="parentId">
+                <mat-select formControlName="parentId" panelClass="unified-mat-select-panel">
                   <mat-option [value]="null">無（頂層類別）</mat-option>
                   @for (category of rootCategories(); track category.id) {
                     <mat-option [value]="category.id">{{ category.name }}</mat-option>
@@ -104,7 +103,7 @@
                 <mat-hint>子類別不能再包含下一層</mat-hint>
               </mat-form-field>
 
-              <mat-form-field appearance="outline">
+              <mat-form-field appearance="outline" subscriptSizing="dynamic">
                 <mat-label>排序</mat-label>
                 <input matInput type="number" min="0" step="1" formControlName="sortOrder" />
                 <mat-hint>數字越小越前面</mat-hint>
@@ -113,7 +112,7 @@
                 }
               </mat-form-field>
 
-              <button mat-flat-button type="submit" [disabled]="saving()">
+              <button mat-flat-button class="btn pri" type="submit" [disabled]="saving()">
                 {{ saving() ? '儲存中…' : editingCategoryId() == null ? '新增類別' : '儲存修改' }}
               </button>
             </form>
@@ -129,7 +128,7 @@
                 <h2>供應商清單</h2>
                 <p>目前共 {{ suppliers().length }} 家供應商。</p>
               </div>
-              <button mat-flat-button type="button" (click)="newSupplier()">
+              <button mat-flat-button class="btn pri" type="button" (click)="newSupplier()">
                 <mat-icon>add</mat-icon>
                 新增供應商
               </button>
@@ -163,8 +162,8 @@
               </div>
               @if (editingSupplierId() != null) {
                 <div class="edit-actions">
-                  <button mat-button type="button" (click)="newSupplier()">取消編輯</button>
-                  <button mat-stroked-button class="delete-button" type="button"
+                  <button mat-button class="btn" type="button" (click)="newSupplier()">取消編輯</button>
+                  <button mat-stroked-button class="btn danger delete-button" type="button"
                     [disabled]="saving()" (click)="deleteSupplier()">
                     <mat-icon>delete</mat-icon>
                     刪除
@@ -174,7 +173,7 @@
             </div>
 
             <form [formGroup]="supplierForm" (ngSubmit)="saveSupplier()">
-              <mat-form-field appearance="outline">
+              <mat-form-field appearance="outline" subscriptSizing="dynamic">
                 <mat-label>供應商名稱</mat-label>
                 <input matInput formControlName="name" maxlength="100" />
                 @if (supplierForm.controls.name.hasError('required')) {
@@ -183,23 +182,23 @@
               </mat-form-field>
 
               <div class="two-columns">
-                <mat-form-field appearance="outline">
+                <mat-form-field appearance="outline" subscriptSizing="dynamic">
                   <mat-label>聯絡人</mat-label>
                   <input matInput formControlName="contact" maxlength="50" />
                 </mat-form-field>
-                <mat-form-field appearance="outline">
+                <mat-form-field appearance="outline" subscriptSizing="dynamic">
                   <mat-label>電話</mat-label>
                   <input matInput formControlName="phone" maxlength="30" />
                 </mat-form-field>
               </div>
 
-              <mat-form-field appearance="outline">
+              <mat-form-field appearance="outline" subscriptSizing="dynamic">
                 <mat-label>備註</mat-label>
                 <textarea matInput formControlName="note" rows="4" maxlength="500"></textarea>
                 <mat-hint align="end">{{ supplierForm.controls.note.value.length }}/500</mat-hint>
               </mat-form-field>
 
-              <button mat-flat-button type="submit" [disabled]="saving()">
+              <button mat-flat-button class="btn pri" type="submit" [disabled]="saving()">
                 {{
                   saving()
                     ? '儲存中…'

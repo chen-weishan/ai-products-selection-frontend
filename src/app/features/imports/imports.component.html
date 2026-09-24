@@ -1,16 +1,16 @@
 <section class="imports-page">
-  <header class="page-heading">
-    <div><p class="eyebrow">S-10</p><h1>資料匯入</h1>
-      <p class="subtitle">
+  <header class="mh">
+    <div><h3>資料匯入</h3>
+      <div class="sub">
         @if (uploadResult(); as upload) {
           {{ dataTypeLabel(upload.dataType) }}・{{ upload.fileName }}（{{ upload.totalRows | number }} 列）
         } @else {
           匯入銷售、評論、客群或品項資料，系統會先驗證內容再寫入。
         }
-      </p>
+      </div>
     </div>
     @if (step() > 1) {
-      <button mat-stroked-button type="button" (click)="newImport()"><mat-icon>add</mat-icon>建立新匯入</button>
+      <button mat-stroked-button class="btn" type="button" (click)="newImport()"><mat-icon>add</mat-icon>建立新匯入</button>
     }
   </header>
 
@@ -28,9 +28,9 @@
   @if (step() === 1) {
     <section class="panel upload-panel">
       <div class="panel-title"><h2>選擇資料與檔案</h2><p>支援 CSV、XLSX，單檔上限 50 MB。</p></div>
-      <mat-form-field appearance="outline" class="data-type-select">
+      <mat-form-field appearance="outline" subscriptSizing="dynamic" class="data-type-select">
         <mat-label>資料類型</mat-label>
-        <mat-select [formControl]="dataTypeControl">
+        <mat-select [formControl]="dataTypeControl" panelClass="unified-mat-select-panel">
           @for (type of dataTypes; track type.value) { <mat-option [value]="type.value">{{ type.label }}｜{{ type.description }}</mat-option> }
         </mat-select>
       </mat-form-field>
@@ -43,7 +43,7 @@
           <button mat-icon-button type="button" aria-label="移除檔案" (click)="removeFile()"><mat-icon>close</mat-icon></button>
         } @else {
           <mat-icon class="upload-icon">cloud_upload</mat-icon><strong>拖曳檔案到這裡</strong><span>或</span>
-          <button mat-stroked-button type="button" (click)="fileInput.click()">瀏覽檔案</button>
+          <button mat-stroked-button class="btn" type="button" (click)="fileInput.click()">瀏覽檔案</button>
         }
       </div>
       @if (dataTypeControl.value === 'SALES') {
@@ -54,7 +54,7 @@
         <p class="table-note">檔案中的每個品類會完整替換客群組成，占比合計必須為 1.000；請提供完整組成。既有客群預設僅引用，修改名稱或價格帶需在「客群主檔操作」填 UPDATE，會影響所有引用品類。</p>
       }
       <div class="info-strip"><mat-icon>info_outline</mat-icon><span>小型檔案會立即處理；大型檔案送出後可離開頁面，再從下方紀錄查看進度。</span></div>
-      <div class="actions end"><button mat-flat-button type="button" [disabled]="!selectedFile() || busy() || referenceLoading()" (click)="upload()">
+      <div class="actions end"><button mat-flat-button class="btn pri" type="button" [disabled]="!selectedFile() || busy() || referenceLoading()" (click)="upload()">
         {{ busy() ? '解析中…' : '上傳並解析' }}<mat-icon>arrow_forward</mat-icon></button></div>
     </section>
   }
@@ -66,14 +66,14 @@
         <span class="mode-badge">{{ upload['async'] ? '背景匯入' : '即時匯入' }}</span>
       </div>
       <div class="template-tools">
-        <mat-form-field appearance="outline"><mat-label>套用既有範本</mat-label>
-          <mat-select [formControl]="templateControl" (selectionChange)="applyTemplate($event.value)">
+        <mat-form-field appearance="outline" subscriptSizing="dynamic"><mat-label>套用既有範本</mat-label>
+          <mat-select [formControl]="templateControl" panelClass="unified-mat-select-panel" (selectionChange)="applyTemplate($event.value)">
             <mat-option [value]="null">不使用範本</mat-option>
             @for (template of templates(); track template.id) { <mat-option [value]="template.id">{{ template.name }}</mat-option> }
           </mat-select>
         </mat-form-field>
-        <mat-form-field appearance="outline"><mat-label>範本名稱</mat-label><input matInput [formControl]="templateNameControl" maxlength="60" /></mat-form-field>
-        <button mat-stroked-button type="button" [disabled]="busy()" (click)="saveTemplate()"><mat-icon>save</mat-icon>{{ templateControl.value ? '更新範本' : '另存範本' }}</button>
+        <mat-form-field appearance="outline" subscriptSizing="dynamic"><mat-label>範本名稱</mat-label><input matInput [formControl]="templateNameControl" maxlength="60" /></mat-form-field>
+        <button mat-stroked-button class="btn" type="button" [disabled]="busy()" (click)="saveTemplate()"><mat-icon>save</mat-icon>{{ templateControl.value ? '更新範本' : '另存範本' }}</button>
         <button mat-icon-button type="button" aria-label="刪除範本" matTooltip="刪除所選範本" [disabled]="!templateControl.value || busy()" (click)="deleteTemplate()"><mat-icon>delete_outline</mat-icon></button>
       </div>
       <div class="mapping-table-wrap">
@@ -84,7 +84,7 @@
               <tr><td class="source-field"><strong>{{ header }}</strong></td>
                 <td class="direction-column" aria-hidden="true">→</td>
                 <td><mat-form-field appearance="outline" subscriptSizing="dynamic"><mat-label>選擇欄位</mat-label>
-                  <mat-select [value]="mappingValue(header)" (selectionChange)="setMapping(header, $event.value)">
+                  <mat-select [value]="mappingValue(header)" panelClass="unified-mat-select-panel" (selectionChange)="setMapping(header, $event.value)">
                     <mat-option value="">略過此欄</mat-option>
                     @for (field of fields(); track field.key) {
                       <mat-option [value]="field.key" [disabled]="targetUsedByOther(field.key, header)">{{ field.label }}{{ field.required ? '（必填）' : '' }}</mat-option>
@@ -104,8 +104,8 @@
       }
       @if (duplicateTargets().length) { <div class="message error"><mat-icon>error_outline</mat-icon>同一系統欄位不可重複對應。</div> }
       <div class="actions between">
-        <button mat-stroked-button type="button" (click)="newImport()"><mat-icon>arrow_back</mat-icon>重新選檔</button>
-        <button mat-flat-button type="button" [disabled]="!mappingValid() || busy()" (click)="preview()">{{ busy() ? '驗證中…' : '預覽與驗證' }}<mat-icon>arrow_forward</mat-icon></button>
+        <button mat-stroked-button class="btn" type="button" (click)="newImport()"><mat-icon>arrow_back</mat-icon>重新選檔</button>
+        <button mat-flat-button class="btn pri" type="button" [disabled]="!mappingValid() || busy()" (click)="preview()">{{ busy() ? '驗證中…' : '預覽與驗證' }}<mat-icon>arrow_forward</mat-icon></button>
       </div>
     </section>
   }
@@ -124,7 +124,7 @@
             }
           </tbody>
         </table></div>
-        <div class="actions"><button mat-stroked-button type="button" (click)="backToMapping()"><mat-icon>edit</mat-icon>調整對應</button></div>
+        <div class="actions"><button mat-stroked-button class="btn" type="button" (click)="backToMapping()"><mat-icon>edit</mat-icon>調整對應</button></div>
       </section>
 
       <section class="panel validation-panel">
@@ -159,8 +159,8 @@
           </table></div>
         }
         <div class="actions validation-actions">
-          @if (preview.errorRows) { <button mat-stroked-button type="button" (click)="downloadPreviewErrors()"><mat-icon>download</mat-icon>下載錯誤明細</button> }
-          <button mat-flat-button type="button" [disabled]="busy() || preview.validRows === 0" (click)="confirmImport()">{{ busy() ? '送出中…' : '確認匯入' }}<mat-icon>check</mat-icon></button>
+          @if (preview.errorRows) { <button mat-stroked-button class="btn" type="button" (click)="downloadPreviewErrors()"><mat-icon>download</mat-icon>下載錯誤明細</button> }
+          <button mat-flat-button class="btn pri" type="button" [disabled]="busy() || preview.validRows === 0" (click)="confirmImport()">{{ busy() ? '送出中…' : '確認匯入' }}<mat-icon>check</mat-icon></button>
         </div>
       </section>
     </div>
@@ -199,13 +199,13 @@
         </div>
       }
       <div class="actions center">
-        @if (batch.hasCorrectableErrors) { <button mat-stroked-button type="button" (click)="downloadBatchErrors(batch)"><mat-icon>download</mat-icon>下載待修正資料</button> }
-        @if (batch.canDownloadUnprocessed) { <button mat-stroked-button type="button" (click)="downloadUnprocessed(batch)">下載未處理資料</button> }
-        @if ((batch.recalculation?.['FAILED'] ?? 0) > 0) { <button mat-stroked-button type="button" [disabled]="busy()" (click)="retryRecalculation(batch)">重試評分更新</button> }
+        @if (batch.hasCorrectableErrors) { <button mat-stroked-button class="btn" type="button" (click)="downloadBatchErrors(batch)"><mat-icon>download</mat-icon>下載待修正資料</button> }
+        @if (batch.canDownloadUnprocessed) { <button mat-stroked-button class="btn" type="button" (click)="downloadUnprocessed(batch)">下載未處理資料</button> }
+        @if ((batch.recalculation?.['FAILED'] ?? 0) > 0) { <button mat-stroked-button class="btn" type="button" [disabled]="busy()" (click)="retryRecalculation(batch)">重試評分更新</button> }
         @if (batch.status === 'PENDING') {
-          <button mat-stroked-button type="button" [disabled]="busy()" (click)="resumePending(batch)"><mat-icon>arrow_back</mat-icon>繼續欄位對應</button>
+          <button mat-stroked-button class="btn" type="button" [disabled]="busy()" (click)="resumePending(batch)"><mat-icon>arrow_back</mat-icon>繼續欄位對應</button>
         }
-        <button mat-flat-button type="button" (click)="newImport()"><mat-icon>add</mat-icon>{{ batch.status === 'PENDING' ? '重新選檔' : '建立新匯入' }}</button>
+        <button mat-flat-button class="btn pri" type="button" (click)="newImport()"><mat-icon>add</mat-icon>{{ batch.status === 'PENDING' ? '重新選檔' : '建立新匯入' }}</button>
       </div>
     </section>
   }
@@ -223,7 +223,7 @@
             <td>{{ dataTypeLabel(batch.dataType) }}</td><td>{{ batch.progressPercent }}%</td>
             <td>{{ batch.successRows | number }} 成功 / {{ batch.failRows | number }} 失敗</td>
             <td><span class="status-pill" [class]="statusClass(batch.status)">{{ statusLabel(batch.status) }}</span></td>
-            <td><button mat-button type="button" (click)="viewBatch(batch)">查看</button></td></tr>
+            <td><button mat-button class="table-action" type="button" (click)="viewBatch(batch)">查看</button></td></tr>
         } @empty { <tr><td colspan="7" class="empty-cell">{{ historyLoading() ? '讀取中…' : '尚無匯入紀錄' }}</td></tr> }
       </tbody>
     </table></div>
