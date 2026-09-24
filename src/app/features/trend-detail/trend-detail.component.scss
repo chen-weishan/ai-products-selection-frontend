@@ -310,6 +310,7 @@
 
     &.positive { color: var(--a); }
     &.negative { color: var(--risk); }
+    &.muted { color: var(--ink-3); }
   }
 
   .manual-slope-stack {
@@ -321,6 +322,12 @@
 }
 
 .percentile-cell {
+  .percentile-cell-content {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+  }
+
   .percentile-bar-track {
     width: 90px;
     height: 7px;
@@ -338,6 +345,13 @@
         background: #94a3b8;
       }
     }
+  }
+
+  .percentile-num {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--ink-2);
+    min-width: 32px;
   }
 }
 
@@ -371,6 +385,10 @@
 
     &.status-warn {
       background: #95190C; // Oxblood (牛血深紅)
+    }
+
+    &.status-secondary {
+      background: #8a9aa6; // Morandi Gray (莫蘭迪灰，無資料/次要)
     }
   }
 }

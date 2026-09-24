@@ -178,19 +178,24 @@
     </button>
 </div>
 } @else {
-<!-- 尚未有資料時的引導卡片 -->
-<div class="card scout-card empty-card">
+<!-- 尚未有資料或查詢失敗時的卡片 -->
+<div class="card scout-card empty-card" [class.error-card]="!!scoutError()">
     <div class="card-header">
         <div class="header-title">
             <h4>AI 尋源探索報告</h4>
         </div>
-        <div class="header-meta" [class.is-loading]="isScouting()">
-            {{ isScouting() ? '尋源中 請稍後' : '尚未進行探索' }}
+        <div class="header-meta" [class.is-loading]="isScouting()" [class.is-error]="!!scoutError()">
+            {{ isScouting() ? '尋源中 請稍後' : (scoutError() ? '查詢失敗' : '尚未進行探索') }}
         </div>
     </div>
-    <div class="report-summary empty-prompt">
+    <div class="report-summary empty-prompt" [class.error-prompt]="!!scoutError()">
         @if (isScouting()) {
         AI SourcingScoutAgent 正在全網檢索市場熱度與供應鏈數據，請稍後…
+        } @else if (scoutError()) {
+        <div class="error-box">
+            <div class="error-badge">⚠️ 查詢失敗</div>
+            <div class="error-detail">{{ scoutError() }}</div>
+        </div>
         } @else {
         請在上方輸入關鍵字並選擇品類，點擊「開始探索」以產出 AI 尋源評估報告。
         }

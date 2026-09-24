@@ -90,19 +90,24 @@ export class TrendDetailComponent implements OnInit, OnDestroy {
     'status'
   ];
 
-  formatSlope(val: number | undefined): string {
+  formatSlope(val: number | undefined | null): string {
     if (val === undefined || val === null) return '-';
     const percent = Math.round(val * 100);
     return percent > 0 ? `+${percent}%` : `${percent}%`;
   }
 
-  formatWeight(val: number | undefined): string {
-    if (val === undefined || val === null) return '-';
+  formatWeight(val: number | undefined | null, status?: string): string {
+    if (status === 'NO_DATA' || val === undefined || val === null) return '-';
     return `${Math.round(val * 100)}%`;
   }
 
+  formatPercentile(val: number | undefined | null): string {
+    if (val === undefined || val === null) return '-';
+    return `${Math.round(val)}%`;
+  }
+
   getSourceStatusBadgeClass(status?: string | null): string {
-    if (!status) return '';
+    if (!status) return 'status-secondary';
     switch (status) {
       case 'AVAILABLE':
       case '正常':
@@ -117,6 +122,8 @@ export class TrendDetailComponent implements OnInit, OnDestroy {
       case '降級':
       case '異常':
         return 'status-warn';
+      case 'NO_DATA':
+      case '無資料':
       default:
         return 'status-secondary';
     }
@@ -124,21 +131,27 @@ export class TrendDetailComponent implements OnInit, OnDestroy {
 
   getAbnormalSources() {
     const sources = this.trendData()?.sourceDetails || [];
-    return sources.filter(s => s.status !== 'AVAILABLE');
+    return sources.filter(
+      s => s.status && s.status !== 'AVAILABLE' && s.status !== 'NO_DATA'
+    );
   }
 
   formatSourceName(name: string | undefined): string {
     if (!name) return '';
-    if (name.toUpperCase() === 'MANUAL') return '人工標記';
+    const upper = name.toUpperCase();
+    if (upper === 'MANUAL' || upper.includes('人工')) return '人工標記';
+    if (upper === 'GOOGLE_TRENDS' || upper === 'GOOGLE') return 'Google Trends';
+    if (upper === 'THREADS') return 'Threads';
+    if (upper === 'INSTAGRAM') return 'Instagram';
     return name;
   }
 
   getAppliedWeightsSummary(): string {
     const sources = this.trendData()?.sourceDetails || [];
     const activeSources = sources.filter(
-      s => s.appliedWeight && s.appliedWeight > 0 && s.status === 'AVAILABLE'
+      s => s.appliedWeight && s.appliedWeight > 0
     );
-    if (activeSources.length === 0) return '';
+    if (activeSources.length === 0) return '本次合成：尚無有效權重';
 
     const parts = activeSources.map(s => {
       const weightPercent = Math.round((s.appliedWeight ?? 0) * 1000) / 10;
@@ -148,40 +161,94 @@ export class TrendDetailComponent implements OnInit, OnDestroy {
   }
 
   getDefaultWeightsSummary(): string {
-    const defaultMap: Record<string, number> = {
-      'Threads': 35,
-      'THREADS': 35,
-      'Google': 30,
-      'Google Trends': 30,
-      'GOOGLE_TRENDS': 30,
-      'Instagram': 15,
-      'INSTAGRAM': 15,
-      '人工標記': 20,
-      'MANUAL': 20,
-      'MANUAL(人工標記)': 20
-    };
+    return '預設合成：Threads 35% ・ Google Trends 30% ・ 人工標記 20% ・ Instagram 15%';
+  }
 
-    const sources = this.trendData()?.sourceDetails || [];
-    if (sources.length === 0) return '';
+  normalizeSourceDetails(sources: SourceDetail[] | undefined): SourceDetail[] {
+    const rawList = sources || [];
 
-    const parts = sources
-      .map(s => {
-        let name = this.formatSourceName(s.sourceName);
-        // 處理 mock 資料中 Google Trends 拆成 sourceName 與 subName 的情況
-        if (name === 'Google' && (s as any).subName === 'Trends') {
-          name = 'Google Trends';
-        }
-        const defaultWeight = defaultMap[s.sourceName || ''] || defaultMap[name] || 0;
-        return defaultWeight > 0 ? `${name} ${defaultWeight}%` : null;
-      })
-      .filter(p => p !== null);
+    const canonicalConfigs: Array<{
+      key: string;
+      displayName: string;
+      subName?: string;
+      categoryLevel: boolean;
+      isManual?: boolean;
+      matcher: (name: string) => boolean;
+    }> = [
+      {
+        key: 'THREADS',
+        displayName: 'Threads',
+        categoryLevel: false,
+        matcher: (n) => n.toUpperCase().includes('THREAD'),
+      },
+      {
+        key: 'GOOGLE_TRENDS',
+        displayName: 'Google Trends',
+        categoryLevel: false,
+        matcher: (n) => {
+          const u = n.toUpperCase();
+          return u.includes('GOOGLE') || u === 'GOOGLE_TRENDS' || u === 'TRENDS';
+        },
+      },
+      {
+        key: 'INSTAGRAM',
+        displayName: 'Instagram',
+        subName: '(品類)',
+        categoryLevel: true,
+        matcher: (n) => {
+          const u = n.toUpperCase();
+          return u.includes('INSTAGRAM') || u === 'IG';
+        },
+      },
+      {
+        key: 'MANUAL',
+        displayName: '人工標記',
+        categoryLevel: false,
+        isManual: true,
+        matcher: (n) => {
+          const u = n.toUpperCase();
+          return u.includes('MANUAL') || u.includes('人工');
+        },
+      },
+    ];
 
-    // 如果都有對應到，就顯示對應的預設；否則顯示全局預設
-    if (parts.length > 0) {
-      return `預設合成：${parts.join(' ・ ')}`;
-    }
+    const matchedCanonical = canonicalConfigs.map((cfg) => {
+      const found = rawList.find(
+        (s) => s.sourceName && cfg.matcher(s.sourceName)
+      );
 
-    return `預設合成：Threads 35% ・ Google Trends 30% ・ 人工標記 20% ・ Instagram 15%`;
+      if (found) {
+        return {
+          ...found,
+          sourceName: cfg.displayName,
+          subName: (found as any).subName || cfg.subName,
+          categoryLevel: found.categoryLevel ?? cfg.categoryLevel,
+          isManual: cfg.isManual || (found as any).isManual,
+          status: found.status || 'AVAILABLE',
+          appliedWeight: found.appliedWeight ?? 0,
+        };
+      }
+
+      // 沒出現在後端的來源，補上 status: 'NO_DATA'
+      return {
+        sourceName: cfg.displayName,
+        subName: cfg.subName,
+        status: 'NO_DATA',
+        percentile: undefined,
+        appliedWeight: 0,
+        slope7d: undefined,
+        slope30d: undefined,
+        categoryLevel: cfg.categoryLevel,
+        isManual: cfg.isManual,
+      } as SourceDetail;
+    });
+
+    // 保留非四大標準來源的其他額外資料（若有）
+    const extraSources = rawList.filter(
+      (s) => !s.sourceName || !canonicalConfigs.some((cfg) => cfg.matcher(s.sourceName!))
+    );
+
+    return [...matchedCanonical, ...extraSources];
   }
 
 
@@ -232,12 +299,18 @@ export class TrendDetailComponent implements OnInit, OnDestroy {
               console.error('[TrendDetailComponent] 解析 Blob 失敗:', e);
             }
           }
+          if (data) {
+            data.sourceDetails = this.normalizeSourceDetails(data.sourceDetails);
+          }
           this.trendData.set(data);
           this.isLoading.set(false);
         },
         error: (err) => {
           console.warn('[TrendDetailComponent] 後端 API 請求失敗，自動使用 Mock 假資料回退:', err);
           const mockData = getMockTrendDetail(keywordId, this.selectedRange());
+          if (mockData) {
+            mockData.sourceDetails = this.normalizeSourceDetails(mockData.sourceDetails);
+          }
           this.trendData.set(mockData);
           this.isLoading.set(false);
         },

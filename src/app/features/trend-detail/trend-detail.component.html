@@ -93,7 +93,7 @@
           <th mat-header-cell *matHeaderCellDef> 來源 </th>
           <td mat-cell *matCellDef="let element" class="source-cell">
             <div class="source-info-wrap">
-              <span class="source-primary-name">{{ formatSourceName(element.sourceName).toLowerCase() }}</span>
+              <span class="source-primary-name">{{ formatSourceName(element.sourceName) }}</span>
               @if (element.subName) {
                 <span class="source-sub-name" [class.sub-muted]="element.isMuted">{{ element.subName }}</span>
               }
@@ -108,14 +108,15 @@
         <ng-container matColumnDef="slope7d">
           <th mat-header-cell *matHeaderCellDef> 7 日斜率 </th>
           <td mat-cell *matCellDef="let element" class="slope-cell">
-            @if (element.isManual) {
+            @if (element.status === 'NO_DATA') {
+              <span class="slope-val muted">-</span>
+            } @else if (element.isManual && element.slope7dDisplay) {
               <div class="manual-slope-stack">
-                <span class="manual-from-val">4.1 &rarr;</span>
-                <span class="manual-to-val">4.8</span>
+                <span class="manual-from-val">{{ element.slope7dDisplay }}</span>
               </div>
             } @else {
               <span class="slope-val" [class.positive]="(element.slope7d ?? 0) > 0" [class.negative]="(element.slope7d ?? 0) < 0">
-                {{ element.slope7dDisplay || formatSlope(element.slope7d) }}
+                {{ formatSlope(element.slope7d) }}
               </span>
             }
           </td>
@@ -125,14 +126,15 @@
         <ng-container matColumnDef="slope30d">
           <th mat-header-cell *matHeaderCellDef> 30 日斜率 </th>
           <td mat-cell *matCellDef="let element" class="slope-cell">
-            @if (element.isManual) {
+            @if (element.status === 'NO_DATA') {
+              <span class="slope-val muted">-</span>
+            } @else if (element.isManual && element.slope30dDisplay) {
               <div class="manual-slope-stack">
-                <span class="manual-from-val">2.6 &rarr;</span>
-                <span class="manual-to-val">4.8</span>
+                <span class="manual-from-val">{{ element.slope30dDisplay }}</span>
               </div>
             } @else {
               <span class="slope-val" [class.positive]="(element.slope30d ?? 0) > 0" [class.negative]="(element.slope30d ?? 0) < 0">
-                {{ element.slope30dDisplay || formatSlope(element.slope30d) }}
+                {{ formatSlope(element.slope30d) }}
               </span>
             }
           </td>
@@ -142,10 +144,13 @@
         <ng-container matColumnDef="percentile">
           <th mat-header-cell *matHeaderCellDef> 同源百分位 </th>
           <td mat-cell *matCellDef="let element" class="percentile-cell">
-            <div class="percentile-bar-track">
-              <div class="percentile-bar-fill" [class.bar-muted]="element.isMuted"
-                [style.width.%]="element.percentile || 0">
+            <div class="percentile-cell-content">
+              <div class="percentile-bar-track">
+                <div class="percentile-bar-fill" [class.bar-muted]="element.isMuted || element.status === 'NO_DATA'"
+                  [style.width.%]="element.percentile || 0">
+                </div>
               </div>
+              <span class="percentile-num">{{ formatPercentile(element.percentile) }}</span>
             </div>
           </td>
         </ng-container>
@@ -154,7 +159,7 @@
         <ng-container matColumnDef="appliedWeight">
           <th mat-header-cell *matHeaderCellDef> 合成權重 </th>
           <td mat-cell *matCellDef="let element" class="weight-cell">
-            <span class="weight-number-text">{{ formatWeight(element.appliedWeight) }}</span>
+            <span class="weight-number-text">{{ formatWeight(element.appliedWeight, element.status) }}</span>
           </td>
         </ng-container>
 
@@ -196,13 +201,13 @@
           各來源量級不可比（如 Threads 的 200 則 vs Google Trends 指數 78），因此先在各來源內做百分位正規化，再依合成權重加總。
           @for (source of getAbnormalSources(); track source.sourceName) {
             <br />
-            <strong>{{ formatSourceName(source.sourceName).toLowerCase() }}</strong>
+            <strong>{{ formatSourceName(source.sourceName) }}</strong>
             本期狀態為「{{ statusMap[source.status || ''] || source.status }}」，其權重已按比例分攤給其餘正常來源。
           }
         </p>
         <div class="weights-summary">
-          {{ getDefaultWeightsSummary().toLowerCase() }}<br>
-          {{ getAppliedWeightsSummary().toLowerCase() }}
+          {{ getDefaultWeightsSummary() }}<br>
+          {{ getAppliedWeightsSummary() }}
         </div>
       </div>
 

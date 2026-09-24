@@ -247,7 +247,7 @@ export class SourcingQueueComponent implements OnInit {
   async loadQueue() {
     try {
       const res = await firstValueFrom(
-        this.productService.search({ trackType: 'B', size: 100 })
+        this.productService.search({ trackType: 'B', size: 100 } as any)
       );
       const responseData = await this.unpack(res);
       const products =
