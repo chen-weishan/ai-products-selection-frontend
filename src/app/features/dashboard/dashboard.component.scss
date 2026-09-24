@@ -233,6 +233,60 @@
   }
 }
 
+// ── 未評分空狀態橫幅 (FR-02) ─────────────────────────────
+.unscored-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-left: 4px solid var(--b);
+  padding: 12px 18px;
+  margin-bottom: 18px;
+  border-radius: 8px;
+
+  .banner-body {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .banner-icon-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--b);
+    flex-shrink: 0;
+  }
+
+  .banner-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    font-size: 13px;
+    color: var(--navy-deep);
+
+    strong {
+      font-size: 13.5px;
+      color: #92400e;
+      font-weight: 600;
+    }
+
+    span {
+      color: var(--ink-2);
+      font-size: 12px;
+    }
+  }
+
+  .banner-btn {
+    white-space: nowrap;
+    padding: 6px 14px;
+    font-size: 12px;
+    flex-shrink: 0;
+  }
+}
+
 // ── KPI 卡片區塊 ────────────────────────────────────────
 .section-title {
   font-size: 12px;
@@ -310,11 +364,74 @@
     display: flex;
     align-items: center;
     gap: 8px;
+    flex-wrap: wrap;
 
     .switcher-label {
       font-size: 11.5px;
       color: var(--ink-3);
       white-space: nowrap;
+    }
+
+    .custom-picker-panel {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: #ffffff;
+      border: 1px solid var(--line);
+      padding: 3px 6px;
+      border-radius: 7px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+
+      .step-btn {
+        border: 1px solid var(--line-soft);
+        background: #f8fafc;
+        color: var(--ink-2);
+        border-radius: 4px;
+        width: 24px;
+        height: 24px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        font-size: 10px;
+        transition: all 0.15s ease;
+
+        &:hover {
+          background: #f1f5f9;
+          color: var(--navy-deep);
+          border-color: var(--line);
+        }
+
+        &:active {
+          transform: scale(0.92);
+        }
+      }
+
+      .custom-date-input {
+        border: 1px solid var(--line-soft);
+        background: #ffffff;
+        font-family: var(--sans);
+        font-size: 11.5px;
+        color: var(--ink);
+        padding: 3px 6px;
+        border-radius: 4px;
+        outline: none;
+        cursor: pointer;
+
+        &:focus {
+          border-color: var(--teal);
+        }
+      }
+
+      .custom-week-badge {
+        font-size: 11.5px;
+        font-weight: 600;
+        color: var(--teal);
+        background: var(--teal-soft);
+        padding: 3px 8px;
+        border-radius: 4px;
+        letter-spacing: 0.5px;
+      }
     }
   }
 }

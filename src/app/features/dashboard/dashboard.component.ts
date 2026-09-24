@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit } from '@angular/core';
 import { Router, RouterModule } from '@angular/router';
+import { Subscription } from 'rxjs';
 import { DashboardControllerService } from '../../api/api/dashboardController.service';
 
 @Component({
@@ -9,7 +10,7 @@ import { DashboardControllerService } from '../../api/api/dashboardController.se
   templateUrl: './dashboard.component.html',
   styleUrl: './dashboard.component.scss'
 })
-export class DashboardComponent implements OnInit {
+export class DashboardComponent implements OnInit, OnDestroy {
   dashboardSummary: any = {};
   viralRankings: any[] = [];
   festivalRankings: any[] = [];
@@ -22,6 +23,13 @@ export class DashboardComponent implements OnInit {
   activeTab: string = 'viral';
   activeTrack: string = 'A';
   activePeriod: 'week' | 'lastWeek' | 'custom' = 'week';
+  isLoadingRankings: boolean = false;
+  scoringExecuted: boolean = true;
+  customIsoWeek: string = '';
+  customDateValue: string = '';
+
+  private rankingsSubscription?: Subscription;
+  private summarySubscription?: Subscription;
 
   readonly sceneMap: Record<string, string> = {
     VIRAL: '話題爆款',
@@ -61,7 +69,7 @@ export class DashboardComponent implements OnInit {
     } else if (period === 'lastWeek') {
       return this.getIsoWeekString(new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000));
     } else {
-      return this.getIsoWeekString(now);
+      return this.customIsoWeek || this.getIsoWeekString(now);
     }
   }
 
@@ -134,6 +142,45 @@ export class DashboardComponent implements OnInit {
     this.router.navigate(['/sourcing-queue']);
   }
 
+  /** 導航到 AI 任務中心（S-08） */
+  public navigateToAiTasks(): void {
+    this.router.navigate(['/ai-tasks']);
+  }
+
+  /** 自訂區間日期變更事件 */
+  public onCustomDateChange(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    if (input.value) {
+      this.customDateValue = input.value;
+      const parts = input.value.split('-');
+      if (parts.length === 3) {
+        const d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10), 12, 0, 0);
+        this.customIsoWeek = this.getIsoWeekString(d);
+        this.clearRankings();
+        this.loadDashboardData();
+      }
+    }
+  }
+
+  /** 自訂區間前後步進週數 */
+  public stepCustomWeek(weeksDelta: number): void {
+    let date: Date;
+    if (this.customDateValue) {
+      const parts = this.customDateValue.split('-');
+      date = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10), 12, 0, 0);
+    } else {
+      date = new Date();
+    }
+    date.setDate(date.getDate() + weeksDelta * 7);
+    const y = date.getFullYear();
+    const m = (date.getMonth() + 1).toString().padStart(2, '0');
+    const d = date.getDate().toString().padStart(2, '0');
+    this.customDateValue = `${y}-${m}-${d}`;
+    this.customIsoWeek = this.getIsoWeekString(date);
+    this.clearRankings();
+    this.loadDashboardData();
+  }
+
   /** 點擊商品名稱導航至品項頁面 */
   public navigateToProduct(productId: number | undefined): void {
     if (productId) {
@@ -143,19 +190,42 @@ export class DashboardComponent implements OnInit {
 
   /** 重新載入儀表板資料 */
   public reload(): void {
+    this.clearRankings();
     this.loadDashboardData();
   }
 
   ngOnInit(): void {
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = (now.getMonth() + 1).toString().padStart(2, '0');
+    const d = now.getDate().toString().padStart(2, '0');
+    this.customDateValue = `${y}-${m}-${d}`;
+    this.customIsoWeek = this.getIsoWeekString(now);
     this.loadDashboardData();
+  }
+
+  ngOnDestroy(): void {
+    this.rankingsSubscription?.unsubscribe();
+    this.summarySubscription?.unsubscribe();
+  }
+
+  private clearRankings(): void {
+    this.viralRankings = [];
+    this.festivalRankings = [];
+    this.replenishmentRankings = [];
+    this.seasonalRankings = [];
   }
 
   loadDashboardData(): void {
     const periodParam = this.getIsoWeekStringForPeriod(this.activePeriod);
     console.log('Loading dashboard data for period:', periodParam, 'track:', this.activeTrack);
 
+    // 取消前次未完成的訂閱，避免非同步競態覆蓋
+    this.summarySubscription?.unsubscribe();
+    this.rankingsSubscription?.unsubscribe();
+
     // 1. KPI 彙總（固定查 A 軌）
-    this.dashboardService.getSummary({ track: 'A', period: periodParam }).subscribe({
+    this.summarySubscription = this.dashboardService.getSummary({ track: 'A', period: periodParam }).subscribe({
       next: async (raw: any) => {
         const response = await this.unpack(raw);
         console.log('Dashboard summary response:', response);
@@ -163,6 +233,7 @@ export class DashboardComponent implements OnInit {
         if (data && (data.kpi || data.totalCandidates !== undefined)) {
           this.dashboardSummary = data.kpi || data;
           this.weeklyNewCount = data.weeklyNewCount ?? 9;
+          this.scoringExecuted = data.scoringExecuted !== undefined ? data.scoringExecuted : true;
         } else {
           this.loadMockSummary();
         }
@@ -174,9 +245,13 @@ export class DashboardComponent implements OnInit {
     });
 
     // 2. 四榜排行（後端一支 API 回傳四大情境榜單）
+    this.isLoadingRankings = true;
+    this.clearRankings();
+
     const trackParam = this.activeTrack === 'A' ? 'A' : 'B';
-    this.dashboardService.getRankings({ track: trackParam, limit: 5, period: periodParam } as any).subscribe({
+    this.rankingsSubscription = this.dashboardService.getRankings({ track: trackParam, limit: 5, period: periodParam } as any).subscribe({
       next: async (raw: any) => {
+        this.isLoadingRankings = false;
         const response = await this.unpack(raw);
         console.log('Rankings response:', response);
         const data = response?.data || response;
@@ -186,12 +261,13 @@ export class DashboardComponent implements OnInit {
           this.replenishmentRankings = data.replenishment || [];
           this.seasonalRankings = data.seasonal || [];
         } else {
-          this.loadMockRankings();
+          this.clearRankings();
         }
       },
       error: (error: any) => {
+        this.isLoadingRankings = false;
         console.error('Failed to load rankings:', error);
-        this.loadMockRankings();
+        this.clearRankings();
       }
     });
 
@@ -343,6 +419,7 @@ export class DashboardComponent implements OnInit {
     if (this.activeTrack !== track) {
       this.activeTrack = track;
       console.log('Switching track to:', track);
+      this.clearRankings();
       this.loadDashboardData(); // Reload data based on new track
     }
   }
@@ -351,6 +428,11 @@ export class DashboardComponent implements OnInit {
     if (this.activePeriod !== period) {
       this.activePeriod = period;
       console.log('Switching period to:', period);
+      if (period === 'custom' && !this.customIsoWeek) {
+        const now = new Date();
+        this.customIsoWeek = this.getIsoWeekString(now);
+      }
+      this.clearRankings();
       this.loadDashboardData(); // Reload data based on new period
     }
   }
@@ -388,7 +470,7 @@ export class DashboardComponent implements OnInit {
       case 'lastWeek':
         return '上週';
       case 'custom':
-        return '自訂區間';
+        return this.customIsoWeek ? `自訂區間 (${this.customIsoWeek})` : '自訂區間';
       default:
         return '本週';
     }

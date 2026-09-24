@@ -1,7 +1,7 @@
 <!-- 頁首 ─────────────────────────────────────────────── -->
 <div class="mh">
   <div>
-    <h3>本週選品建議</h3>
+    <h3>{{ getPeriodLabel(activePeriod) }}選品建議</h3>
     <div class="sub">{{ currentPeriodDisplay }}　·　權重版本 v3（2026-06-01 生效）</div>
   </div>
 
@@ -37,16 +37,38 @@
     </span>
     }
     } @else {
-    <span class="source-item"><i class="dot-indicator"></i>Threads　今日 06:00</span>
-    <span class="source-item"><i class="dot-indicator"></i>Google Trends　今日 06:00</span>
-    <span class="source-item deg"><i class="dot-indicator"></i>Instagram　<span class="mono">額度剩 4／30</span></span>
-    <span class="source-item"><i class="dot-indicator"></i>人工標記　<span class="mono">本週 12 筆</span></span>
+    <span class="source-item">Threads　今日 06:00</span>
+    <span class="source-item">Google Trends　今日 06:00</span>
+    <span class="source-item deg">Instagram　<span class="mono">額度剩 4／30</span></span>
+    <span class="source-item">人工標記　<span class="mono">本週 12 筆</span></span>
     }
   </div>
   <button type="button" class="source-link-btn" (click)="navigateToSourceSettings()">
     來源設定 →
   </button>
 </div>
+
+<!-- 未評分空狀態橫幅 (FR-02) ───────────────────────────── -->
+@if (!scoringExecuted) {
+<div class="card unscored-banner">
+  <div class="banner-body">
+    <div class="banner-icon-wrap">
+      <svg class="banner-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor"
+        stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round"
+          d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+      </svg>
+    </div>
+    <div class="banner-text">
+      <strong>{{ getPeriodLabel(activePeriod) }}尚未執行評分</strong>
+      <span>該週期目前無生效之評分快照，可前往 AI 任務中心啟動評分計算。</span>
+    </div>
+  </div>
+  <button type="button" class="btn pri banner-btn" (click)="navigateToAiTasks()">
+    前往 AI 任務中心啟動
+  </button>
+</div>
+}
 
 <!-- 全域 KPI 彙總卡片 ──────────────────────────────────── -->
 <div class="section-title">全域彙總 KPI</div>
@@ -96,6 +118,16 @@
       <button type="button" class="range-btn" [class.active]="activePeriod === 'custom'"
         (click)="switchPeriod('custom')">自訂區間</button>
     </div>
+
+    @if (activePeriod === 'custom') {
+    <div class="custom-picker-panel">
+      <button type="button" class="step-btn" (click)="stepCustomWeek(-1)" title="前一週">◀</button>
+      <input type="date" class="custom-date-input" [value]="customDateValue" (change)="onCustomDateChange($event)"
+        title="點選日期換算 ISO 週" />
+      <span class="custom-week-badge mono">{{ customIsoWeek }}</span>
+      <button type="button" class="step-btn" (click)="stepCustomWeek(1)" title="次一週">▶</button>
+    </div>
+    }
   </div>
 </div>
 
@@ -117,8 +149,8 @@
       @for (item of getRankingsForTab(activeTab); track item.productId || $index; let i = $index) {
       <tr class="clickable-row">
         <td class="rank mono">{{ i + 1 }}</td>
-        <td class="name" (click)="navigateToProduct(item.productId)" title="點擊檢視品項">
-          <span class="product-name-link">{{ item.productName }}</span>
+        <td class="name">
+          {{ item.productName }}
         </td>
         <td>
           <div class="score-progress">
