@@ -1,3 +1,5 @@
+@use '@angular/material' as mat;
+
 // Custom CSS variables from FRONTEND_UI_GUIDELINES
 :root {
   --navy: #123A56;
@@ -23,6 +25,20 @@
   --mono: "IBM Plex Mono", ui-monospace, monospace;
 }
 
+html {
+  @include mat.theme(
+    (
+      color: (
+        primary: mat.$cyan-palette,
+        tertiary: mat.$blue-palette,
+        theme-type: light,
+      ),
+      typography: 'Noto Sans TC',
+      density: 0,
+    )
+  );
+}
+
 html,
 body {
   height: 100%;
@@ -31,6 +47,94 @@ body {
   box-sizing: border-box;
   font-family: 'Noto Sans TC', sans-serif;
 }
+
+body {
+  background: var(--mat-sys-surface);
+  color: var(--mat-sys-on-surface);
+}
+
+.unified-mat-select-panel.mat-mdc-select-panel {
+  border: 1px solid #cbd5e1 !important;
+  border-radius: 8px !important;
+  background: #f8fafc !important;
+  box-shadow: 0 14px 32px rgb(15 23 42 / 18%) !important;
+}
+
+.unified-mat-select-panel .mat-mdc-option:hover:not(.mdc-list-item--disabled) {
+  background: #e2e8f0 !important;
+}
+
+.unified-mat-select-panel .mat-mdc-option.mdc-list-item--selected:not(.mdc-list-item--disabled) {
+  background: #e0f2fe !important;
+  color: #0369a1 !important;
+  font-weight: 600;
+}
+
+.imports-page .btn {
+  height: 34px;
+  padding: 6px 14px;
+  border: 1px solid var(--line) !important;
+  border-radius: 7px !important;
+  background: #fff !important;
+  color: var(--ink-2) !important;
+  font-family: var(--sans);
+  font-size: 12px;
+  transition: all .2s cubic-bezier(.19, 1, .22, 1);
+}
+
+.imports-page .btn:hover {
+  border-color: #cbd5e1 !important;
+  background: #f1f5f9 !important;
+}
+
+.imports-page .btn:active { transform: scale(.96); }
+
+.imports-page .btn.pri {
+  border-color: var(--teal) !important;
+  background: var(--teal) !important;
+  color: #fff !important;
+  font-weight: 500;
+}
+
+.imports-page .btn.pri:hover { background: #186380 !important; }
+
+.imports-page .mat-mdc-text-field-wrapper {
+  min-height: 42px;
+  border-radius: 8px;
+  background: var(--surface);
+  transition: all .3s cubic-bezier(.19, 1, .22, 1);
+}
+
+.imports-page .mat-mdc-form-field-flex {
+  min-height: 42px;
+  padding: 0 6px !important;
+  align-items: center;
+}
+
+.imports-page .mat-mdc-form-field:hover .mat-mdc-text-field-wrapper {
+  background: #f1f5f9;
+  box-shadow: 0 2px 8px rgb(15 23 42 / 8%);
+}
+
+.imports-page .mat-mdc-form-field:active .mat-mdc-text-field-wrapper {
+  transform: scale(.98);
+}
+
+.imports-page .history-panel { margin-top: 24px; }
+.imports-page .history-table { min-width: 950px; }
+.imports-page .history-table td:nth-child(2) { max-width: 260px; }
+.imports-page .history-table td:first-child,
+.imports-page .history-table td:nth-child(4),
+.imports-page .history-table small,
+.imports-page .progress-block strong {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.imports-page .table-note { color: #7a878e; font-size: 12px; text-align: right; }
+.imports-page .empty-cell { padding: 28px !important; color: #78868d; text-align: center !important; }
+.imports-page .progress-block small { color: #66757d; }
+.imports-page .actions.center { justify-content: center; }
 
 .custom-confirm-dialog-panel {
   .mat-mdc-dialog-container .mdc-dialog__surface {

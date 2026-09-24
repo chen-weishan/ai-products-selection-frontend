@@ -12,8 +12,7 @@ describe('MainLayoutComponent', () => {
       imports: [MainLayoutComponent],
       // 樣板有 routerLink，沒有 Router 的 provider 會在建立時就 NG0201
       providers: [provideRouter([])],
-    })
-    .compileComponents();
+    }).compileComponents();
 
     fixture = TestBed.createComponent(MainLayoutComponent);
     component = fixture.componentInstance;

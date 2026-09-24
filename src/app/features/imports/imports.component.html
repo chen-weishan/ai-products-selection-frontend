@@ -1,1 +1,231 @@
-<p>imports works!</p>
+<section class="imports-page">
+  <header class="mh">
+    <div><h3>資料匯入</h3>
+      <div class="sub">
+        @if (uploadResult(); as upload) {
+          {{ dataTypeLabel(upload.dataType) }}・{{ upload.fileName }}（{{ upload.totalRows | number }} 列）
+        } @else {
+          匯入銷售、評論、客群或品項資料，系統會先驗證內容再寫入。
+        }
+      </div>
+    </div>
+    @if (step() > 1) {
+      <button mat-stroked-button class="btn" type="button" (click)="newImport()"><mat-icon>add</mat-icon>建立新匯入</button>
+    }
+  </header>
+
+  <nav class="stepper" aria-label="資料匯入進度">
+    @for (item of [{ no: 1, label: '選擇檔案' }, { no: 2, label: '欄位對應' }, { no: 3, label: '預覽驗證' }, { no: 4, label: '匯入結果' }]; track item.no) {
+      <div class="step" [class.active]="step() === item.no" [class.done]="step() > item.no">
+        <span>{{ step() > item.no ? '✓' : item.no }}</span><strong>{{ item.label }}</strong>
+      </div>
+    }
+  </nav>
+
+  @if (errorMessage()) { <div class="message error" role="alert"><mat-icon>error_outline</mat-icon>{{ errorMessage() }}</div> }
+  @if (successMessage()) { <div class="message success" role="status"><mat-icon>check_circle_outline</mat-icon>{{ successMessage() }}</div> }
+
+  @if (step() === 1) {
+    <section class="panel upload-panel">
+      <div class="panel-title"><h2>選擇資料與檔案</h2><p>支援 CSV、XLSX，單檔上限 50 MB。</p></div>
+      <mat-form-field appearance="outline" subscriptSizing="dynamic" class="data-type-select">
+        <mat-label>資料類型</mat-label>
+        <mat-select [formControl]="dataTypeControl" panelClass="unified-mat-select-panel">
+          @for (type of dataTypes; track type.value) { <mat-option [value]="type.value">{{ type.label }}｜{{ type.description }}</mat-option> }
+        </mat-select>
+      </mat-form-field>
+      <div class="drop-zone" [class.dragging]="dragging()" [class.has-file]="selectedFile()"
+        (dragover)="onDragOver($event)" (dragleave)="onDragLeave($event)" (drop)="onDrop($event)">
+        <input #fileInput hidden type="file" accept=".csv,.xlsx" (change)="onFileSelected($event)" />
+        @if (selectedFile(); as file) {
+          <mat-icon class="file-icon">description</mat-icon>
+          <div class="file-copy"><strong>{{ file.name }}</strong><span>{{ file.size / 1024 / 1024 | number: '1.1-2' }} MB</span></div>
+          <button mat-icon-button type="button" aria-label="移除檔案" (click)="removeFile()"><mat-icon>close</mat-icon></button>
+        } @else {
+          <mat-icon class="upload-icon">cloud_upload</mat-icon><strong>拖曳檔案到這裡</strong><span>或</span>
+          <button mat-stroked-button class="btn" type="button" (click)="fileInput.click()">瀏覽檔案</button>
+        }
+      </div>
+      @if (dataTypeControl.value === 'SALES') {
+        <p class="table-note">訂單明細：提供來源系統、訂單編號、明細編號。每日彙總：銷售資料粒度填 SUMMARY，提供來源系統與通路；其他分組填入其他彙總維度。同一銷售範圍請固定使用一種粒度及來源。</p>
+        <p class="table-note">有來源識別時，相同內容會略過，不同內容會回報衝突。沒有識別時保留相同交易，僅防止相同檔案與欄位對應再次確認匯入。退貨負數目前不支援。</p>
+      }
+      @if (dataTypeControl.value === 'AUDIENCE') {
+        <p class="table-note">檔案中的每個品類會完整替換客群組成，占比合計必須為 1.000；請提供完整組成。既有客群預設僅引用，修改名稱或價格帶需在「客群主檔操作」填 UPDATE，會影響所有引用品類。</p>
+      }
+      <div class="info-strip"><mat-icon>info_outline</mat-icon><span>小型檔案會立即處理；大型檔案送出後可離開頁面，再從下方紀錄查看進度。</span></div>
+      <div class="actions end"><button mat-flat-button class="btn pri" type="button" [disabled]="!selectedFile() || busy() || referenceLoading()" (click)="upload()">
+        {{ busy() ? '解析中…' : '上傳並解析' }}<mat-icon>arrow_forward</mat-icon></button></div>
+    </section>
+  }
+
+  @if (step() === 2 && uploadResult(); as upload) {
+    <section class="panel">
+      <div class="panel-title split-title">
+        <div><h2><span class="section-number">1</span>確認欄位對應</h2><p>系統已辨識 {{ upload.headers.length }} 個檔案欄位；請確認或調整對應。</p></div>
+        <span class="mode-badge">{{ upload['async'] ? '背景匯入' : '即時匯入' }}</span>
+      </div>
+      <div class="template-tools">
+        <mat-form-field appearance="outline" subscriptSizing="dynamic"><mat-label>套用既有範本</mat-label>
+          <mat-select [formControl]="templateControl" panelClass="unified-mat-select-panel" (selectionChange)="applyTemplate($event.value)">
+            <mat-option [value]="null">不使用範本</mat-option>
+            @for (template of templates(); track template.id) { <mat-option [value]="template.id">{{ template.name }}</mat-option> }
+          </mat-select>
+        </mat-form-field>
+        <mat-form-field appearance="outline" subscriptSizing="dynamic"><mat-label>範本名稱</mat-label><input matInput [formControl]="templateNameControl" maxlength="60" /></mat-form-field>
+        <button mat-stroked-button class="btn" type="button" [disabled]="busy()" (click)="saveTemplate()"><mat-icon>save</mat-icon>{{ templateControl.value ? '更新範本' : '另存範本' }}</button>
+        <button mat-icon-button type="button" aria-label="刪除範本" matTooltip="刪除所選範本" [disabled]="!templateControl.value || busy()" (click)="deleteTemplate()"><mat-icon>delete_outline</mat-icon></button>
+      </div>
+      <div class="mapping-table-wrap">
+        <table class="data-table mapping-table">
+          <thead><tr><th>檔案欄位</th><th class="direction-column" aria-label="對應至"></th><th>系統欄位</th><th>狀態</th></tr></thead>
+          <tbody>
+            @for (header of upload.headers; track header) {
+              <tr><td class="source-field"><strong>{{ header }}</strong></td>
+                <td class="direction-column" aria-hidden="true">→</td>
+                <td><mat-form-field appearance="outline" subscriptSizing="dynamic"><mat-label>選擇欄位</mat-label>
+                  <mat-select [value]="mappingValue(header)" panelClass="unified-mat-select-panel" (selectionChange)="setMapping(header, $event.value)">
+                    <mat-option value="">略過此欄</mat-option>
+                    @for (field of fields(); track field.key) {
+                      <mat-option [value]="field.key" [disabled]="targetUsedByOther(field.key, header)">{{ field.label }}{{ field.required ? '（必填）' : '' }}</mat-option>
+                    }
+                  </mat-select>
+                </mat-form-field></td>
+                <td><span class="suggestion" [class]="suggestionClass(header)">{{ suggestionLabel(header) }}</span></td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      @if (missingRequiredFields().length) {
+        <div class="message warning"><mat-icon>warning_amber</mat-icon>尚未對應必填欄位：
+          @for (field of missingRequiredFields(); track field.key) { <strong>{{ field.label }}</strong> }
+        </div>
+      }
+      @if (duplicateTargets().length) { <div class="message error"><mat-icon>error_outline</mat-icon>同一系統欄位不可重複對應。</div> }
+      <div class="actions between">
+        <button mat-stroked-button class="btn" type="button" (click)="newImport()"><mat-icon>arrow_back</mat-icon>重新選檔</button>
+        <button mat-flat-button class="btn pri" type="button" [disabled]="!mappingValid() || busy()" (click)="preview()">{{ busy() ? '驗證中…' : '預覽與驗證' }}<mat-icon>arrow_forward</mat-icon></button>
+      </div>
+    </section>
+  }
+
+  @if (step() === 3 && previewResult(); as preview) {
+    <div class="preview-workspace">
+      <section class="panel mapping-summary-panel">
+        <div class="panel-title"><h2><span class="section-number">1</span>欄位對應</h2><p>依照你確認的對應進行驗證。</p></div>
+        <div class="mapping-table-wrap"><table class="data-table summary-table">
+          <thead><tr><th>檔案欄位</th><th class="direction-column" aria-label="對應至"></th><th>系統欄位</th><th>狀態</th></tr></thead>
+          <tbody>
+            @for (header of uploadResult()?.headers ?? []; track header) {
+              <tr><td class="source-field"><strong>{{ header }}</strong></td><td class="direction-column" aria-hidden="true">→</td>
+                <td>{{ mappingValue(header) ? fieldLabel(mappingValue(header)) : '不匯入' }}</td>
+                <td><span class="suggestion" [class]="suggestionClass(header)">{{ suggestionLabel(header) }}</span></td></tr>
+            }
+          </tbody>
+        </table></div>
+        <div class="actions"><button mat-stroked-button class="btn" type="button" (click)="backToMapping()"><mat-icon>edit</mat-icon>調整對應</button></div>
+      </section>
+
+      <section class="panel validation-panel">
+        <div class="panel-title"><h2><span class="section-number">2</span>驗證結果（前 20 列預覽）</h2><p>確認資料品質後再正式匯入。</p></div>
+        <div class="metrics validation-metrics">
+          <article class="good"><strong>{{ preview.validRows | number }}</strong><span>通過驗證</span></article>
+          <article class="bad"><strong>{{ preview.errorRows | number }}</strong><span>有錯誤</span></article>
+          <article class="warn"><strong>{{ preview.duplicateRows | number }}</strong><span>重複（將略過）</span></article>
+        </div>
+        <div class="mapping-table-wrap"><table class="data-table preview-table">
+          <thead><tr><th>列</th>@for (field of previewColumns(); track field.key) { <th>{{ field.label }}</th> }<th>驗證結果</th></tr></thead>
+          <tbody>
+            @for (row of preview.previewRows; track row.rowNumber) {
+              <tr [class.invalid-row]="row.issues.length"><td>{{ row.rowNumber }}</td>
+                @for (field of previewColumns(); track field.key) { <td>{{ row.values[field.key] || '—' }}</td> }
+                <td>@if (row.issues.length) {
+                  @for (issue of row.issues; track $index) { <span class="issue" [class.duplicate]="issue.type === 'DUPLICATE'">{{ fieldLabel(issue.field) }} {{ issue.message }}</span> }
+                } @else { <span class="valid-mark">可匯入</span> }</td>
+              </tr>
+            } @empty { <tr><td class="empty-cell" [attr.colspan]="previewColumns().length + 2">沒有可顯示的預覽資料</td></tr> }
+          </tbody>
+        </table></div>
+        <p class="table-note">共 {{ preview.totalRows | number }} 筆；畫面最多顯示前 20 筆，正式匯入會處理全部資料。</p>
+        @if (preview.audienceChanges?.length) {
+          <h3>品類組成替換預覽（最多 20 個品類）</h3>
+          <p>下列品類會以本次完整組成取代現有設定；未列入本次檔案的品類維持原設定。</p>
+          <div class="mapping-table-wrap"><table class="data-table">
+            <thead><tr><th>品類</th><th>目前組成</th><th>匯入後組成</th></tr></thead>
+            <tbody>@for (change of preview.audienceChanges; track change.category) {
+              <tr><td>{{ change.category }}</td><td>{{ formatMix(change.before) }}</td><td>{{ formatMix(change.after) }}</td></tr>
+            }</tbody>
+          </table></div>
+        }
+        <div class="actions validation-actions">
+          @if (preview.errorRows) { <button mat-stroked-button class="btn" type="button" (click)="downloadPreviewErrors()"><mat-icon>download</mat-icon>下載錯誤明細</button> }
+          <button mat-flat-button class="btn pri" type="button" [disabled]="busy() || preview.validRows === 0" (click)="confirmImport()">{{ busy() ? '送出中…' : '確認匯入' }}<mat-icon>check</mat-icon></button>
+        </div>
+      </section>
+    </div>
+  }
+
+  @if (step() === 4 && batchResult(); as batch) {
+    <section class="panel result-panel">
+      <div class="result-icon" [class]="statusClass(batch.status)"><mat-icon>{{ batch.status === 'SUCCEEDED' ? 'check' : batch.status === 'FAILED' ? 'close' : 'sync' }}</mat-icon></div>
+      <span class="status-pill" [class]="statusClass(batch.status)">{{ statusLabel(batch.status) }}</span>
+      <h2>{{ batch.fileName }}</h2><p>{{ dataTypeLabel(batch.dataType) }}・批次 #{{ batch.batchId }}</p>
+      <div class="progress-block">
+        <div><span>處理進度</span><strong>{{ batch.progressPercent }}%</strong></div>
+        <mat-progress-bar mode="determinate" [value]="batch.progressPercent"></mat-progress-bar>
+        @if (polling()) { <small>正在自動更新進度…</small> }
+      </div>
+      <div class="metrics compact">
+        <article><span>總筆數</span><strong>{{ batch.totalRows | number }}</strong></article>
+        <article class="good"><span>成功</span><strong>{{ batch.successRows | number }}</strong></article>
+        <article class="bad"><span>驗證失敗</span><strong>{{ batch.failRows | number }}</strong></article>
+        <article><span>重複略過</span><strong>{{ (batch.skippedRows ?? 0) | number }}</strong></article>
+        <article><span>未處理</span><strong>{{ (batch.unprocessedRows ?? 0) | number }}</strong></article>
+      </div>
+      @if (batch.recalculation; as scoring) {
+        <p role="status">評分更新：{{ scoring['SCORED'] ?? 0 }} 項成功、{{ scoring['PENDING'] ?? 0 }} 項待處理／重試、{{ scoring['FAILED'] ?? 0 }} 項失敗、{{ scoring['INSUFFICIENT_DATA'] ?? 0 }} 項資料不足、{{ scoring['SKIPPED'] ?? 0 }} 項不適用。</p>
+      }
+      @if ((batch.unprocessedRows ?? 0) > 0 && !batch.canDownloadUnprocessed && batch.status !== 'PENDING' && batch.status !== 'RUNNING') {
+        <p class="table-note">原始暫存檔無法取得，未處理資料目前無法下載；請保留原始檔案並依批次結果核對。</p>
+      }
+      @if (batch.failureReason) {
+        <div class="message error" role="alert"><mat-icon>error_outline</mat-icon>{{ batch.failureReason }}</div>
+      }
+      @if (batch.status === 'PENDING') {
+        <div class="message warning">
+          <mat-icon>info</mat-icon>
+          此批次只完成檔案上傳，尚未確認匯入。請完成欄位對應、預覽驗證及確認匯入。
+        </div>
+      }
+      <div class="actions center">
+        @if (batch.hasCorrectableErrors) { <button mat-stroked-button class="btn" type="button" (click)="downloadBatchErrors(batch)"><mat-icon>download</mat-icon>下載待修正資料</button> }
+        @if (batch.canDownloadUnprocessed) { <button mat-stroked-button class="btn" type="button" (click)="downloadUnprocessed(batch)">下載未處理資料</button> }
+        @if ((batch.recalculation?.['FAILED'] ?? 0) > 0) { <button mat-stroked-button class="btn" type="button" [disabled]="busy()" (click)="retryRecalculation(batch)">重試評分更新</button> }
+        @if (batch.status === 'PENDING') {
+          <button mat-stroked-button class="btn" type="button" [disabled]="busy()" (click)="resumePending(batch)"><mat-icon>arrow_back</mat-icon>繼續欄位對應</button>
+        }
+        <button mat-flat-button class="btn pri" type="button" (click)="newImport()"><mat-icon>add</mat-icon>{{ batch.status === 'PENDING' ? '重新選檔' : '建立新匯入' }}</button>
+      </div>
+    </section>
+  }
+
+  <section class="panel history-panel" id="import-history">
+    <div class="panel-title split-title">
+      <div><h2>近期匯入紀錄</h2><p>最近 20 筆匯入批次與處理狀態。</p></div>
+      <button mat-icon-button type="button" aria-label="重新整理匯入紀錄" matTooltip="重新整理" [disabled]="historyLoading()" (click)="loadHistory()"><mat-icon>refresh</mat-icon></button>
+    </div>
+    <div class="mapping-table-wrap"><table class="data-table history-table">
+      <thead><tr><th>建立時間</th><th>檔案</th><th>資料類型</th><th>進度</th><th>結果</th><th>狀態</th><th></th></tr></thead>
+      <tbody>
+        @for (batch of history(); track batch.batchId) {
+          <tr><td>{{ batch.createdAt | date: 'yyyy/MM/dd HH:mm' }}</td><td><strong>{{ batch.fileName }}</strong><small>#{{ batch.batchId }}</small></td>
+            <td>{{ dataTypeLabel(batch.dataType) }}</td><td>{{ batch.progressPercent }}%</td>
+            <td>{{ batch.successRows | number }} 成功 / {{ batch.failRows | number }} 失敗</td>
+            <td><span class="status-pill" [class]="statusClass(batch.status)">{{ statusLabel(batch.status) }}</span></td>
+            <td><button mat-button class="table-action" type="button" (click)="viewBatch(batch)">查看</button></td></tr>
+        } @empty { <tr><td colspan="7" class="empty-cell">{{ historyLoading() ? '讀取中…' : '尚無匯入紀錄' }}</td></tr> }
+      </tbody>
+    </table></div>
+  </section>
+</section>
