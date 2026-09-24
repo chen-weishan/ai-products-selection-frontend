@@ -4,7 +4,6 @@ import { Router } from '@angular/router';
 import { LoginRequest, LoginResponse, UserInfo, UserRole } from '../models/auth-model';
 import { Observable, delay, of, tap, throwError } from 'rxjs';
 import { MOCK_ACCOUNTS, MockAccount, createMockLoginResponse, findMockAccount } from './mock-users';
-import { ApiResponseLoginResult } from '../../api';
 import { map } from 'rxjs';
 @Injectable({
   providedIn: 'root'
@@ -66,7 +65,7 @@ export class AuthService {
       );
     }
 
-    return this.http.post<ApiResponseLoginResult>('/api/v1/auth/login', credentials).pipe(
+    return this.http.post<unknown>('/api/v1/auth/login', credentials).pipe(
       tap(res => console.log('[AuthService] /auth/login response:', res)),
       map(res => {
         const anyRes = res as any;

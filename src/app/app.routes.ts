@@ -93,6 +93,13 @@ export const routes: Routes = [
         data: { roles: ['BUYER', 'BUYER_LEAD', 'DATA_ADMIN', 'SYS_ADMIN'] }
       },
       {
+        path: 'festivals', loadComponent: () =>
+          import('./features/festivals/festivals.component').then(
+            m => m.FestivalsComponent
+          ),
+        data: { roles: ['BUYER_LEAD', 'DATA_ADMIN', 'SYS_ADMIN'] }
+      },
+      {
         path: 'imports', loadComponent: () =>
           import('./features/imports/imports.component').then(
             m => m.ImportsComponent

@@ -38,6 +38,7 @@ export class MainLayoutComponent {
     { label: 'S-17 尋源探索', path: '/sourcing', icon: 'travel_explore', roles: ['BUYER', 'BUYER_LEAD', 'DATA_ADMIN', 'SYS_ADMIN'] },
     { label: 'S-08 AI任務', path: '/ai-tasks', icon: 'smart_toy', roles: ['BUYER', 'BUYER_LEAD', 'DATA_ADMIN', 'SYS_ADMIN'] },
     { label: 'S-09 權重設定', path: '/weights', icon: 'tune', roles: ['BUYER', 'BUYER_LEAD', 'DATA_ADMIN', 'SYS_ADMIN'] },
+    { label: 'S-20 節慶檔期', path: '/festivals', icon: 'event', roles: ['BUYER_LEAD', 'DATA_ADMIN', 'SYS_ADMIN'] },
     { label: 'S-10 資料匯入', path: '/imports', icon: 'file_upload', roles: ['BUYER_LEAD', 'DATA_ADMIN', 'SYS_ADMIN'] },
     { label: 'S-11 風險示警', path: '/risks', icon: 'warning' },
     { label: 'S-12 決策紀錄', path: '/decisions', icon: 'history_edu' },
