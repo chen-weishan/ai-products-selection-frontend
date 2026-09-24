@@ -24,7 +24,7 @@ export class ProductEditorService {
     this.error.set(null);
 
     return this.api.getById({ id: productId }).pipe(
-      map((response) => unwrap(response, '取得品項資料失敗')),
+      map((response) => unwrap<ProductResponse>(response as any, '取得品項資料失敗')),
       this.handleError(),
       finalize(() => this.loading.set(false)),
     );
@@ -36,15 +36,18 @@ export class ProductEditorService {
 
     const action =
       productId == null
-        ? this.api.create({ productCreateRequest: request })
-        : this.api.update({
+        ? this.api.createProduct({ productCreateRequest: request })
+        : this.api.updateProduct({
             id: productId,
             productUpdateRequest: request,
           });
 
     return action.pipe(
       map((response) => {
-        const result = unwrap(response, '儲存品項失敗');
+        const result = unwrap<{ product?: ProductResponse; warnings?: Array<string> }>(
+          response as any,
+          '儲存品項失敗',
+        );
         if (!result.product?.id) {
           throw new Error('後端未回傳已儲存的品項');
         }

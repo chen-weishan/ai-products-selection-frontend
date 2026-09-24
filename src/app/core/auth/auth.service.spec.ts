@@ -39,11 +39,13 @@ describe('AuthService', () => {
     });
 
     expect(service.getAccessToken()).toBe('jwt-token');
-    expect(service.currentUser()).toEqual({
-      email: 'buyer@ssds.dev',
-      displayName: 'Buyer',
-      roles: ['BUYER'],
-    });
+    expect(service.currentUser()).toEqual(
+      expect.objectContaining({
+        email: 'buyer@ssds.dev',
+        displayName: 'Buyer',
+        roles: ['BUYER'],
+      }),
+    );
     expect(service.isLoggedIn()).toBe(true);
     expect(service.hasRole(['BUYER', 'BUYER_LEAD'])).toBe(true);
   });

@@ -1,3 +1,4 @@
+import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { AuthService } from '../../core/auth/auth.service';
 import { HeaderComponent } from './header.component';
@@ -15,7 +16,7 @@ describe('HeaderComponent', () => {
       providers: [
         {
           provide: AuthService,
-          useValue: { logout },
+          useValue: { logout, currentUser: signal(null) },
         },
       ],
     }).compileComponents();

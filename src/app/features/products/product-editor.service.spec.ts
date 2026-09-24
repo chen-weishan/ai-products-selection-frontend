@@ -5,18 +5,18 @@ import { ProductEditorService } from './product-editor.service';
 
 describe('ProductEditorService', () => {
   const getById = vi.fn();
-  const create = vi.fn();
-  const update = vi.fn();
+  const createProduct = vi.fn();
+  const updateProduct = vi.fn();
   let service: ProductEditorService;
 
   beforeEach(() => {
     getById.mockReset();
-    create.mockReset();
-    update.mockReset();
+    createProduct.mockReset();
+    updateProduct.mockReset();
     TestBed.configureTestingModule({
       providers: [
         ProductEditorService,
-        { provide: ProductControllerService, useValue: { getById, create, update } },
+        { provide: ProductControllerService, useValue: { getById, createProduct, updateProduct } },
       ],
     });
     service = TestBed.inject(ProductEditorService);
@@ -33,7 +33,7 @@ describe('ProductEditorService', () => {
   });
 
   it('creates a product and preserves backend warnings', async () => {
-    create.mockReturnValue(
+    createProduct.mockReturnValue(
       of({
         success: true,
         data: {
@@ -51,8 +51,8 @@ describe('ProductEditorService', () => {
 
     const result = await firstValueFrom(service.save(null, request));
 
-    expect(create).toHaveBeenCalledWith({ productCreateRequest: request });
-    expect(JSON.parse(JSON.stringify(create.mock.calls[0][0].productCreateRequest))).toEqual(
+    expect(createProduct).toHaveBeenCalledWith({ productCreateRequest: request });
+    expect(JSON.parse(JSON.stringify(createProduct.mock.calls[0][0].productCreateRequest))).toEqual(
       expect.objectContaining({ logisticsConditions: ['NORMAL'], keywordIds: [30] }),
     );
     expect(result.product.id).toBe(101);
@@ -61,13 +61,13 @@ describe('ProductEditorService', () => {
   });
 
   it('updates an existing product', async () => {
-    update.mockReturnValue(
+    updateProduct.mockReturnValue(
       of({ success: true, data: { product: { id: 101, name: '更新品項' }, warnings: [] } }),
     );
     const request = { name: '更新品項', categoryId: 10 };
 
     await firstValueFrom(service.save(101, request));
 
-    expect(update).toHaveBeenCalledWith({ id: 101, productUpdateRequest: request });
+    expect(updateProduct).toHaveBeenCalledWith({ id: 101, productUpdateRequest: request });
   });
 });

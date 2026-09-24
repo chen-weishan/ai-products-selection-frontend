@@ -102,6 +102,7 @@ export class ProductImageService {
         }
         return this.load(productId).pipe(
           catchError(() => of(this.images())),
+          tap(() => this.error.set(message)),
           switchMap(() => throwError(() => uploadError)),
         );
       }),

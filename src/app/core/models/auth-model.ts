@@ -14,18 +14,20 @@ export interface LoginRequest {
 }
 
 export interface UserInfo {
-  id?: number;
+  id?: number | string;
   username?: string;
   name?: string;
-  email: string;
-  displayName: string;
+  email?: string;
+  displayName?: string;
   role?: UserRole;
-  roles: UserRole[];
+  roles?: UserRole[];
+  avatarUrl?: string;
 }
 
 export interface LoginResponse {
   accessToken: string;
   refreshToken?: string;
+  expiresIn?: number;
   email?: string;
   displayName?: string;
   roles?: UserRole[];

@@ -27,7 +27,7 @@ describe('LoginComponent', () => {
         provideRouter([]),
         {
           provide: AuthService,
-          useValue: { login },
+          useValue: { login, getMockAccounts: () => [] },
         },
       ],
     }).compileComponents();
@@ -42,14 +42,14 @@ describe('LoginComponent', () => {
     expect(component).toBeTruthy();
   });
 
-  it('logs in through the backend and navigates to products', () => {
+  it('logs in through the backend and navigates to returnUrl or dashboard', () => {
     const navigate = vi.spyOn(router, 'navigateByUrl');
-    component.form.controls.email.setValue('buyer@ssds.dev');
-    component.form.controls.password.setValue('secret');
+    component.email = 'buyer@ssds.dev';
+    component.password = 'secret';
 
-    component.submit();
+    component.onLogin();
 
     expect(login).toHaveBeenCalledWith({ email: 'buyer@ssds.dev', password: 'secret' });
-    expect(navigate).toHaveBeenCalledWith('/products');
+    expect(navigate).toHaveBeenCalledWith('/dashboard');
   });
 });

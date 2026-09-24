@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { CanActivateFn, Router } from '@angular/router';
 
-import { AccessControlService } from './access-control.service';
+import { AuthService } from './auth.service';
 import { roleGuard } from './role.guard';
 
 describe('roleGuard', () => {
@@ -15,7 +15,7 @@ describe('roleGuard', () => {
     hasRole.mockReset();
     TestBed.configureTestingModule({
       providers: [
-        { provide: AccessControlService, useValue: { hasRole } },
+        { provide: AuthService, useValue: { hasRole } },
         { provide: Router, useValue: { createUrlTree: vi.fn(() => deniedTree) } },
       ],
     });

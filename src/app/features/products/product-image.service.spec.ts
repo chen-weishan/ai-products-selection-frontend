@@ -52,6 +52,7 @@ describe('ProductImageService', () => {
     httpTesting
       .expectOne(imagesUrl)
       .flush({ error: { message: '第二張圖片失敗' } }, { status: 400, statusText: 'Bad Request' });
+    httpTesting.expectOne(imagesUrl).flush({ success: true, data: [] });
 
     await expect(promise).rejects.toMatchObject({ uploadedCount: 1 });
     expect(service.error()).toBe('第二張圖片失敗');

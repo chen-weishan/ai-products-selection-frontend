@@ -84,8 +84,10 @@ export const MOCK_ACCOUNTS: MockAccount[] = [
 
 export function findMockAccount(email: string, password?: string): MockAccount | undefined {
   const normalizedEmail = email.trim().toLowerCase();
-  return MOCK_ACCOUNTS.find(acc => {
-    const emailMatch = acc.email.toLowerCase() === normalizedEmail || acc.user.username.toLowerCase() === normalizedEmail;
+  return MOCK_ACCOUNTS.find((acc) => {
+    const emailMatch =
+      acc.email.toLowerCase() === normalizedEmail ||
+      (acc.user.username ? acc.user.username.toLowerCase() === normalizedEmail : false);
     if (!emailMatch) return false;
     if (password !== undefined) {
       return acc.password === password;

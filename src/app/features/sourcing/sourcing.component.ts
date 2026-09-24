@@ -237,7 +237,7 @@ export class SourcingComponent implements OnInit, OnDestroy {
         false,
         { context: new HttpContext().set(SKIP_LOADING, true) }
       ).subscribe({
-        next: async (res) => {
+        next: async (res: any) => {
           const responseData = await this.unpack(res);
           const task = responseData?.data ?? responseData;
           console.log('輪詢進度：', task);
@@ -253,7 +253,7 @@ export class SourcingComponent implements OnInit, OnDestroy {
             } else {
               // 若 response 沒帶 productId，從任務品項 (items) 取得
               this.aiTasksService.items({ taskId }).subscribe({
-                next: async (itemsRes) => {
+                next: async (itemsRes: any) => {
                   const itemsData = await this.unpack(itemsRes);
                   const items = itemsData?.data ?? itemsData ?? [];
                   const pId = items?.[0]?.productId;
@@ -263,7 +263,7 @@ export class SourcingComponent implements OnInit, OnDestroy {
                     console.error('無法在任務項目中找到 productId', itemsData);
                   }
                 },
-                error: (err) => {
+                error: (err: any) => {
                   console.error('查詢任務品項失敗', err);
                 }
               });
@@ -284,7 +284,7 @@ export class SourcingComponent implements OnInit, OnDestroy {
             });
           }
         },
-        error: (err) => {
+        error: (err: any) => {
           console.error('查詢進度失敗', err);
           this.isScouting.set(false);
           if (this.pollTimer) {
