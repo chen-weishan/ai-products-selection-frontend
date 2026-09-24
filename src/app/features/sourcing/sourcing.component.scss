@@ -224,6 +224,11 @@
         font-weight: 600;
         animation: pulse-loading 1.8s infinite ease-in-out;
       }
+
+      &.is-error {
+        color: #ef4444;
+        font-weight: 600;
+      }
     }
   }
 
@@ -243,6 +248,32 @@
       color: var(--ink-3);
       padding: 24px 0;
       text-align: center;
+    }
+
+    &.error-prompt {
+      padding: 20px 16px;
+      background: #fef2f2;
+      border: 1px dashed #fca5a5;
+      border-radius: 8px;
+      margin-bottom: 0;
+
+      .error-box {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+
+        .error-badge {
+          font-size: 14px;
+          font-weight: 700;
+          color: #dc2626;
+        }
+
+        .error-detail {
+          font-size: 13px;
+          color: #991b1b;
+        }
+      }
     }
   }
 

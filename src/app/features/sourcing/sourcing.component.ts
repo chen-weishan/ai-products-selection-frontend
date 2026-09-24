@@ -43,6 +43,7 @@ export class SourcingComponent implements OnInit, OnDestroy {
   public selectedCategoryId = signal<number | null>(null);
   public keyword = signal<string>('');
   public scoutReport = signal<any | null>(null);
+  public scoutError = signal<string | null>(null);
   public frequency = signal<string>('0/50');
   public isQuotaExhausted = signal<boolean>(false);
 
@@ -166,6 +167,7 @@ export class SourcingComponent implements OnInit, OnDestroy {
     }
 
     this.scoutReport.set(null);
+    this.scoutError.set(null);
     this.isScouting.set(true);
     this.scoutStartTime = Date.now();
 
@@ -184,6 +186,13 @@ export class SourcingComponent implements OnInit, OnDestroy {
 
         if (!taskId) {
           this.isScouting.set(false);
+          this.scoutError.set('查詢失敗：伺服器未回傳探索任務編號。');
+          this.dialogService.Confirm({
+            title: '查詢失敗',
+            message: '伺服器未回傳探索任務編號，請稍後再試！',
+            confirmText: '確定',
+            isDanger: true
+          });
           return;
         }
 
@@ -198,31 +207,16 @@ export class SourcingComponent implements OnInit, OnDestroy {
         this.pollAiTask(taskId, productId);
       },
       error: (err) => {
-        console.warn('發起探索 API 請求失敗，模擬 2.5 秒搜尋過程後載入範例報告:', err);
-        setTimeout(() => {
-          this.executionSeconds.set(3);
-          this.scoutReport.set({
-            productId: 101,
-            productName: keyword,
-            keyword: keyword,
-            categoryId: categoryId,
-            report: `根據全網社群討論量與電商搜尋熱度分析，關鍵字「${keyword}」在近 14 日呈現急遽加溫態勢，在 Instagram 與 Threads 短影音有高密度的開箱與自發性討論。目前供應鏈端同質化品項較少，具備較高的首發溢價空間。`,
-            opportunitySignals: [
-              '社群討論聲量週增長率達 +185%，主要集中於 20-35 歲都會消費客群',
-              '關鍵搜尋詞轉換意向強烈，相關標籤累積突破 50 萬次曝光',
-              '供應鏈現有打樣週期平均僅需 7-10 天，開模門檻低'
-            ],
-            riskSignals: [
-              '產品壽命週期受限於社群熱潮，預期高原期僅能維持約 4-6 週',
-              '需防範低價競品在 3 週內快速跟單，建議首批以少量試銷切入'
-            ],
-            heatStage: 'GROWING',
-            stageWeeks: 2,
-            estimatedLifespanDays: 45,
-            timeGapDays: 24
-          });
-          this.isScouting.set(false);
-        }, 2500);
+        console.error('發起探索 API 請求失敗:', err);
+        this.isScouting.set(false);
+        this.scoutReport.set(null);
+        this.scoutError.set('查詢失敗：無法發起尋源探索，伺服器連線異常或尚未提供此服務。');
+        this.dialogService.Confirm({
+          title: '查詢失敗',
+          message: '發起 AI 尋源探索失敗，伺服器連線異常或尚未支援此服務，請稍後再試！',
+          confirmText: '確定',
+          isDanger: true
+        });
       }
     });
   }
@@ -279,8 +273,9 @@ export class SourcingComponent implements OnInit, OnDestroy {
               clearInterval(this.pollTimer);
               sessionStorage.removeItem(this.STORAGE_KEY);
             }
+            this.scoutError.set('查詢失敗：AI 尋源探索任務執行失敗。');
             this.dialogService.Confirm({
-              title: '探索失敗',
+              title: '查詢失敗',
               message: 'AI 尋源探索失敗，請稍後再試！',
               confirmText: '確定',
               isDanger: true
@@ -294,6 +289,13 @@ export class SourcingComponent implements OnInit, OnDestroy {
             clearInterval(this.pollTimer);
             sessionStorage.removeItem(this.STORAGE_KEY);
           }
+          this.scoutError.set('查詢失敗：無法查詢探索任務進度。');
+          this.dialogService.Confirm({
+            title: '查詢失敗',
+            message: '查詢探索任務進度失敗，請稍後再試！',
+            confirmText: '確定',
+            isDanger: true
+          });
         }
       });
     }, 5000);
@@ -313,6 +315,13 @@ export class SourcingComponent implements OnInit, OnDestroy {
       error: (err) => {
         console.error('取得尋源報告失敗', err);
         this.isScouting.set(false);
+        this.scoutError.set('查詢失敗：無法取得 AI 尋源分析報告。');
+        this.dialogService.Confirm({
+          title: '查詢失敗',
+          message: '無法取得 AI 尋源分析報告，請稍後再試！',
+          confirmText: '確定',
+          isDanger: true
+        });
       }
     });
   }
