@@ -2,7 +2,6 @@ import { Component, OnInit, OnDestroy } from '@angular/core';
 import {
   AITasksService,
   AiBudgetControllerService,
-  AiTaskControllerService,
   ProductReferenceControllerService,
   CategoryTreeResponse,
   ProductControllerService,
@@ -32,7 +31,6 @@ export class SourcingComponent implements OnInit, OnDestroy {
   private readonly categoryService = inject(ProductReferenceControllerService);
   private readonly productService = inject(ProductControllerService);
   private soucingService = inject(SourcingScoutControllerService);
-  private aiTaskService = inject(AiTaskControllerService);
   private aiTasksService = inject(AITasksService);
   private aiBudgetService = inject(AiBudgetControllerService);
   private readonly dialogService = inject(DialogService);
@@ -237,7 +235,7 @@ export class SourcingComponent implements OnInit, OnDestroy {
     }
 
     this.pollTimer = setInterval(() => {
-      this.aiTaskService.getAiTaskById({ id: taskId },
+      this.aiTasksService.get2({ taskId },
         'body',
         false,
         { context: new HttpContext().set(SKIP_LOADING, true) }
