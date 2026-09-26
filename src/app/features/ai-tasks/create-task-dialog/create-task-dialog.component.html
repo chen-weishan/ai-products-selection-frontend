@@ -1,0 +1,66 @@
+<div class="dialog-container">
+  <div class="dialog-header">
+    <h3 mat-dialog-title class="dialog-title">建立 AI 任務</h3>
+    <p class="dialog-subtitle">手動觸發指定任務類型與商品清單的非同步 AI 分析</p>
+  </div>
+
+  <mat-dialog-content class="dialog-content">
+    <form [formGroup]="form" (ngSubmit)="onSubmit()">
+      <!-- 任務類型 -->
+      <div class="field-block">
+        <label class="field-label">任務類型 <span class="required">*</span></label>
+        <mat-form-field appearance="outline" class="full-width" subscriptSizing="dynamic">
+          <mat-select formControlName="taskType" panelClass="unified-mat-select-panel">
+            @for (item of taskTypes; track item.value) {
+              <mat-option [value]="item.value">
+                <span class="type-name">{{ item.label }}</span>
+                <span class="pool-tag">{{ item.pool }}</span>
+              </mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+        <span class="field-hint">選擇要執行的分析 Agent 或演算法模組</span>
+      </div>
+
+      <!-- 商品編號輸入 -->
+      <div class="field-block">
+        <label class="field-label">商品編號 (Product IDs) <span class="required">*</span></label>
+        <mat-form-field appearance="outline" class="full-width textarea-field" subscriptSizing="dynamic">
+          <textarea
+            matInput
+            rows="4"
+            formControlName="productIdsInput"
+            placeholder="請輸入商品 ID，多筆可用逗號、空格或換行分隔&#10;例如：101, 102, 103"
+          ></textarea>
+        </mat-form-field>
+        <div class="field-footer">
+          <span class="field-hint">支援單一或批次輸入正整數 ID</span>
+          <span class="id-count-badge" [class.has-ids]="parsedIds.length > 0">
+            已識別 {{ parsedIds.length }} 個商品
+          </span>
+        </div>
+      </div>
+
+      <!-- 選項：強制刷新 -->
+      <div class="option-block">
+        <mat-checkbox formControlName="forceRefresh" color="primary">
+          <span class="checkbox-text">強制刷新快取 (忽略現有快取重新呼叫外部 LLM)</span>
+        </mat-checkbox>
+      </div>
+    </form>
+  </mat-dialog-content>
+
+  <mat-dialog-actions align="end" class="dialog-actions">
+    <button type="button" class="btn" (click)="onCancel()">
+      取消
+    </button>
+    <button
+      type="button"
+      class="btn pri"
+      [disabled]="!isValid"
+      (click)="onSubmit()"
+    >
+      確認建立
+    </button>
+  </mat-dialog-actions>
+</div>

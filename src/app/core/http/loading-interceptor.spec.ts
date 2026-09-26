@@ -1,19 +1,9 @@
 import { TestBed } from '@angular/core/testing';
-import { HttpInterceptorFn, HttpContextToken } from '@angular/common/http';
-import { inject } from '@angular/core';
-import { finalize } from 'rxjs/operators';
+import { HttpContext, HttpInterceptorFn, HttpRequest, HttpResponse } from '@angular/common/http';
+import { of } from 'rxjs';
+
 import { LoadingService } from '../../services/loading-service';
-
-export const SKIP_LOADING = new HttpContextToken<boolean>(() => false);
-export const loadingInterceptor: HttpInterceptorFn = (req, next) => {
-  if (req.context.get(SKIP_LOADING)) {
-    return next(req);
-  }
-  const loadingService = inject(LoadingService);
-  loadingService.show();
-  return next(req).pipe(finalize(() => loadingService.hide()));
-
-}
+import { loadingInterceptor, SKIP_GLOBAL_LOADING } from './loading-interceptor';
 
 describe('loadingInterceptor', () => {
   const interceptor: HttpInterceptorFn = (req, next) =>
@@ -25,5 +15,19 @@ describe('loadingInterceptor', () => {
 
   it('should be created', () => {
     expect(interceptor).toBeTruthy();
+  });
+
+  it('does not show the full-page overlay for background requests', () => {
+    const loading = TestBed.inject(LoadingService);
+    const show = vi.spyOn(loading, 'show');
+    const hide = vi.spyOn(loading, 'hide');
+    const request = new HttpRequest('GET', '/api/v1/imports/6', null, {
+      context: new HttpContext().set(SKIP_GLOBAL_LOADING, true),
+    });
+
+    interceptor(request, () => of(new HttpResponse({ status: 200 }))).subscribe();
+
+    expect(show).not.toHaveBeenCalled();
+    expect(hide).not.toHaveBeenCalled();
   });
 });

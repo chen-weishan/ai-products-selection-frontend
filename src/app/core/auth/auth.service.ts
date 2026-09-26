@@ -5,12 +5,14 @@ import { LoginRequest, LoginResponse, UserInfo, UserRole } from '../models/auth-
 import { Observable, delay, of, tap, throwError } from 'rxjs';
 import { MOCK_ACCOUNTS, MockAccount, createMockLoginResponse, findMockAccount } from './mock-users';
 import { map } from 'rxjs';
+import { environment } from '../../../environments/environment';
+
 @Injectable({
-  providedIn: 'root'
+  providedIn: 'root',
 })
 export class AuthService {
-  private http = inject(HttpClient);
-  private router = inject(Router);
+  private readonly http = inject(HttpClient);
+  private readonly router = inject(Router);
 
   private readonly ACCESS_TOKEN_KEY = 'ssds_access_Token';
   private readonly REFRESH_TOKEN_KEY = 'ssds_refresh_Token';
@@ -27,7 +29,7 @@ export class AuthService {
   readonly isLoggedIn = computed(() => !!this.currentUser() && !!this.getAccessToken());
 
   /** 是否為唯讀觀察者 (VIEWER) */
-  readonly isViewer = computed(() => this.currentUser()?.role === 'VIEWER');
+  readonly isViewer = computed(() => this.hasRole('VIEWER'));
 
   /** 是否具備權重發布與編輯權限 (BUYER_LEAD 或 SYS_ADMIN) */
   readonly canManageWeights = computed(() => this.hasRole(['BUYER_LEAD', 'SYS_ADMIN']));
@@ -43,10 +45,6 @@ export class AuthService {
     return this.mockAccounts;
   }
 
-  /**
-   * 登入驗證
-   * 假資料模式下會比對 mock-users 帳密，並給予 400ms 網路延遲模擬
-   */
   login(credentials: LoginRequest): Observable<LoginResponse> {
     if (this.useMock) {
       const account = findMockAccount(credentials.email, credentials.password);
@@ -57,7 +55,7 @@ export class AuthService {
       }
 
       const mockResponse = createMockLoginResponse(account);
-      return of(mockResponse).pipe(
+      return of(mockResponse as any).pipe(
         delay(400),
         tap(res => {
           this.saveAuthData(res);
@@ -65,17 +63,11 @@ export class AuthService {
       );
     }
 
-    return this.http.post<unknown>('/api/v1/auth/login', credentials).pipe(
+    const loginUrl = environment?.apiBaseUrl ? `${environment.apiBaseUrl}/auth/login` : '/api/v1/auth/login';
+    return this.http.post<unknown>(loginUrl, credentials).pipe(
       tap(res => console.log('[AuthService] /auth/login response:', res)),
       map(res => {
         const anyRes = res as any;
-
-        // 兼容多種後端回傳結構：
-        // 結構 1: { data: { tokens: { accessToken: "..." } } }
-        // 結構 2: { data: { accessToken: "..." } }
-        // 結構 3: { tokens: { accessToken: "..." } }
-        // 結構 4: { accessToken: "...", roles: [...] } (扁平結構)
-        // 結構 5: { access_token: "..." } (標準 OAuth2 / snake_case)
         const tokens = anyRes?.data?.tokens || anyRes?.tokens;
         const accessToken =
           tokens?.accessToken ||
@@ -94,21 +86,32 @@ export class AuthService {
           anyRes?.refresh_token;
 
         const backendUser = anyRes?.data?.user || anyRes?.user;
-        const roles = backendUser?.roles || anyRes?.data?.roles || anyRes?.roles || [];
+        const rawRoles = backendUser?.roles || anyRes?.data?.roles || anyRes?.roles || (anyRes?.role ? [anyRes.role] : []);
+        const roles: UserRole[] = Array.isArray(rawRoles) ? rawRoles : [rawRoles];
+        const primaryRole: UserRole = roles[0] || 'BUYER';
 
         if (!accessToken) {
           console.error('[AuthService] 無法在後端回應中解析出 accessToken:', res);
           throw new Error(anyRes?.error?.message || anyRes?.message || '登入失敗，未取得驗證 token');
         }
 
+        const email = backendUser?.email ?? anyRes?.email ?? anyRes?.username ?? credentials.email;
+        const displayName = backendUser?.displayName ?? backendUser?.name ?? anyRes?.displayName ?? anyRes?.name ?? email;
+
         const loginResponse: LoginResponse = {
           accessToken: accessToken,
           refreshToken: refreshToken,
+          email: email,
+          displayName: displayName,
+          roles: roles,
           user: {
             id: backendUser?.id ?? anyRes?.id ?? 0,
-            username: backendUser?.email ?? backendUser?.username ?? anyRes?.email ?? credentials.email,
-            name: backendUser?.displayName ?? backendUser?.name ?? backendUser?.email ?? '使用者',
-            role: (roles[0] as any) || 'BUYER',
+            username: email,
+            name: displayName,
+            email: email,
+            displayName: displayName,
+            role: primaryRole,
+            roles: roles,
           }
         };
         this.saveAuthData(loginResponse);
@@ -124,7 +127,7 @@ export class AuthService {
     ) || this.mockAccounts[0];
 
     const mockResponse = createMockLoginResponse(account);
-    return of(mockResponse).pipe(
+    return of(mockResponse as any).pipe(
       delay(200),
       tap(res => {
         this.saveAuthData(res);
@@ -136,49 +139,79 @@ export class AuthService {
     localStorage.removeItem(this.ACCESS_TOKEN_KEY);
     localStorage.removeItem(this.REFRESH_TOKEN_KEY);
     localStorage.removeItem(this.USER_KEY);
+    localStorage.removeItem('ssds_access_token');
+    localStorage.removeItem('ssds_user_info');
     this.currentUser.set(null);
-    this.router.navigate(['/login']);
+    void this.router.navigate(['/login']);
   }
 
   getAccessToken(): string | null {
-    return localStorage.getItem(this.ACCESS_TOKEN_KEY);
+    return localStorage.getItem(this.ACCESS_TOKEN_KEY) || localStorage.getItem('ssds_access_token');
   }
 
   getRefreshToken(): string | null {
     return localStorage.getItem(this.REFRESH_TOKEN_KEY);
   }
 
-  /** 保留舊名稱以防相容性問題 */
   gatRefreshToken(): string | null {
     return this.getRefreshToken();
   }
 
-  hasRole(roles: UserRole | UserRole[]): boolean {
+  hasRole(roles: UserRole | readonly UserRole[]): boolean {
     const user = this.currentUser();
     if (!user) return false;
 
-    if (Array.isArray(roles)) {
-      return roles.includes(user.role);
-    }
-    return user.role === roles;
+    const acceptedRoles = Array.isArray(roles) ? roles : [roles];
+    const userRoles = user.roles && user.roles.length > 0 ? user.roles : (user.role ? [user.role] : []);
+    return userRoles.some(role => (acceptedRoles as any).includes(role));
   }
 
-  private saveAuthData(response: LoginResponse) {
-    localStorage.setItem(this.ACCESS_TOKEN_KEY, response.accessToken);
+  private saveAuthData(response: any): void {
+    const token = response.accessToken || response.data?.accessToken;
+    const email = response.email || response.user?.email || response.user?.username || '';
+    const displayName = response.displayName || response.user?.displayName || response.user?.name || email;
+    const rawRoles = response.roles || response.user?.roles || (response.user?.role ? [response.user.role] : ['BUYER']);
+    const roles: UserRole[] = Array.isArray(rawRoles) ? rawRoles : [rawRoles];
+    const primaryRole: UserRole = roles[0] || 'BUYER';
+
+    const user: UserInfo = {
+      id: response.id || response.user?.id || 0,
+      username: email,
+      name: displayName,
+      email: email,
+      displayName: displayName,
+      role: primaryRole,
+      roles: roles,
+    };
+
+    localStorage.setItem(this.ACCESS_TOKEN_KEY, token);
+    localStorage.setItem('ssds_access_token', token);
 
     if (response.refreshToken) {
       localStorage.setItem(this.REFRESH_TOKEN_KEY, response.refreshToken);
     }
 
-    localStorage.setItem(this.USER_KEY, JSON.stringify(response.user));
-    this.currentUser.set(response.user);
+    localStorage.setItem(this.USER_KEY, JSON.stringify(user));
+    localStorage.setItem('ssds_user_info', JSON.stringify(user));
+    this.currentUser.set(user);
   }
 
   private getStoredUser(): UserInfo | null {
-    const data = localStorage.getItem(this.USER_KEY);
+    const data = localStorage.getItem(this.USER_KEY) || localStorage.getItem('ssds_user_info');
     if (!data) return null;
     try {
-      return JSON.parse(data) as UserInfo;
+      const parsed = JSON.parse(data);
+      if (!parsed) return null;
+      const roles: UserRole[] = Array.isArray(parsed.roles) ? parsed.roles : (parsed.role ? [parsed.role] : ['BUYER']);
+      return {
+        id: parsed.id ?? 0,
+        username: parsed.username ?? parsed.email ?? '',
+        name: parsed.name ?? parsed.displayName ?? '使用者',
+        email: parsed.email ?? parsed.username ?? '',
+        displayName: parsed.displayName ?? parsed.name ?? '使用者',
+        role: parsed.role ?? roles[0] ?? 'BUYER',
+        roles: roles,
+      };
     } catch {
       return null;
     }

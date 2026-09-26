@@ -7,7 +7,7 @@ export const roleGuard: CanActivateFn = (route, state) => {
   const router = inject(Router);
   const authService = inject(AuthService);
 
-  const expectedRoles = route.data?.['roles'] as UserRole[] | undefined;
+  const expectedRoles = (route.data?.['roles'] ?? []) as UserRole[];
 
   // 若該路由未限制角色，直接放行
   if (!expectedRoles || expectedRoles.length === 0) {
@@ -19,7 +19,7 @@ export const roleGuard: CanActivateFn = (route, state) => {
     return true;
   }
 
-  console.warn(`[roleGuard] 權限不足: 當前使用者角色為 '${authService.currentUser()?.role}'，無法存取 '${state.url}'`);
+  console.warn(`[roleGuard] 權限不足，無法存取 '${state?.url}'`);
   return router.createUrlTree(['/dashboard']);
 };
 
