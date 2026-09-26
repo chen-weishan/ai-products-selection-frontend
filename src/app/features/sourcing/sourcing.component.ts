@@ -229,7 +229,7 @@ export class SourcingComponent implements OnInit, OnDestroy {
     }
 
     this.pollTimer = setInterval(() => {
-      this.aiTasksService.get1({ taskId },
+      this.aiTasksService.get2({ taskId },
         'body',
         false,
         { context: new HttpContext().set(SKIP_LOADING, true) }

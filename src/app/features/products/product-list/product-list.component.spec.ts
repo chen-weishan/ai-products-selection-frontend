@@ -287,6 +287,12 @@ describe('ProductListComponent', () => {
     );
   });
 
+  it('opens the selected product in the S-06 detail route', () => {
+    component.openProductDetail(101);
+
+    expect(navigate).toHaveBeenCalledWith(['/products', 101]);
+  });
+
   it('adds all selected products to the analysis queue', () => {
     products.set([
       { id: 101, name: 'A', trackType: 'A', status: 'EVALUATING' },

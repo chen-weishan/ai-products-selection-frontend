@@ -61,6 +61,13 @@ export const routes: Routes = [
           )
       },
       {
+        path: 'products/:id',
+        loadComponent: () =>
+          import('./features/products/product-detail/product-detail.component').then(
+            m => m.ProductDetailComponent
+          )
+      },
+      {
         path: 'ranking',
         loadComponent: () =>
           import('./features/ranking/ranking.component').then(

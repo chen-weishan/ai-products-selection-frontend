@@ -253,7 +253,18 @@
         <ng-container matColumnDef="name">
           <th mat-header-cell *matHeaderCellDef mat-sort-header="name">品項名稱</th>
           <td mat-cell *matCellDef="let product">
-            {{ product.name ?? '—' }}
+            @if (product.id != null) {
+              <button
+                type="button"
+                class="product-detail-link"
+                [attr.aria-label]="'檢視' + (product.name ?? '品項') + '詳情與 AI 分析'"
+                (click)="openProductDetail(product.id)"
+              >
+                {{ product.name ?? '—' }}
+              </button>
+            } @else {
+              {{ product.name ?? '—' }}
+            }
             @if (product.hasRisk) {
               <span class="risk-dot" title="此品項有風險標記"></span>
             }

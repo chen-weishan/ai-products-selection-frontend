@@ -76,6 +76,8 @@ tr.mat-mdc-row:hover td { background: #f8fbfc; }
 .mat-column-actions button { min-width: 32px; padding: 0 4px; }
 .mat-column-cost, .mat-column-price, .mat-column-margin, .mat-column-score, .mat-column-grade, .mat-column-timeGapDays, .mat-column-updatedAt, .number-cell { font-family: var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .number-cell { text-align: right; }
+.product-detail-link { padding: 0; border: 0; background: transparent; color: var(--teal); font: inherit; font-weight: 600; text-align: left; cursor: pointer; }
+.product-detail-link:hover { text-decoration: underline; }
 .risk-dot { display: inline-block; width: 7px; height: 7px; margin-left: 5px; border-radius: 50%; background: var(--risk); vertical-align: middle; }
 .insufficient-data { color: var(--warn); font-family: var(--sans); font-size: 11px; font-weight: 600; }
 

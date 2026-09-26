@@ -24,7 +24,7 @@ describe('AiTasksComponent', () => {
     items: ReturnType<typeof vi.fn>;
     cancel: ReturnType<typeof vi.fn>;
     retryFailed: ReturnType<typeof vi.fn>;
-    create2: ReturnType<typeof vi.fn>;
+    create1: ReturnType<typeof vi.fn>;
   };
 
   let mockAiBudgetService: {
@@ -99,7 +99,7 @@ describe('AiTasksComponent', () => {
       items: vi.fn().mockReturnValue(of({ success: true, data: [{ itemId: 1, productId: 501, status: 'SUCCEEDED', durationMs: 120 }] })),
       cancel: vi.fn().mockReturnValue(of({ success: true, data: { ...sampleTasks[0], status: 'CANCELLED' } })),
       retryFailed: vi.fn().mockReturnValue(of({ success: true, data: { taskId: 102, status: 'PENDING' } })),
-      create2: vi.fn().mockReturnValue(of({ success: true, data: { taskId: 103, status: 'PENDING', taskType: 'FULL_ANALYSIS' } })),
+      create1: vi.fn().mockReturnValue(of({ success: true, data: { taskId: 103, status: 'PENDING', taskType: 'FULL_ANALYSIS' } })),
     };
 
     mockAiBudgetService = {
@@ -143,9 +143,22 @@ describe('AiTasksComponent', () => {
 
   it('should create and load initial summary, budget, and tasks', () => {
     expect(component).toBeTruthy();
-    expect(mockAiTasksService.summary1).toHaveBeenCalled();
-    expect(mockAiBudgetService.current).toHaveBeenCalled();
-    expect(mockAiTasksService.list1).toHaveBeenCalled();
+    expect(mockAiTasksService.summary1).toHaveBeenCalledWith(
+      'body',
+      false,
+      expect.objectContaining({ httpHeaderAccept: 'application/json' })
+    );
+    expect(mockAiBudgetService.current).toHaveBeenCalledWith(
+      'body',
+      false,
+      expect.objectContaining({ httpHeaderAccept: 'application/json' })
+    );
+    expect(mockAiTasksService.list1).toHaveBeenCalledWith(
+      expect.objectContaining({ page: 0, size: 10 }),
+      'body',
+      false,
+      expect.objectContaining({ httpHeaderAccept: 'application/json' })
+    );
 
     expect(component.summary()).toEqual(sampleSummary);
     expect(component.budget()).toEqual(sampleBudget);
@@ -166,14 +179,19 @@ describe('AiTasksComponent', () => {
       expect.objectContaining({ status: 'FAILED', page: 0, size: 10 }),
       'body',
       false,
-      expect.anything()
+      expect.objectContaining({ httpHeaderAccept: 'application/json' })
     );
   });
 
   it('should toggle and load task items', () => {
     component.toggleTaskItems(101);
     expect(component.expandedTaskId()).toBe(101);
-    expect(mockAiTasksService.items).toHaveBeenCalledWith({ taskId: 101 }, 'body', false, expect.anything());
+    expect(mockAiTasksService.items).toHaveBeenCalledWith(
+      { taskId: 101 },
+      'body',
+      false,
+      expect.objectContaining({ httpHeaderAccept: 'application/json' })
+    );
 
     // Toggle again to collapse
     component.toggleTaskItems(101);
@@ -187,7 +205,12 @@ describe('AiTasksComponent', () => {
     expect(mockDialogService.Confirm).toHaveBeenCalledWith(
       expect.objectContaining({ isDanger: true })
     );
-    expect(mockAiTasksService.cancel).toHaveBeenCalledWith({ taskId: 101 });
+    expect(mockAiTasksService.cancel).toHaveBeenCalledWith(
+      { taskId: 101 },
+      'body',
+      false,
+      expect.objectContaining({ httpHeaderAccept: 'application/json' })
+    );
     expect(mockSnackBar.open).toHaveBeenCalledWith(expect.stringContaining('成功取消'), '關閉', expect.anything());
   });
 
@@ -198,7 +221,12 @@ describe('AiTasksComponent', () => {
     expect(mockDialogService.Confirm).toHaveBeenCalledWith(
       expect.objectContaining({ confirmText: '確認重跑' })
     );
-    expect(mockAiTasksService.retryFailed).toHaveBeenCalledWith({ taskId: 100 });
+    expect(mockAiTasksService.retryFailed).toHaveBeenCalledWith(
+      { taskId: 100 },
+      'body',
+      false,
+      expect.objectContaining({ httpHeaderAccept: 'application/json' })
+    );
     expect(mockSnackBar.open).toHaveBeenCalledWith(expect.stringContaining('已建立重試任務 #102'), '關閉', expect.anything());
   });
 
@@ -215,13 +243,18 @@ describe('AiTasksComponent', () => {
     component.openCreateDialog();
 
     expect(mockMatDialog.open).toHaveBeenCalled();
-    expect(mockAiTasksService.create2).toHaveBeenCalledWith({
-      createAiTaskRequest: {
-        taskType: 'FULL_ANALYSIS',
-        productIds: [101, 102],
-        options: { forceRefresh: true },
+    expect(mockAiTasksService.create1).toHaveBeenCalledWith(
+      {
+        createAiTaskRequest: {
+          taskType: 'FULL_ANALYSIS',
+          productIds: [101, 102],
+          options: { forceRefresh: true },
+        },
       },
-    });
+      'body',
+      false,
+      expect.objectContaining({ httpHeaderAccept: 'application/json' })
+    );
     expect(mockSnackBar.open).toHaveBeenCalledWith(expect.stringContaining('已成功建立 AI 任務 #103'), '關閉', expect.anything());
   });
 
