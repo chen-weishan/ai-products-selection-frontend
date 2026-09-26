@@ -1,4 +1,30 @@
-html, body {
+// Custom CSS variables from FRONTEND_UI_GUIDELINES
+:root {
+  --navy: #123A56;
+  --navy-deep: #0E2A3F;
+  --navy-line: #1D4A69;
+  --teal: #1E7A9E;
+  --teal-soft: #D8EAF2;
+  --a: #1E7A4D;
+  --b: #B8791A;
+  --c: #8A9299;
+  --risk: #C0392B;
+  --warn: #D68910;
+  --page: #EDF1F4;
+  --card: #FFFFFF;
+  --surface: #F4F6F8;
+  --ink: #16232E;
+  --ink-2: #4A5A67;
+  --ink-3: #8A9AA6;
+  --line: #DCE3E9;
+  --line-soft: #EAEFF3;
+  --sans: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif;
+  --serif: "Noto Serif TC", "Songti TC", serif;
+  --mono: "IBM Plex Mono", ui-monospace, monospace;
+}
+
+html,
+body {
   height: 100%;
   margin: 0;
   padding: 0;
@@ -9,7 +35,7 @@ html, body {
 .custom-confirm-dialog-panel {
   .mat-mdc-dialog-container .mdc-dialog__surface {
     border-radius: 12px !important; // 圓角調整
-    background-color: #FFFFFF;
+    background-color: #ffffff;
     padding: 0 !important;
   }
 }
