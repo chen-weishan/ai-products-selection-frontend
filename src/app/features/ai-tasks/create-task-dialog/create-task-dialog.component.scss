@@ -1,0 +1,180 @@
+:host {
+  --navy: #123a56;
+  --navy-deep: #0e2a3f;
+  --teal: #1e7a9e;
+  --teal-soft: #d8eaf2;
+  --a: #77B28C;
+  --b: #d97706;
+  --c: #64748b;
+  --risk: #95190C;
+  --line: #dce3e9;
+  --line-soft: #eaeff3;
+  --ink: #16232e;
+  --ink-2: #4a5a67;
+  --ink-3: #8a9aa6;
+  --sans: 'Noto Sans TC', 'PingFang TC', 'Microsoft JhengHei', sans-serif;
+  --mono: 'IBM Plex Mono', ui-monospace, monospace;
+}
+
+.dialog-container {
+  display: flex;
+  flex-direction: column;
+  padding: 4px 6px;
+  min-width: 380px;
+  max-width: 520px;
+}
+
+.dialog-header {
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line-soft);
+  margin-bottom: 16px;
+
+  .dialog-title {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--navy-deep);
+  }
+
+  .dialog-subtitle {
+    margin: 4px 0 0;
+    font-size: 12px;
+    color: var(--ink-3);
+  }
+}
+
+.dialog-content {
+  padding: 0 !important;
+  overflow: visible;
+
+  form {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+}
+
+.field-block {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+
+  .field-label {
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--ink-2);
+
+    .required {
+      color: var(--risk);
+    }
+  }
+
+  .field-hint {
+    font-size: 11.5px;
+    color: var(--ink-3);
+  }
+
+  .full-width {
+    width: 100%;
+  }
+
+  .field-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 2px;
+  }
+
+  .id-count-badge {
+    font-size: 11px;
+    font-family: var(--mono);
+    padding: 2px 8px;
+    border-radius: 4px;
+    background: var(--line-soft);
+    color: var(--ink-3);
+    transition: all 0.2s;
+
+    &.has-ids {
+      background: var(--teal-soft);
+      color: var(--teal);
+      font-weight: 600;
+    }
+  }
+}
+
+.type-name {
+  font-size: 13px;
+  color: var(--ink);
+}
+
+.pool-tag {
+  font-size: 10.5px;
+  font-family: var(--mono);
+  background: var(--line-soft);
+  color: var(--ink-2);
+  padding: 1px 6px;
+  border-radius: 3px;
+  margin-left: 8px;
+}
+
+.option-block {
+  padding-top: 4px;
+
+  .checkbox-text {
+    font-size: 12.5px;
+    color: var(--ink-2);
+  }
+}
+
+.dialog-actions {
+  padding-top: 18px;
+  margin-top: 18px;
+  border-top: 1px solid var(--line-soft);
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+// 按鈕系統規格 (.btn)
+.btn {
+  font-family: var(--sans);
+  font-size: 12px;
+  padding: 6px 16px;
+  height: 34px;
+  border-radius: 7px;
+  border: 1px solid var(--line);
+  background: #ffffff;
+  color: var(--ink-2);
+  cursor: pointer;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all 0.2s cubic-bezier(0.19, 1, 0.22, 1);
+
+  &:hover {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+  }
+
+  &:active {
+    transform: scale(0.96);
+  }
+
+  &.pri {
+    background: var(--teal);
+    border-color: var(--teal);
+    color: #ffffff;
+    font-weight: 500;
+
+    &:hover {
+      background: #186380;
+    }
+  }
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+}

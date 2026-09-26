@@ -2246,6 +2246,67 @@
             }
           }
         }
+      },
+      "get": {
+        "tags": [
+          "AI Tasks"
+        ],
+        "summary": "分頁查詢 AI 任務",
+        "description": "依任務編號由新到舊排序，可選擇狀態篩選。",
+        "operationId": "list_1",
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "PENDING",
+                "RUNNING",
+                "SUCCEEDED",
+                "FAILED",
+                "PARTIAL",
+                "CANCELLED"
+              ]
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 0,
+              "minimum": 0
+            }
+          },
+          {
+            "name": "size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponsePageResponseAiTaskResponse"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/ai/tasks/{taskId}/retry-failed": {
@@ -3125,6 +3186,59 @@
               "*/*": {
                 "schema": {
                   "$ref": "#/components/schemas/ApiResponseListImportFieldResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ai/tasks/summary": {
+      "get": {
+        "tags": [
+          "AI Tasks"
+        ],
+        "summary": "查詢 AI 任務摘要",
+        "operationId": "summary_1",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseAiTaskSummaryResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ai/tasks/{taskId}/cancel": {
+      "post": {
+        "tags": [
+          "AI Tasks"
+        ],
+        "summary": "取消排隊中或執行中的 AI 任務",
+        "operationId": "cancel",
+        "parameters": [
+          {
+            "name": "taskId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseAiTaskResponse"
                 }
               }
             }
@@ -7696,6 +7810,86 @@
           },
           "required": {
             "type": "boolean"
+          }
+        }
+      },
+      "AiTaskSummaryResponse": {
+        "type": "object",
+        "properties": {
+          "runningCount": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "monthlyCompletedCount": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "failedCount": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "ApiResponseAiTaskSummaryResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "data": {
+            "$ref": "#/components/schemas/AiTaskSummaryResponse"
+          },
+          "error": {
+            "$ref": "#/components/schemas/ApiError"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "PageResponseAiTaskResponse": {
+        "type": "object",
+        "properties": {
+          "content": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AiTaskResponse"
+            }
+          },
+          "page": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "size": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "totalElements": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "totalPages": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "ApiResponsePageResponseAiTaskResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "data": {
+            "$ref": "#/components/schemas/PageResponseAiTaskResponse"
+          },
+          "error": {
+            "$ref": "#/components/schemas/ApiError"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
           }
         }
       }
