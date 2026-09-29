@@ -145,7 +145,7 @@ export class ImportsComponent implements OnInit {
     const item = this.uploadResult()?.mappingSuggestions.find((value) => value.sourceHeader === header);
     if (!item) return '未辨識';
     if (item.status === 'BLOCKED_PERSONAL_DATA') return '疑似個資，已封鎖';
-    if (item.status === 'AUTO_MAPPED') return `系統建議 ${Math.round(item.confidence * 100)}%`;
+    if (item.status === 'AUTO_MAPPED') return `系統建議 ${Math.round(item.confidence)}%`;
     return '請手動對應';
   }
   suggestionClass(header: string): string {

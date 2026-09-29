@@ -1,107 +1,130 @@
 <section class="product-page">
   <header class="mh">
-    <div>
-      <h3>品項管理</h3>
+    <div class="title-block">
+      <div class="title-copy">
+        <span class="title-kicker">PRODUCT CATALOG</span>
+        <h3>品項管理</h3>
+      </div>
       <div class="sub">
-        共 {{ productService.totalElements() }} 筆
+        <span class="count-badge">{{ productService.totalElements() }}</span>
+        <span>筆品項</span>
         @if (selection.hasValue()) {
-          · 已選取 {{ selection.selected.length }} 筆
+          <span class="selection-summary">已選取 {{ selection.selected.length }} 筆</span>
         }
       </div>
     </div>
     <div class="tools">
       @if (canImport()) {
-        <a mat-stroked-button class="btn" routerLink="/imports">匯入 CSV</a>
+        <a mat-stroked-button class="btn" routerLink="/imports">
+          <span class="button-icon import-icon" aria-hidden="true"></span>
+          匯入 CSV
+        </a>
       }
       @if (canEdit()) {
-        <a mat-flat-button class="btn pri" routerLink="/products/new">＋ 新增品項</a>
+        <a mat-flat-button class="btn pri" routerLink="/products/new">
+          <span class="button-icon plus-icon" aria-hidden="true"></span>
+          新增品項
+        </a>
       }
     </div>
   </header>
 
   <form class="filter-bar" [formGroup]="filterForm">
-    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="filter-field search-field">
-      <mat-label>搜尋品項名稱</mat-label>
-      <input matInput formControlName="keyword" />
-    </mat-form-field>
+    <div class="filter-heading">
+      <div>
+        <strong>篩選條件</strong>
+        <span>快速縮小品項範圍</span>
+      </div>
+      <button mat-button class="reset-filter-btn" type="button" (click)="clearFilters()">
+        <span class="reset-icon" aria-hidden="true">↺</span>
+        清除條件
+      </button>
+    </div>
 
-    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="filter-field">
-      <mat-label>類別</mat-label>
-      <mat-select formControlName="categoryId" panelClass="unified-mat-select-panel">
-        <mat-option [value]="null">全部</mat-option>
-        @for (group of references.categoryGroups(); track group.id) {
-          <mat-optgroup [label]="group.label">
-            @for (category of group.options; track category.id) {
-              <mat-option [value]="category.id">{{ category.label }}</mat-option>
-            }
-          </mat-optgroup>
-        }
-      </mat-select>
-    </mat-form-field>
+    <div class="filter-grid">
+      <mat-form-field appearance="outline" subscriptSizing="dynamic" class="filter-field search-field">
+        <mat-label>搜尋品項名稱</mat-label>
+        <input matInput formControlName="keyword" />
+      </mat-form-field>
 
-    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="filter-field">
-      <mat-label>供應商</mat-label>
-      <mat-select formControlName="supplierId" panelClass="unified-mat-select-panel">
-        <mat-option [value]="null">全部</mat-option>
-        @for (supplier of references.suppliers(); track supplier.id) {
-          <mat-option [value]="supplier.id">{{ supplier.name }}</mat-option>
-        }
-      </mat-select>
-    </mat-form-field>
+      <mat-form-field appearance="outline" subscriptSizing="dynamic" class="filter-field">
+        <mat-label>類別</mat-label>
+        <mat-select formControlName="categoryId" panelClass="unified-mat-select-panel">
+          <mat-option [value]="null">全部</mat-option>
+          @for (group of references.categoryGroups(); track group.id) {
+            <mat-optgroup [label]="group.label">
+              @for (category of group.options; track category.id) {
+                <mat-option [value]="category.id">{{ category.label }}</mat-option>
+              }
+            </mat-optgroup>
+          }
+        </mat-select>
+      </mat-form-field>
 
-    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="filter-field compact-filter">
-      <mat-label>軌別</mat-label>
-      <mat-select formControlName="trackType" panelClass="unified-mat-select-panel">
-        <mat-option [value]="null">全部</mat-option>
-        @for (trackType of trackTypes; track trackType) {
-          <mat-option [value]="trackType">{{ trackType }} 軌</mat-option>
-        }
-      </mat-select>
-    </mat-form-field>
+      <mat-form-field appearance="outline" subscriptSizing="dynamic" class="filter-field">
+        <mat-label>供應商</mat-label>
+        <mat-select formControlName="supplierId" panelClass="unified-mat-select-panel">
+          <mat-option [value]="null">全部</mat-option>
+          @for (supplier of references.suppliers(); track supplier.id) {
+            <mat-option [value]="supplier.id">{{ supplier.name }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
 
-    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="filter-field">
-      <mat-label>尋源狀態</mat-label>
-      <mat-select formControlName="sourcingStatus" panelClass="unified-mat-select-panel">
-        <mat-option [value]="null">全部</mat-option>
-        @for (status of sourcingStatuses; track status) {
-          <mat-option [value]="status">{{ sourcingStatusLabel(status) }}</mat-option>
-        }
-      </mat-select>
-    </mat-form-field>
+      <mat-form-field appearance="outline" subscriptSizing="dynamic" class="filter-field compact-filter">
+        <mat-label>軌別</mat-label>
+        <mat-select formControlName="trackType" panelClass="unified-mat-select-panel">
+          <mat-option [value]="null">全部</mat-option>
+          @for (trackType of trackTypes; track trackType) {
+            <mat-option [value]="trackType">{{ trackType }} 軌</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
 
-    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="filter-field">
-      <mat-label>品項狀態</mat-label>
-      <mat-select formControlName="status" panelClass="unified-mat-select-panel">
-        <mat-option [value]="null">全部</mat-option>
-        @for (status of productStatuses; track status) {
-          <mat-option [value]="status">{{ productStatusLabel(status) }}</mat-option>
-        }
-      </mat-select>
-    </mat-form-field>
+      <mat-form-field appearance="outline" subscriptSizing="dynamic" class="filter-field">
+        <mat-label>尋源狀態</mat-label>
+        <mat-select formControlName="sourcingStatus" panelClass="unified-mat-select-panel">
+          <mat-option [value]="null">全部</mat-option>
+          @for (status of sourcingStatuses; track status) {
+            <mat-option [value]="status">{{ sourcingStatusLabel(status) }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
 
-    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="filter-field compact-filter">
-      <mat-label>分級</mat-label>
-      <mat-select formControlName="grade" panelClass="unified-mat-select-panel">
-        <mat-option [value]="null">全部</mat-option>
-        @for (grade of grades; track grade) {
-          <mat-option [value]="grade">{{ grade }} 級</mat-option>
-        }
-      </mat-select>
-    </mat-form-field>
+      <mat-form-field appearance="outline" subscriptSizing="dynamic" class="filter-field">
+        <mat-label>品項狀態</mat-label>
+        <mat-select formControlName="status" panelClass="unified-mat-select-panel">
+          <mat-option [value]="null">全部</mat-option>
+          @for (status of productStatuses; track status) {
+            <mat-option [value]="status">{{ productStatusLabel(status) }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
 
-    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="filter-field score-filter">
-      <mat-label>最低分數</mat-label>
-      <input matInput type="number" min="0" max="100" formControlName="minScore" />
-    </mat-form-field>
+      <mat-form-field appearance="outline" subscriptSizing="dynamic" class="filter-field compact-filter">
+        <mat-label>分級</mat-label>
+        <mat-select formControlName="grade" panelClass="unified-mat-select-panel">
+          <mat-option [value]="null">全部</mat-option>
+          @for (grade of grades; track grade) {
+            <mat-option [value]="grade">{{ grade }} 級</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
 
-    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="filter-field score-filter">
-      <mat-label>最高分數</mat-label>
-      <input matInput type="number" min="0" max="100" formControlName="maxScore" />
-    </mat-form-field>
+      <mat-form-field appearance="outline" subscriptSizing="dynamic" class="filter-field score-filter">
+        <mat-label>最低分數</mat-label>
+        <input matInput type="number" min="0" max="100" formControlName="minScore" />
+      </mat-form-field>
 
-    <mat-checkbox class="risk-filter" formControlName="hasRisk">只看有風險</mat-checkbox>
+      <mat-form-field appearance="outline" subscriptSizing="dynamic" class="filter-field score-filter">
+        <mat-label>最高分數</mat-label>
+        <input matInput type="number" min="0" max="100" formControlName="maxScore" />
+      </mat-form-field>
 
-    <button mat-stroked-button class="btn reset-filter-btn" type="button" (click)="clearFilters()">清除條件</button>
+      <div class="risk-filter-wrap">
+        <mat-checkbox class="risk-filter" formControlName="hasRisk">只看有風險</mat-checkbox>
+      </div>
+    </div>
   </form>
 
   @if (references.categoryError()) {
