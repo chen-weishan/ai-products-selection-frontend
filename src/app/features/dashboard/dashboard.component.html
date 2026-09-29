@@ -99,13 +99,13 @@
 <div class="ranking-header">
   <div class="range-tabs main-tabs">
     <button type="button" class="range-btn" [class.active]="activeTab === 'viral'"
-      (click)="activeTab = 'viral'">話題爆款榜</button>
+      (click)="switchTab('viral')">話題爆款榜</button>
     <button type="button" class="range-btn" [class.active]="activeTab === 'festival'"
-      (click)="activeTab = 'festival'">節慶檔期榜</button>
+      (click)="switchTab('festival')">節慶檔期榜</button>
     <button type="button" class="range-btn" [class.active]="activeTab === 'replenishment'"
-      (click)="activeTab = 'replenishment'">常態補貨榜</button>
+      (click)="switchTab('replenishment')">常態補貨榜</button>
     <button type="button" class="range-btn" [class.active]="activeTab === 'seasonal'"
-      (click)="activeTab = 'seasonal'">季節導向榜</button>
+      (click)="switchTab('seasonal')">季節導向榜</button>
   </div>
 
   <div class="period-switcher">
@@ -146,8 +146,9 @@
       </tr>
     </thead>
     <tbody>
+      @if (!isLoadingRankings) {
       @for (item of getRankingsForTab(activeTab); track item.productId || $index; let i = $index) {
-      <tr class="clickable-row">
+      <tr class="clickable-row" (click)="navigateToProduct(item.productId)">
         <td class="rank mono">{{ i + 1 }}</td>
         <td class="name">
           {{ item.productName }}
@@ -186,6 +187,7 @@
       <tr>
         <td colspan="7" class="empty-cell">此榜單暫無排行資料</td>
       </tr>
+      }
       }
     </tbody>
   </table>
