@@ -39,6 +39,8 @@ describe('ProductEditorService', () => {
         data: {
           product: { id: 101, name: '抹茶餅乾' },
           warnings: ['同類別已有相同名稱的品項，資料仍已儲存'],
+          taskId: 501,
+          taskStatus: 'PENDING',
         },
       }),
     );
@@ -57,6 +59,8 @@ describe('ProductEditorService', () => {
     );
     expect(result.product.id).toBe(101);
     expect(result.warnings).toHaveLength(1);
+    expect(result.taskId).toBe(501);
+    expect(result.taskStatus).toBe('PENDING');
     expect(service.saving()).toBe(false);
   });
 

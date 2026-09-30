@@ -7,6 +7,8 @@ import { ProductCreateRequest, ProductResponse } from '../../api/model/models';
 export interface ProductSaveResult {
   product: ProductResponse;
   warnings: readonly string[];
+  taskId?: number;
+  taskStatus?: string;
 }
 
 export type ProductSaveRequest = ProductCreateRequest;
@@ -44,7 +46,12 @@ export class ProductEditorService {
 
     return action.pipe(
       map((response) => {
-        const result = unwrap<{ product?: ProductResponse; warnings?: Array<string> }>(
+        const result = unwrap<{
+          product?: ProductResponse;
+          warnings?: Array<string>;
+          taskId?: number;
+          taskStatus?: string;
+        }>(
           response as any,
           '儲存品項失敗',
         );
@@ -54,6 +61,8 @@ export class ProductEditorService {
         return {
           product: result.product,
           warnings: result.warnings ?? [],
+          taskId: result.taskId,
+          taskStatus: result.taskStatus,
         };
       }),
       this.handleError(),

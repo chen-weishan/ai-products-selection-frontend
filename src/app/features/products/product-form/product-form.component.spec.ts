@@ -31,7 +31,7 @@ describe('ProductFormComponent', () => {
   const loadReviewSummary = vi.fn();
   const saveAffinities = vi.fn();
   const uploadReviewFile = vi.fn();
-  const analyzeBatch = vi.fn();
+  const trackAnalysisTask = vi.fn();
   const clearSupplements = vi.fn();
   const navigate = vi.fn();
   const snackOpen = vi.fn();
@@ -58,7 +58,7 @@ describe('ProductFormComponent', () => {
       loadReviewSummary,
       saveAffinities,
       uploadReviewFile,
-      analyzeBatch,
+      trackAnalysisTask,
       clearSupplements,
       navigate,
       snackOpen,
@@ -93,7 +93,6 @@ describe('ProductFormComponent', () => {
         lowConfidence: true,
       }),
     );
-    analyzeBatch.mockReturnValue(of({ queuedCount: 1 }));
     navigate.mockResolvedValue(true);
 
     await TestBed.configureTestingModule({
@@ -174,7 +173,7 @@ describe('ProductFormComponent', () => {
         },
         {
           provide: ProductService,
-          useValue: { analyzeBatch },
+          useValue: { trackAnalysisTask },
         },
         { provide: AccessControlService, useValue: { hasRole: () => true } },
         { provide: DialogService, useValue: { Confirm: vi.fn(() => of(true)) } },
@@ -213,7 +212,12 @@ describe('ProductFormComponent', () => {
         of({ product: { id: 104, name: '節慶新品', status: 'DRAFT' }, warnings: [] }),
       )
       .mockReturnValueOnce(
-        of({ product: { id: 104, name: '節慶新品', status: 'EVALUATING' }, warnings: [] }),
+        of({
+          product: { id: 104, name: '節慶新品', status: 'EVALUATING' },
+          warnings: [],
+          taskId: 504,
+          taskStatus: 'PENDING',
+        }),
       );
     const reviewFile = new File(['content,rating\n很好吃,5'], 'reviews.csv', {
       type: 'text/csv',
@@ -243,7 +247,7 @@ describe('ProductFormComponent', () => {
       104,
       expect.objectContaining({ saveAsDraft: false }),
     ]);
-    expect(analyzeBatch).toHaveBeenCalledWith([104]);
+    expect(trackAnalysisTask).toHaveBeenCalledWith(504, 1);
     expect(navigate).toHaveBeenCalledWith(['/products']);
   });
 
@@ -253,7 +257,12 @@ describe('ProductFormComponent', () => {
         of({ product: { id: 101, name: '抹茶餅乾', status: 'DRAFT' }, warnings: [] }),
       )
       .mockReturnValueOnce(
-        of({ product: { id: 101, name: '抹茶餅乾', status: 'EVALUATING' }, warnings: [] }),
+        of({
+          product: { id: 101, name: '抹茶餅乾', status: 'EVALUATING' },
+          warnings: [],
+          taskId: 501,
+          taskStatus: 'PENDING',
+        }),
       );
     component.form.patchValue({
       name: '抹茶餅乾',
@@ -293,6 +302,7 @@ describe('ProductFormComponent', () => {
       101,
       expect.objectContaining({ saveAsDraft: false }),
     ]);
+    expect(trackAnalysisTask).toHaveBeenCalledWith(501, 1);
     expect(navigate).toHaveBeenCalledWith(['/products']);
   });
 
@@ -396,22 +406,26 @@ describe('ProductFormComponent', () => {
 
     expect(saveProduct).toHaveBeenCalledOnce();
     expect(saveProduct).toHaveBeenCalledWith(null, expect.objectContaining({ saveAsDraft: true }));
-    expect(analyzeBatch).not.toHaveBeenCalled();
+    expect(trackAnalysisTask).not.toHaveBeenCalled();
     expect(component.persistedStatus()).toBe('DRAFT');
     expect(component.supplementFailureRetainedAsDraft()).toBe(true);
     expect(component.supplementalSaveErrors()).toEqual(['節慶關聯度：節慶服務暫時無法使用']);
     expect(navigate).not.toHaveBeenCalled();
   });
 
-  it('does not report an activated product as draft when only analysis scheduling fails', () => {
+  it('does not create a second analysis task after the backend activates a product', () => {
     saveProduct
       .mockReturnValueOnce(
         of({ product: { id: 107, name: '待評分新品', status: 'DRAFT' }, warnings: [] }),
       )
       .mockReturnValueOnce(
-        of({ product: { id: 107, name: '待評分新品', status: 'EVALUATING' }, warnings: [] }),
+        of({
+          product: { id: 107, name: '待評分新品', status: 'EVALUATING' },
+          warnings: [],
+          taskId: 507,
+          taskStatus: 'PENDING',
+        }),
       );
-    analyzeBatch.mockReturnValue(throwError(() => new Error('評分服務暫時無法使用')));
     component.form.patchValue({
       name: '待評分新品',
       categoryId: 10,
@@ -423,8 +437,10 @@ describe('ProductFormComponent', () => {
     component.save(false);
 
     expect(component.persistedStatus()).toBe('EVALUATING');
+    expect(trackAnalysisTask).toHaveBeenCalledWith(507, 1);
     expect(component.supplementFailureRetainedAsDraft()).toBe(false);
-    expect(component.supplementalSaveErrors()).toEqual(['評分排程：評分服務暫時無法使用']);
+    expect(component.supplementalSaveErrors()).toEqual([]);
+    expect(navigate).toHaveBeenCalledWith(['/products']);
   });
 
   it('accepts one review CSV dropped on the upload zone', () => {

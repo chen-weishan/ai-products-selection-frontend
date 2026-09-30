@@ -248,6 +248,15 @@ export class ProductService implements OnDestroy {
     this.batchError.set(null);
   }
 
+  /**
+   * 追蹤由品項建立／更新 API 已建立的分析任務。
+   *
+   * 建立任務的責任留在後端；此方法只輪詢既有 taskId，不會再次呼叫批次分析 API。
+   */
+  trackAnalysisTask(taskId: number, productCount = 1): void {
+    this.startAnalysisPolling(taskId, productCount);
+  }
+
   dismissBatchMessage(): void {
     if (this.batchMessageDismissTimer !== null) {
       clearTimeout(this.batchMessageDismissTimer);

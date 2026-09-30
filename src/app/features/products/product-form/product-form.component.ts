@@ -392,17 +392,21 @@ export class ProductFormComponent implements OnInit, OnDestroy {
               if (saveAsDraft || this.form.controls.trackType.value !== 'A') return activate;
 
               return activate.pipe(
-                switchMap((activated) =>
-                  this.captureSupplementSave(
-                    '評分排程',
-                    this.products.analyzeBatch([productId]),
-                  ).pipe(
-                    map((analysis) => ({
-                      ...activated,
-                      outcomes: [...activated.outcomes, analysis],
-                    })),
-                  ),
-                ),
+                map((activated) => {
+                  const taskId = activated.result.taskId;
+                  if (taskId == null) return activated;
+
+                  // 後端在正式 A 軌品項建立／更新時已建立 FULL_ANALYSIS；
+                  // 前端只接續追蹤該任務，避免再次呼叫 batch/analyze 造成重複排程。
+                  this.products.trackAnalysisTask(taskId, 1);
+                  return {
+                    ...activated,
+                    outcomes: [
+                      ...activated.outcomes,
+                      { operation: '評分排程', success: true } as SupplementSaveOutcome,
+                    ],
+                  };
+                }),
               );
             }),
           );
