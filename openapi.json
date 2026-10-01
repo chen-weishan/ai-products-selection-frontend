@@ -3245,6 +3245,354 @@
           }
         }
       }
+    },
+    "/heat-tags": {
+      "get": {
+        "tags": [
+          "manual-heat-tag-controller"
+        ],
+        "operationId": "list_1",
+        "parameters": [
+          {
+            "name": "productId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "keywordId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "scope",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "days",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseListManualHeatTagResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "manual-heat-tag-controller"
+        ],
+        "operationId": "create_1",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ManualHeatTagCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseManualHeatTagResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/heat-tags/{id}": {
+      "get": {
+        "tags": [
+          "manual-heat-tag-controller"
+        ],
+        "operationId": "get_1",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseManualHeatTagResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "manual-heat-tag-controller"
+        ],
+        "operationId": "update_1",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ManualHeatTagUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseManualHeatTagResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "manual-heat-tag-controller"
+        ],
+        "operationId": "delete_1",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/heat-tags/resolve-platform": {
+      "post": {
+        "tags": [
+          "manual-heat-tag-controller"
+        ],
+        "operationId": "resolvePlatform",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResolvePlatformRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseResolvePlatformResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/heat-sources": {
+      "get": {
+        "tags": [
+          "heat-source-controller"
+        ],
+        "operationId": "list_4",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseListHeatSourceDetailResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/heat-sources/{id}": {
+      "get": {
+        "tags": [
+          "heat-source-controller"
+        ],
+        "operationId": "get_2",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseHeatSourceDetailResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "heat-source-controller"
+        ],
+        "operationId": "update_2",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HeatSourceUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseHeatSourceDetailResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/heat-sources/excluded": {
+      "get": {
+        "tags": [
+          "heat-source-controller"
+        ],
+        "operationId": "excluded",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseListExcludedHeatSourceResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/heat-sources/{id}/test": {
+      "post": {
+        "tags": [
+          "heat-source-controller"
+        ],
+        "operationId": "test",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponseHeatSourceTestResponse"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -7890,6 +8238,391 @@
           "timestamp": {
             "type": "string",
             "format": "date-time"
+          }
+        }
+      },
+      "ManualHeatTagCreateRequest": {
+        "type": "object",
+        "properties": {
+          "sourceUrl": {
+            "type": "string",
+            "maxLength": 512,
+            "minLength": 0
+          },
+          "platform": {
+            "type": "string",
+            "enum": [
+              "FACEBOOK",
+              "TIKTOK",
+              "XIAOHONGSHU",
+              "THREADS",
+              "INSTAGRAM",
+              "OTHER"
+            ]
+          },
+          "heatLevel": {
+            "type": "integer",
+            "format": "int32",
+            "maximum": 5,
+            "minimum": 1
+          },
+          "productId": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "keywordId": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "observedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 0
+          }
+        },
+        "required": [
+          "heatLevel",
+          "sourceUrl"
+        ]
+      },
+      "ManualHeatTagUpdateRequest": {
+        "type": "object",
+        "properties": {
+          "sourceUrl": {
+            "type": "string",
+            "maxLength": 512,
+            "minLength": 0
+          },
+          "platform": {
+            "type": "string",
+            "enum": [
+              "FACEBOOK",
+              "TIKTOK",
+              "XIAOHONGSHU",
+              "THREADS",
+              "INSTAGRAM",
+              "OTHER"
+            ]
+          },
+          "heatLevel": {
+            "type": "integer",
+            "format": "int32",
+            "maximum": 5,
+            "minimum": 1
+          },
+          "observedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 0
+          }
+        },
+        "required": [
+          "heatLevel",
+          "platform",
+          "sourceUrl"
+        ]
+      },
+      "ManualHeatTagResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "sourceUrl": {
+            "type": "string"
+          },
+          "platform": {
+            "type": "string"
+          },
+          "heatLevel": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "productId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "productName": {
+            "type": "string"
+          },
+          "keywordId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "keywordText": {
+            "type": "string"
+          },
+          "observedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "taggedById": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "taggedByName": {
+            "type": "string"
+          },
+          "note": {
+            "type": "string"
+          },
+          "currentWeight": {
+            "type": "number",
+            "format": "double"
+          }
+        }
+      },
+      "ApiResponseManualHeatTagResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "data": {
+            "$ref": "#/components/schemas/ManualHeatTagResponse"
+          },
+          "error": {
+            "$ref": "#/components/schemas/ApiError"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ApiResponseListManualHeatTagResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ManualHeatTagResponse"
+            }
+          },
+          "error": {
+            "$ref": "#/components/schemas/ApiError"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ResolvePlatformRequest": {
+        "type": "object",
+        "properties": {
+          "sourceUrl": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "sourceUrl"
+        ]
+      },
+      "ApiResponseResolvePlatformResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "data": {
+            "$ref": "#/components/schemas/ResolvePlatformResponse"
+          },
+          "error": {
+            "$ref": "#/components/schemas/ApiError"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ResolvePlatformResponse": {
+        "type": "object",
+        "properties": {
+          "platform": {
+            "type": "string"
+          }
+        }
+      },
+      "ApiResponseListHeatSourceDetailResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HeatSourceDetailResponse"
+            }
+          },
+          "error": {
+            "$ref": "#/components/schemas/ApiError"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "HeatSourceDetailResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "sourceCode": {
+            "type": "string"
+          },
+          "adapterType": {
+            "type": "string"
+          },
+          "granularity": {
+            "type": "string"
+          },
+          "compositeWeight": {
+            "type": "number"
+          },
+          "availability": {
+            "type": "string"
+          },
+          "quotaUsed": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "quotaLimit": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "lastFetchedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "lastProbedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "consecutiveProbeFailures": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "enabled": {
+            "type": "boolean"
+          }
+        }
+      },
+      "ApiResponseHeatSourceDetailResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "data": {
+            "$ref": "#/components/schemas/HeatSourceDetailResponse"
+          },
+          "error": {
+            "$ref": "#/components/schemas/ApiError"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "HeatSourceUpdateRequest": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "compositeWeight": {
+            "type": "number",
+            "maximum": 1,
+            "minimum": 0
+          }
+        }
+      },
+      "ApiResponseListExcludedHeatSourceResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ExcludedHeatSourceResponse"
+            }
+          },
+          "error": {
+            "$ref": "#/components/schemas/ApiError"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ExcludedHeatSourceResponse": {
+        "type": "object",
+        "properties": {
+          "platform": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          }
+        }
+      },
+      "ApiResponseHeatSourceTestResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "data": {
+            "$ref": "#/components/schemas/HeatSourceTestResponse"
+          },
+          "error": {
+            "$ref": "#/components/schemas/ApiError"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "HeatSourceTestResponse": {
+        "type": "object",
+        "properties": {
+          "sourceCode": {
+            "type": "string"
+          },
+          "success": {
+            "type": "boolean"
+          },
+          "availability": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
           }
         }
       }

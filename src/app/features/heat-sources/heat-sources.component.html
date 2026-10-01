@@ -1,163 +1,281 @@
-<!-- 頂部導航列 (返回列表靠右對齊新增來源) ───────────── -->
+<!-- 頂部導航列 (返回列表靠右對齊) ───────────── -->
 <div class="top-nav-bar">
   <button type="button" class="btn back-btn" (click)="goBack()">
-    返回列表
+    <mat-icon>arrow_back</mat-icon>
+    <span>返回列表</span>
   </button>
 </div>
 
 <!-- 頁首 (遵循規範 .mh 結構) ───────────────────────── -->
 <div class="mh">
   <div>
-    <h3>熱度來源 (Heat Sources)</h3>
+    <h3>熱度來源狀態 (Heat Sources)</h3>
     <div class="sub">
-      目前運作狀態：{{ activeCount() }} 個已啟用　·　{{ degradedCount() }} 個降級中　·　定時排程拉取
+      目前運作狀態：{{ activeCount() }} 個已啟用　·　{{ availableCount() }} 個正常運作　·　{{ degradedCount() }} 個降級　·　{{ unavailableCount() }} 個不可用
     </div>
   </div>
 
   <!-- 右側操作按鈕列 -->
   <div class="tools">
-    <button type="button" class="btn" (click)="loadSources()">
-      測試連線
+    <button type="button" class="btn" (click)="loadAll()" [disabled]="loading()">
+      <mat-icon class="spinning-icon" *ngIf="loading()">sync</mat-icon>
+      <mat-icon *ngIf="!loading()">refresh</mat-icon>
+      <span>重新整理</span>
     </button>
-    <button type="button" class="btn pri">
-      新增來源
-    </button>
+    <span class="admin-badge" *ngIf="isSysAdmin()">
+      <mat-icon>admin_panel_settings</mat-icon>
+      <span>管理員權限</span>
+    </span>
   </div>
 </div>
 
 <!-- 核心卡片 1：來源列表表格 (遵循規範 .card.table-card) ───── -->
 <div class="card table-card">
-  <table mat-table [dataSource]="sources()" class="sources-table">
+  <div class="table-responsive">
+    <table mat-table [dataSource]="sources()" class="sources-table">
 
-    <!-- Name Column -->
-    <ng-container matColumnDef="name">
-      <th mat-header-cell *matHeaderCellDef> 來源 </th>
-      <td mat-cell *matCellDef="let row">
-        <span class="source-primary-name">{{ row.name }}</span>
-      </td>
-    </ng-container>
-
-    <!-- Type Column -->
-    <ng-container matColumnDef="type">
-      <th mat-header-cell *matHeaderCellDef> 類型 </th>
-      <td mat-cell *matCellDef="let row">
-        <span class="cell-light">{{ row.type }}</span>
-      </td>
-    </ng-container>
-
-    <!-- Granularity Column -->
-    <ng-container matColumnDef="granularity">
-      <th mat-header-cell *matHeaderCellDef> 粒度 </th>
-      <td mat-cell *matCellDef="let row">
-        <span class="cell-light">{{ row.granularity }}</span>
-      </td>
-    </ng-container>
-
-    <!-- Weight Column -->
-    <ng-container matColumnDef="weight">
-      <th mat-header-cell *matHeaderCellDef> 合成權重 </th>
-      <td mat-cell *matCellDef="let row" class="percentile-cell">
-        <div class="percentile-wrap">
-          <div class="percentile-bar-track">
-            <div class="percentile-bar-fill" [class.bar-muted]="row.status === '降級'" [style.width.%]="row.weight"></div>
+      <!-- Name Column -->
+      <ng-container matColumnDef="name">
+        <th mat-header-cell *matHeaderCellDef> 來源名稱 </th>
+        <td mat-cell *matCellDef="let row">
+          <div class="source-identity">
+            <span class="source-primary-name">{{ getSourceName(row.sourceCode) }}</span>
+            <span class="source-code-tag">{{ row.sourceCode }}</span>
           </div>
-          <span class="weight-number-text">{{ row.weight }}%</span>
-        </div>
-      </td>
-    </ng-container>
+        </td>
+      </ng-container>
 
-    <!-- Quota Column -->
-    <ng-container matColumnDef="quota">
-      <th mat-header-cell *matHeaderCellDef> 額度用量 </th>
-      <td mat-cell *matCellDef="let row">
-        <span class="cell-mono">{{ formatQuota(row) }}</span>
-      </td>
-    </ng-container>
+      <!-- Type Column -->
+      <ng-container matColumnDef="type">
+        <th mat-header-cell *matHeaderCellDef> Adapter 類型 </th>
+        <td mat-cell *matCellDef="let row">
+          <span class="cell-light">{{ getSourceType(row) }}</span>
+        </td>
+      </ng-container>
 
-    <!-- Last Fetched Column -->
-    <ng-container matColumnDef="lastFetched">
-      <th mat-header-cell *matHeaderCellDef> 最後更新 </th>
-      <td mat-cell *matCellDef="let row">
-        <span class="cell-mono">{{ formatLastFetched(row.lastFetchedAt) }}</span>
-      </td>
-    </ng-container>
+      <!-- Granularity Column -->
+      <ng-container matColumnDef="granularity">
+        <th mat-header-cell *matHeaderCellDef> 資料粒度 </th>
+        <td mat-cell *matCellDef="let row">
+          <span class="granularity-chip">{{ getSourceGranularity(row) }}</span>
+        </td>
+      </ng-container>
 
-    <!-- Status Column (遵循規範：無邊框實心色塊 + 純白字) -->
-    <ng-container matColumnDef="status">
-      <th mat-header-cell *matHeaderCellDef> 狀態 </th>
-      <td mat-cell *matCellDef="let row" class="status-cell">
-        <span class="status-badge"
-          [class.status-normal]="row.status === '正常' || row.status === 'AVAILABLE'"
-          [class.status-warn]="row.status === '降級' || row.status === 'DEGRADED'">
-          {{ row.status }}
-        </span>
-      </td>
-    </ng-container>
+      <!-- Weight Column (支援 SYS_ADMIN 權重編輯與 Dirty Check) -->
+      <ng-container matColumnDef="weight">
+        <th mat-header-cell *matHeaderCellDef> 合成權重 </th>
+        <td mat-cell *matCellDef="let row" class="percentile-cell">
+          <!-- 編輯模式 -->
+          <div class="weight-edit-box" *ngIf="editingWeightId() === row.id; else readWeight">
+            <input
+              type="number"
+              class="weight-input"
+              [(ngModel)]="editWeightInput"
+              min="0"
+              max="100"
+              step="0.1"
+              placeholder="0-100"
+              (keydown.enter)="saveWeight(row)"
+              (keydown.escape)="cancelEditWeight()"
+            />
+            <span class="unit-pct">%</span>
+            <button
+              type="button"
+              class="btn-mini btn-save"
+              (click)="saveWeight(row)"
+              [disabled]="isRowUpdating(row.id)"
+              matTooltip="儲存權重 (Enter)">
+              <mat-icon>check</mat-icon>
+            </button>
+            <button
+              type="button"
+              class="btn-mini btn-cancel"
+              (click)="cancelEditWeight()"
+              matTooltip="取消 (Esc)">
+              <mat-icon>close</mat-icon>
+            </button>
+          </div>
 
-    <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-    <tr mat-row *matRowDef="let row; columns: displayedColumns;" [class.row-highlight-degraded]="row.status === '降級'"></tr>
-  </table>
+          <!-- 檢視模式 -->
+          <ng-template #readWeight>
+            <div class="percentile-wrap">
+              <div class="percentile-bar-track">
+                <div
+                  class="percentile-bar-fill"
+                  [class.bar-muted]="row.availability === 'DEGRADED' || row.availability === 'UNAVAILABLE' || !row.enabled"
+                  [style.width.%]="(row.compositeWeight ?? 0) * 100">
+                </div>
+              </div>
+              <span class="weight-number-text">{{ ((row.compositeWeight ?? 0) * 100).toFixed(1) }}%</span>
+              <button
+                *ngIf="isSysAdmin()"
+                type="button"
+                class="btn-icon-action"
+                (click)="startEditWeight(row)"
+                matTooltip="調整合成權重 (僅限管理員)">
+                <mat-icon>edit</mat-icon>
+              </button>
+            </div>
+          </ng-template>
+        </td>
+      </ng-container>
+
+      <!-- Quota Column (以美分換算為美元顯示) -->
+      <ng-container matColumnDef="quota">
+        <th mat-header-cell *matHeaderCellDef> 額度用量 </th>
+        <td mat-cell *matCellDef="let row">
+          <span class="cell-mono quota-val" [class.quota-high]="isQuotaHigh(row)">
+            {{ formatQuota(row) }}
+          </span>
+        </td>
+      </ng-container>
+
+      <!-- Last Fetched Column -->
+      <ng-container matColumnDef="lastFetched">
+        <th mat-header-cell *matHeaderCellDef> 最後採集 </th>
+        <td mat-cell *matCellDef="let row">
+          <span class="cell-mono">{{ formatLastFetched(row.lastFetchedAt) }}</span>
+        </td>
+      </ng-container>
+
+      <!-- Last Probed Column -->
+      <ng-container matColumnDef="lastProbed">
+        <th mat-header-cell *matHeaderCellDef> 最後探測 </th>
+        <td mat-cell *matCellDef="let row">
+          <span class="cell-mono cell-sub">{{ formatLastProbed(row.lastProbedAt) }}</span>
+        </td>
+      </ng-container>
+
+      <!-- Status Column (三態燈號標籤：無邊框實心色塊 + 純白字) -->
+      <ng-container matColumnDef="status">
+        <th mat-header-cell *matHeaderCellDef> 狀態 </th>
+        <td mat-cell *matCellDef="let row" class="status-cell">
+          <span
+            class="status-badge"
+            [ngClass]="getStatusBadge(row.availability).cssClass"
+            [matTooltip]="getStatusTooltip(row)">
+            <mat-icon class="badge-icon">{{ getStatusBadge(row.availability).icon }}</mat-icon>
+            <span>{{ getStatusBadge(row.availability).label }}</span>
+          </span>
+          <span class="disabled-tag" *ngIf="!row.enabled">已停用</span>
+        </td>
+      </ng-container>
+
+      <!-- Actions Column (SYS_ADMIN 測試連線與啟用切換) -->
+      <ng-container matColumnDef="actions">
+        <th mat-header-cell *matHeaderCellDef class="actions-header"> 操作 </th>
+        <td mat-cell *matCellDef="let row" class="actions-cell">
+          <div class="action-buttons">
+            <!-- 測試連線按鈕 -->
+            <button
+              type="button"
+              class="btn-row-action"
+              [disabled]="isRowTesting(row.id) || !isSysAdmin()"
+              (click)="testConnection(row)"
+              [matTooltip]="isSysAdmin() ? '立即探測連線與額度' : '連線測試僅限 SYS_ADMIN 操作'">
+              <mat-icon class="spinning-icon" *ngIf="isRowTesting(row.id)">sync</mat-icon>
+              <mat-icon *ngIf="!isRowTesting(row.id)">sensors</mat-icon>
+              <span>{{ isRowTesting(row.id) ? '探測中...' : '測試' }}</span>
+            </button>
+
+            <!-- 啟用 / 停用按鈕 -->
+            <button
+              type="button"
+              class="btn-row-action"
+              [class.btn-toggle-off]="row.enabled"
+              [class.btn-toggle-on]="!row.enabled"
+              [disabled]="isRowUpdating(row.id) || !isSysAdmin()"
+              (click)="toggleEnabled(row)"
+              [matTooltip]="isSysAdmin() ? (row.enabled ? '停用此熱度來源' : '啟用此熱度來源') : '來源開關僅限 SYS_ADMIN 操作'">
+              <mat-icon *ngIf="row.enabled">pause</mat-icon>
+              <mat-icon *ngIf="!row.enabled">play_arrow</mat-icon>
+              <span>{{ row.enabled ? '停用' : '啟用' }}</span>
+            </button>
+          </div>
+        </td>
+      </ng-container>
+
+      <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+      <tr
+        mat-row
+        *matRowDef="let row; columns: displayedColumns;"
+        [class.row-highlight-degraded]="row.availability === 'DEGRADED'"
+        [class.row-highlight-unavailable]="row.availability === 'UNAVAILABLE'"
+        [class.row-disabled]="!row.enabled">
+      </tr>
+    </table>
+  </div>
 </div>
 
 <!-- 核心卡片 2：底部說明面板 (遵循規範 .info-section，純文字標題) ─ -->
 <div class="info-section">
   <div class="info-header">
-    <h4>熱度來源排程與容錯降級機制</h4>
+    <h4>熱度來源排程與容錯降級機制 (FR-14-2)</h4>
   </div>
 
   <div class="info-grid">
-    <!-- 卡片 1: 降級行為 -->
+    <!-- 卡片 1: 降級行為與動態權重重分配 -->
     <div class="info-card">
       <div class="card-head">
-        <h5>容錯與權重動態重分配</h5>
+        <h5>容錯與權重動態重分配 (§5.3.2)</h5>
       </div>
       <p>
-        <strong>來源不可用時：</strong> 該來源合成權重歸零，其餘可用來源按比例重新正規化。
-        品項分數照常產生，不阻斷選品評分流程，亦不影響榜單即時產出。
+        <strong>來源不可用時：</strong> 該來源合成權重歸零，其餘已啟用且可用來源按比例重新正規化。
+        品項分數照常產生，不阻斷選品評分流程，亦不影響話題爆款榜即時產出。
       </p>
+
       <div class="degrade-box" *ngIf="degradedSources().length > 0; else noDegrade">
         <div class="degrade-label">
           <ng-container *ngFor="let source of degradedSources(); let last = last">
-            {{ source.name.replace('官方 API', '').replace('Hashtag', '').trim() }}
+            {{ getSourceName(source.sourceCode) }} ({{ getStatusBadge(source.availability).label }})
             <ng-container *ngIf="!last">、</ng-container>
           </ng-container>
-          降級後分攤：
+          降級後動態正規化分攤：
         </div>
         <div class="degrade-values">
-          <span *ngFor="let source of recalculatedWeights(); let i = index">
-            <ng-container *ngIf="i > 0">→ </ng-container>
-            {{ source.name }} {{ source.newWeight }}%
+          <span *ngFor="let s of recalculatedWeights(); let i = index">
+            <ng-container *ngIf="i > 0"> · </ng-container>
+            <strong>{{ s.name }}</strong> {{ s.newPct }}% (原 {{ s.originalPct }}%)
           </span>
         </div>
       </div>
+
       <ng-template #noDegrade>
         <div class="degrade-box ok">
-          <div class="degrade-label">目前所有來源皆正常運作，皆按原定權重分配。</div>
+          <div class="degrade-label">目前所有來源皆正常運作，依原設定權重進行常態評分合成。</div>
         </div>
       </ng-template>
     </div>
 
-    <!-- 卡片 2: 不採用的來源 -->
+    <!-- 卡片 2: 動態不採用來源 (GET /heat-sources/excluded) -->
     <div class="info-card">
       <div class="card-head">
-        <h5>未採用第三方平台之說明</h5>
+        <h5>未採用第三方平台之說明 (附錄 C 法律評估)</h5>
       </div>
-      <div class="rejected-list">
-        <div class="reject-item">
-          <span class="reject-name">Facebook</span>
-          <span class="reject-reason">CrowdTangle 已關閉，替代品僅開放學術/非營利資格</span>
+      <div class="rejected-list" *ngIf="excludedSources().length > 0; else defaultExcluded">
+        <div class="reject-item" *ngFor="let item of excludedSources()">
+          <span class="reject-name">{{ item.platform }}</span>
+          <span class="reject-reason">{{ item.reason }}</span>
         </div>
-        <div class="reject-item">
-          <span class="reject-name">TikTok</span>
-          <span class="reject-reason">Research API 排除商業使用者，台灣不在適用資格地區</span>
+      </div>
+      <ng-template #defaultExcluded>
+        <div class="rejected-list">
+          <div class="reject-item">
+            <span class="reject-name">FACEBOOK</span>
+            <span class="reject-reason">CrowdTangle 已關閉，替代品僅開放學術/非營利資格</span>
+          </div>
+          <div class="reject-item">
+            <span class="reject-name">TIKTOK</span>
+            <span class="reject-reason">Research API 排除商業使用者，台灣不在適用資格地區</span>
+          </div>
+          <div class="reject-item">
+            <span class="reject-name">XIAOHONGSHU</span>
+            <span class="reject-reason">無公開 API，第三方平台條款禁止爬蟲轉供商業使用</span>
+          </div>
         </div>
-        <div class="reject-item">
-          <span class="reject-name">小紅書</span>
-          <span class="reject-reason">無公開 API，第三方平台條款禁止爬蟲轉供商業使用</span>
-        </div>
-        <div class="reject-footer-note">
-          以上三者一律改由 S-15 人工標記涵蓋。系統不建置未授權爬蟲。
-        </div>
+      </ng-template>
+      <div class="reject-footer-note">
+        以上平台一律改由 S-15 人工熱度標記涵蓋。系統不建置未授權爬蟲。
       </div>
     </div>
   </div>

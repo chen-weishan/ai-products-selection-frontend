@@ -135,18 +135,48 @@ export class AuthService {
     );
   }
 
-  logout(): void {
+  isTokenExpired(token: string | null): boolean {
+    if (!token) return true;
+    try {
+      const parts = token.split('.');
+      if (parts.length !== 3) {
+        // 非 3 段式標準 JWT（如測試中模擬字串），不視為過期
+        return false;
+      }
+      const payloadBase64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+      const payloadJson = atob(payloadBase64);
+      const payload = JSON.parse(payloadJson);
+      if (payload.exp && typeof payload.exp === 'number') {
+        return payload.exp * 1000 <= Date.now();
+      }
+      return false;
+    } catch {
+      return false;
+    }
+  }
+
+  clearStoredAuth(): void {
     localStorage.removeItem(this.ACCESS_TOKEN_KEY);
     localStorage.removeItem(this.REFRESH_TOKEN_KEY);
     localStorage.removeItem(this.USER_KEY);
     localStorage.removeItem('ssds_access_token');
     localStorage.removeItem('ssds_user_info');
     this.currentUser.set(null);
+  }
+
+  logout(): void {
+    this.clearStoredAuth();
     void this.router.navigate(['/login']);
   }
 
   getAccessToken(): string | null {
-    return localStorage.getItem(this.ACCESS_TOKEN_KEY) || localStorage.getItem('ssds_access_token');
+    const token = localStorage.getItem(this.ACCESS_TOKEN_KEY) || localStorage.getItem('ssds_access_token');
+    if (!token) return null;
+    if (this.isTokenExpired(token)) {
+      this.clearStoredAuth();
+      return null;
+    }
+    return token;
   }
 
   getRefreshToken(): string | null {
@@ -197,6 +227,10 @@ export class AuthService {
   }
 
   private getStoredUser(): UserInfo | null {
+    const token = localStorage.getItem(this.ACCESS_TOKEN_KEY) || localStorage.getItem('ssds_access_token');
+    if (!token || this.isTokenExpired(token)) {
+      return null;
+    }
     const data = localStorage.getItem(this.USER_KEY) || localStorage.getItem('ssds_user_info');
     if (!data) return null;
     try {

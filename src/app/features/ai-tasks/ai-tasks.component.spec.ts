@@ -132,12 +132,15 @@ describe('AiTasksComponent', () => {
       ],
     }).compileComponents();
 
+    vi.spyOn(Date, 'now').mockReturnValue(new Date('2026-09-26T10:05:00Z').getTime());
+
     fixture = TestBed.createComponent(AiTasksComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
   });
 
   afterEach(() => {
+    vi.restoreAllMocks();
     component.ngOnDestroy();
   });
 
