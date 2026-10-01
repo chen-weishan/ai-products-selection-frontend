@@ -133,7 +133,10 @@
               </span></div>
             @for (f of snap.score.bonusFactors; track f.factorCode) {
               <div class="kv"><span class="k">{{ factorLabels[f.factorCode] }}</span>
-                <span class="v mono">{{ f.dataAvailable ? f.normalizedValue : '無資料' }}</span></div>
+                <span class="v mono">{{ f.dataAvailable ? f.normalizedValue : '無資料' }}
+                  @if (f.drivingFestivalName) { <span class="muted">（生效節慶：{{ f.drivingFestivalName }}）</span> }
+                  @if (f.drivingKeyword) { <span class="muted">（生效關鍵字：{{ f.drivingKeyword }}）</span> }
+                </span></div>
             }
             <div class="kv"><span class="k">風險扣分</span><span class="v mono risk">−{{ snap.score.penaltySubtotal }}</span></div>
             <div class="kv wide"><span class="k">AI 建議</span>

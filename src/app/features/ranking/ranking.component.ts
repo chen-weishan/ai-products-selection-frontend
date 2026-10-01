@@ -249,8 +249,33 @@ export class RankingComponent implements OnInit {
           weight: null,
           dataAvailable: false,
           imputed: false,
+          drivingKeywordId: null,
+          drivingKeyword: null,
+          drivingFestivalId: null,
+          drivingFestivalName: null,
         },
     );
+  }
+
+  /** 長條的 tooltip：因子名稱，有生效標的時一併列出（AC-17-6、§5.3.3）。 */
+  barTitle(f: ScoreFactorBar): string {
+    const label = this.factorLabels[f.factorCode];
+    if (f.drivingFestivalName) return `${label}　生效節慶：${f.drivingFestivalName}`;
+    if (f.drivingKeyword) return `${label}　生效關鍵字：${f.drivingKeyword}`;
+    return label;
+  }
+
+  /**
+   * 長條下方的生效標的文字。AC-17-6 要求「於 UI 標示生效節慶」，只放 tooltip 不算標示，
+   * 因此以小字直接顯示；兩者皆無時回 null，整行不出現。
+   */
+  drivingText(row: ScoreRankingRow): string | null {
+    const parts: string[] = [];
+    for (const f of row.factors) {
+      if (f.drivingFestivalName) parts.push(`節慶：${f.drivingFestivalName}`);
+      if (f.drivingKeyword) parts.push(`關鍵字：${f.drivingKeyword}`);
+    }
+    return parts.length ? parts.join(' · ') : null;
   }
 
   /**
