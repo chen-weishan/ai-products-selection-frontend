@@ -1,1 +1,367 @@
-<p>decisions works!</p>
+<!-- 頁首 ─────────────────────────────────────────────── -->
+<div class="mh">
+  <div>
+    <h3>決策與回饋閉環</h3>
+    <div class="sub">
+      整套「越用越準」的基礎在這一頁：沒有結案回填就沒有標籤資料，權重校準就完全不成立。
+    </div>
+  </div>
+  <div class="tools">
+    <button type="button" class="btn" (click)="loadList(); loadAccuracy()">重新整理</button>
+    @if (canCreate()) {
+      <button type="button" class="btn pri" (click)="openCreate()">新增決策</button>
+    }
+  </div>
+</div>
+
+@if (errorMessage(); as msg) { <div class="alert error">{{ msg }}</div> }
+@if (successMessage(); as msg) { <div class="alert ok">{{ msg }}</div> }
+
+<div class="layout">
+  <!-- 左：決策清單 ──────────────────────────────────── -->
+  <aside class="card list-card">
+    <div class="list-tools">
+      <div class="range-tabs">
+        <button type="button" class="range-btn" [class.active]="decisionFilter() === 'ALL'"
+                (click)="setDecisionFilter('ALL')">全部</button>
+        <button type="button" class="range-btn" [class.active]="decisionFilter() === 'ADOPT'"
+                (click)="setDecisionFilter('ADOPT')">採納</button>
+        <button type="button" class="range-btn" [class.active]="decisionFilter() === 'WATCH'"
+                (click)="setDecisionFilter('WATCH')">觀察</button>
+        <button type="button" class="range-btn" [class.active]="decisionFilter() === 'REJECT'"
+                (click)="setDecisionFilter('REJECT')">淘汰</button>
+      </div>
+      <label class="check">
+        <input type="checkbox" [checked]="pendingOnly()" (change)="togglePending()" />
+        只看待回填
+      </label>
+    </div>
+
+    @if (listLoading()) {
+      <p class="empty">載入中…</p>
+    } @else if (decisions().length === 0) {
+      <p class="empty">沒有符合條件的決策。</p>
+    } @else {
+      <ul class="rows">
+        @for (d of decisions(); track d.id) {
+          <li>
+            <button type="button" class="row" [class.active]="d.id === selectedId()" (click)="select(d.id)">
+              <div class="row-top">
+                <span class="name">{{ d.productName }}</span>
+                <span [class]="'grade-chip grade-' + d.grade.toLowerCase()">{{ d.grade }}</span>
+              </div>
+              <div class="row-bottom">
+                <span [class]="'status-badge compact ' + decisionClass(d.decision)">
+                  {{ decisionLabels[d.decision] }}
+                </span>
+                <span [class]="'status-badge compact ' + stageClass(d.stage, d.overdueDays)">
+                  {{ d.overdueDays ? '逾 ' + d.overdueDays + ' 天' : stageLabels[d.stage] }}
+                </span>
+                <span class="mono meta">{{ d.period }} · {{ date(d.decidedAt) }}</span>
+              </div>
+            </button>
+          </li>
+        }
+      </ul>
+    }
+
+    <div class="pager">
+      <span class="mono">{{ page() + 1 }} / {{ totalPages() }} · 共 {{ total() }} 筆</span>
+      <button type="button" class="btn" [disabled]="page() === 0" (click)="goPage(-1)">上一頁</button>
+      <button type="button" class="btn" [disabled]="(page() + 1) >= totalPages()" (click)="goPage(1)">下一頁</button>
+    </div>
+  </aside>
+
+  <!-- 右：決策詳情 ──────────────────────────────────── -->
+  <section class="detail">
+    @if (selected(); as d) {
+      <div class="card head-card">
+        <div class="head-line">
+          <span class="mono period">{{ d.period }}</span>
+          <strong class="pname">{{ d.productName }}</strong>
+          <span [class]="'status-badge ' + decisionClass(d.decision)">{{ d.decision }} {{ decisionLabels[d.decision] }}</span>
+          @if (d.overdueDays) {
+            <span class="status-badge status-warn">結案未回填　逾 {{ d.overdueDays }} 天</span>
+          }
+          @if (d.reviewedById) {
+            <span class="status-badge override-badge">已覆核：{{ d.reviewedByName }}</span>
+          }
+        </div>
+        <div class="head-meta">
+          @if (d.decision === 'ADOPT') {
+            首批 <span class="mono">{{ d.firstOrderQty }}</span>
+            　·　預計上架 <span class="mono">{{ date(d.expectedListDate) }}</span>
+            　·　結案日 <span class="mono">{{ date(d.campaignEndDate) }}</span>　·
+          }
+          決策人：{{ d.decidedByName }}（<span class="mono">{{ date(d.decidedAt) }}</span>）
+          @if (canReview() && !d.reviewedById) {
+            <button type="button" class="btn small" [disabled]="acting()" (click)="review()">覆核</button>
+          }
+        </div>
+        @if (d.reason) {
+          <div class="reason"><span class="k">理由</span>{{ d.reason }}</div>
+        }
+
+        @if (d.decision === 'ADOPT') {
+          <ol class="steps">
+            @for (s of steps(); track s.label; let i = $index) {
+              <li [class.done]="s.done">
+                <span class="dot">{{ s.done ? '✓' : i + 1 }}</span>{{ s.label }}
+              </li>
+            }
+          </ol>
+        } @else {
+          <p class="note">決策類型為 {{ d.decision }}（{{ decisionLabels[d.decision] }}），不開團，因此不提供結案與回填入口（AC-11-8）。</p>
+        }
+      </div>
+
+      <!-- 標記 1：決策快照 ─────────────────────────── -->
+      <div class="card">
+        <h4><span class="mark">1</span>決策快照 <span class="auto">自動產生</span></h4>
+        @if (snapshot(); as snap) {
+          <div class="snap-grid">
+            <div class="kv"><span class="k">選品分數</span><span class="v mono">{{ snap.score.finalScore }}</span></div>
+            <div class="kv"><span class="k">分級</span>
+              <span [class]="'grade-chip grade-' + snap.score.grade.toLowerCase()">{{ snap.score.grade }}</span></div>
+            <div class="kv"><span class="k">權重版本</span><span class="v mono">{{ snap.weightVersionNo ?? '—' }}</span></div>
+            <div class="kv"><span class="k">情境判定</span>
+              <span class="v">{{ sceneLabels[snap.score.sceneType] }}
+                @if (snap.aiConfidence !== null) { <span class="mono muted">（信心 {{ pct(snap.aiConfidence) }}）</span> }
+                @if (snap.sceneOverridden) {
+                  <span class="status-badge compact override-badge">人工覆寫{{ snap.overriddenByName ? '：' + snap.overriddenByName : '' }}</span>
+                }
+              </span></div>
+            @for (f of snap.score.bonusFactors; track f.factorCode) {
+              <div class="kv"><span class="k">{{ factorLabels[f.factorCode] }}</span>
+                <span class="v mono">{{ f.dataAvailable ? f.normalizedValue : '無資料' }}</span></div>
+            }
+            <div class="kv"><span class="k">風險扣分</span><span class="v mono risk">−{{ snap.score.penaltySubtotal }}</span></div>
+            <div class="kv wide"><span class="k">AI 建議</span>
+              <span class="v">
+                @if (snap.aiAction) {
+                  <span [class]="'status-badge compact ' + decisionClass(snap.aiAction)">{{ snap.aiAction }} {{ decisionLabels[snap.aiAction] }}</span>
+                  @if (snap.aiQtyMin && snap.aiQtyMax) { 　建議首批 <span class="mono">{{ snap.aiQtyMin }}–{{ snap.aiQtyMax }}</span> }
+                } @else { <span class="muted">決策當下沒有 AI 建議</span> }
+              </span></div>
+            <div class="kv wide"><span class="k">決策 vs AI</span>
+              <span class="v">followed_ai
+                @if (snap.followedAi) { <span class="ok-text">✓ 符合建議</span> } @else { <span class="risk">✗ 未採納建議</span> }
+              </span></div>
+            <div class="kv wide"><span class="k">來源可用性</span>
+              <span class="v">
+                @for (s of sourceEntries(snap.sourceAvailability); track s.code) {
+                  <span class="src" [class.bad]="s.value !== 'AVAILABLE'">
+                    {{ sourceLabels[s.code] ?? s.code }} {{ s.value === 'AVAILABLE' ? '✓' : availabilityLabels[s.value] ?? s.value }}
+                    @if (snap.appliedCompositeWeights?.[s.code] !== undefined) {
+                      <span class="mono muted">{{ pct(snap.appliedCompositeWeights![s.code]) }}</span>
+                    }
+                  </span>
+                } @empty { <span class="muted">未記錄</span> }
+              </span></div>
+            <div class="kv wide"><span class="k">當時分級門檻</span>
+              <span class="v">
+                @if (snap.appliedThresholds; as th) {
+                  {{ th.sceneType ? sceneLabels[th.sceneType] : '' }}榜
+                  @if (th.gradeAMin !== null) {
+                    　A ≥ <span class="mono">{{ th.gradeAMin }}</span>／B ≥ <span class="mono">{{ th.gradeBMin }}</span>
+                  } @else { <span class="muted">（未記錄門檻值）</span> }
+                } @else { <span class="muted">未記錄</span> }
+              </span></div>
+          </div>
+          <p class="note">
+            快照在建立決策當下鎖定，之後權重改版也不會變動（AC-11-6）。
+            只存來源可用性／實際合成權重／當時門檻三類無法還原的資訊，其餘由 score_id 回 join。
+          </p>
+        } @else {
+          <p class="empty">載入快照中…</p>
+        }
+      </div>
+
+      <!-- 開團／結案／回填 ─────────────────────────── -->
+      @if (d.stage === 'AWAITING_LAUNCH') {
+        <div class="card">
+          <h4>開團</h4>
+          <p class="note">品項目前為「已採納」尚未上架。標記開團後（§7.4 ADOPTED → LISTED）才能結案。</p>
+          @if (canLaunch()) {
+            <button type="button" class="btn pri" [disabled]="acting()" (click)="launch()">標記開團</button>
+          }
+        </div>
+      }
+
+      @if (d.stage === 'IN_CAMPAIGN') {
+        <div class="card">
+          <h4>標記結案</h4>
+          <p class="note">結案日為回填提醒的起算點；結案 7 天後仍未回填會出現在儀表板待辦區。可回填過去日期，不可晚於今日。</p>
+          @if (canCloseFill()) {
+            <div class="inline-form">
+              <label class="fld">
+                <span class="lbl">結案日期</span>
+                <input class="txt mono" type="date" [ngModel]="closeDate()" (ngModelChange)="closeDate.set($event)" />
+                @if (fieldErrors()['campaignEndDate']; as e) { <span class="err">{{ e }}</span> }
+              </label>
+              <button type="button" class="btn pri" [disabled]="acting()" (click)="close()">標記結案</button>
+            </div>
+          }
+        </div>
+      }
+
+      @if (d.stage === 'PENDING_RESULT') {
+        <div class="card">
+          <h4><span class="mark">2</span>結案回填 <span class="auto">5 個欄位</span></h4>
+          @if (!canCloseFill()) {
+            <p class="note">您的角色沒有回填權限（§2.1 第 12 列）。</p>
+          } @else if (!resultFormOpen()) {
+            <p class="note">已暫存於稍後再填。<button type="button" class="link" (click)="resultFormOpen.set(true)">繼續填寫</button></p>
+          } @else {
+            <div class="result-form">
+              <label class="fld">
+                <span class="lbl">實際銷量 <em>*</em></span>
+                <input class="txt mono" type="number" min="0" [ngModel]="actualQty()" (ngModelChange)="actualQty.set($event)" />
+                <span class="hint">預估（首批） {{ d.firstOrderQty }}</span>
+                @if (fieldErrors()['actualQty']; as e) { <span class="err">{{ e }}</span> }
+              </label>
+              <label class="fld">
+                <span class="lbl">售罄狀況 <em>*</em></span>
+                <select class="txt" [ngModel]="selloutStatus()" (ngModelChange)="selloutStatus.set($event)">
+                  <option [ngValue]="null" disabled>請選擇</option>
+                  @for (c of selloutCodes; track c) { <option [ngValue]="c">{{ selloutLabels[c] }}</option> }
+                </select>
+              </label>
+              <label class="fld">
+                <span class="lbl">退貨／客訴率（%）</span>
+                <input class="txt mono" type="number" min="0" max="100" step="0.01" [ngModel]="returnRatePct()"
+                       (ngModelChange)="returnRatePct.set($event)" />
+                <span class="hint">可由訂單系統帶入</span>
+                @if (fieldErrors()['returnRate']; as e) { <span class="err">{{ e }}</span> }
+              </label>
+              <label class="fld">
+                <span class="lbl">實現毛利率（%） <em>*</em></span>
+                <input class="txt mono" type="number" min="0" max="100" step="0.01" [ngModel]="marginPct()"
+                       (ngModelChange)="marginPct.set($event)" />
+                @if (fieldErrors()['realizedMarginRate']; as e) { <span class="err">{{ e }}</span> }
+              </label>
+              <label class="fld wide">
+                <span class="lbl">事後註記</span>
+                <div class="note-row">
+                  <select class="txt" [ngModel]="postNoteCode()" (ngModelChange)="postNoteCode.set($event)">
+                    <option [ngValue]="null">（無）</option>
+                    @for (c of postNoteCodes; track c) { <option [ngValue]="c">{{ postNoteLabels[c] }}</option> }
+                  </select>
+                  <input class="txt" type="text" maxlength="255" placeholder="選填文字" [ngModel]="postNoteText()"
+                         (ngModelChange)="postNoteText.set($event)" />
+                </div>
+              </label>
+            </div>
+            <div class="form-actions">
+              <button type="button" class="btn" (click)="resultFormOpen.set(false)">稍後再填</button>
+              <button type="button" class="btn pri" [disabled]="!canSubmitResult()" (click)="submitResult()">送出回填</button>
+            </div>
+          }
+        </div>
+      }
+
+      @if (d.result; as r) {
+        <div class="card">
+          <h4><span class="mark">2</span>結案回填結果</h4>
+          <div class="snap-grid">
+            <div class="kv"><span class="k">實際銷量</span><span class="v mono">{{ r.actualQty }}</span>
+              <span class="muted mono">（預估 {{ d.firstOrderQty }}）</span></div>
+            <div class="kv"><span class="k">售罄狀況</span><span class="v">{{ selloutLabels[r.selloutStatus] }}</span></div>
+            <div class="kv"><span class="k">退貨／客訴率</span><span class="v mono">{{ pct(r.returnRate, 1) }}</span></div>
+            <div class="kv"><span class="k">實現毛利率</span><span class="v mono">{{ pct(r.realizedMarginRate, 1) }}</span></div>
+            <div class="kv wide"><span class="k">事後註記</span>
+              <span class="v">{{ r.postNoteCode ? postNoteLabels[r.postNoteCode] : '—' }}{{ r.postNoteText ? '：' + r.postNoteText : '' }}</span></div>
+            <div class="kv wide"><span class="k">回填人</span>
+              <span class="v">{{ r.filledByName ?? '—' }}（<span class="mono">{{ date(r.filledAt) }}</span>）</span></div>
+          </div>
+        </div>
+      }
+    } @else if (detailLoading()) {
+      <div class="card"><p class="empty">載入中…</p></div>
+    } @else {
+      <div class="card"><p class="empty">請從左側選擇一筆決策。</p></div>
+    }
+  </section>
+</div>
+
+<!-- 標記 3：預測準確度 ──────────────────────────────── -->
+<div class="card acc-card">
+  <div class="acc-head">
+    <h4><span class="mark">3</span>預測準確度</h4>
+    <div class="acc-filters">
+      <div class="range-tabs">
+        <button type="button" class="range-btn" [class.active]="accRange() === '4W'" (click)="setAccRange('4W')">近 4 週</button>
+        <button type="button" class="range-btn" [class.active]="accRange() === '12W'" (click)="setAccRange('12W')">近 12 週</button>
+        <button type="button" class="range-btn" [class.active]="accRange() === 'ALL'" (click)="setAccRange('ALL')">全部</button>
+      </div>
+      <select class="txt sel" [ngModel]="accCategoryId()" (ngModelChange)="accCategoryId.set($event); loadAccuracy()">
+        <option [ngValue]="null">類別：全部</option>
+        @for (c of categories(); track c.id) { <option [ngValue]="c.id">{{ c.name }}</option> }
+      </select>
+      <select class="txt sel" [ngModel]="accDecidedBy()" (ngModelChange)="accDecidedBy.set($event); loadAccuracy()">
+        <option [ngValue]="null">決策者：全部</option>
+        @for (u of deciders(); track u.id) { <option [ngValue]="u.id">{{ u.name }}</option> }
+      </select>
+    </div>
+  </div>
+
+  @if (accuracy(); as acc) {
+    <div class="kpis">
+      <div class="kpi primary">
+        <div class="v mono">{{ acc.sampleSize }}</div>
+        <div class="l">已回填樣本數</div>
+        <div class="sub-hint mono">決策總數 {{ acc.totalDecisions }}</div>
+      </div>
+      <div class="kpi">
+        <div class="v mono">{{ acc.scoreSalesCorrelation ?? '—' }}</div>
+        <div class="l">分數與銷量相關係數</div>
+      </div>
+      <div class="kpi">
+        <div class="v mono">{{ pct(acc.gradeAHitRate) }}</div>
+        <div class="l">A 級品項達標率</div>
+        <div class="sub-hint mono">{{ acc.gradeAHitCount }} / {{ acc.gradeASampleSize }}</div>
+      </div>
+      <div class="kpi">
+        <div class="v mono">{{ pct(acc.sceneOverrideRate, 1) }}</div>
+        <div class="l">情境判定覆寫率</div>
+        <div class="sub-hint mono">{{ acc.sceneOverrideCount }} / {{ acc.totalDecisions }}</div>
+      </div>
+      <div class="kpi">
+        <div class="v mono">{{ pct(acc.aiAdoptionRate) }}</div>
+        <div class="l">AI 建議採納率</div>
+        <div class="sub-hint mono">{{ acc.aiFollowedCount }} / {{ acc.totalDecisions }}</div>
+      </div>
+    </div>
+    @if (acc.belowMinSample) {
+      <!-- AC-11-5：樣本不足警示不可關閉，刻意不提供關閉鈕 -->
+      <div class="alert warn validity" role="alert">
+        {{ acc.validityWarning }}（門檻 CALIBRATION_MIN_SAMPLE = <span class="mono">{{ acc.minSample }}</span>，此警示不可關閉）
+      </div>
+    }
+  } @else {
+    <p class="empty">載入中…</p>
+  }
+</div>
+
+<!-- 說明面板 ───────────────────────────────────────── -->
+<div class="info-section">
+  <div class="info-header"><div class="info-title"><h4>硬規則</h4></div></div>
+  <div class="info-grid">
+    <div class="info-card">
+      <div class="card-head"><h5>決策快照自動產生</h5></div>
+      <p>決策必須綁定一筆<strong>主情境評分</strong>，無評分不可建立。快照鎖定當下的權重版本、情境判定與來源可用性。</p>
+    </div>
+    <div class="info-card">
+      <div class="card-head"><h5>未採納 AI 建議須寫理由</h5></div>
+      <p>決策與 AI 建議不同（含當下沒有 AI 建議）時理由必填；<strong>followed_ai</strong> 由兩者直接比對得出。</p>
+    </div>
+    <div class="info-card">
+      <div class="card-head"><h5>回填只有 5 欄</h5></div>
+      <p>結案逾 7 天未回填者於儀表板提示，<strong>逾期天數 = 今日 − 結案日 − 7</strong>。WATCH／REJECT 不開團，無結案與回填。</p>
+    </div>
+    <div class="info-card">
+      <div class="card-head"><h5>樣本數放最顯眼</h5></div>
+      <p>樣本未達門檻時警示不可關閉，避免用幾十筆資料講出過度自信的結論。比率皆附分子／分母。</p>
+    </div>
+  </div>
+</div>

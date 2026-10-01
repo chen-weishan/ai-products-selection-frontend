@@ -1,0 +1,565 @@
+@use 'decision-shared' as shared;
+
+:host {
+  @include shared.tokens;
+  display: block;
+  padding: 18px 20px 22px;
+  background: var(--surface);
+  min-height: calc(100vh - 64px);
+}
+
+@include shared.controls;
+
+// ── 頁首 ──────────────────────────────────────────────
+.mh {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+
+  h3 {
+    font-family: var(--serif);
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0;
+    color: var(--navy-deep);
+  }
+
+  .sub {
+    font-size: 12px;
+    color: var(--ink-3);
+    margin-top: 2px;
+  }
+}
+
+.tools {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  padding: 14px 16px;
+
+  h4 {
+    margin: 0 0 12px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--navy-deep);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    .mark {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: var(--navy);
+      color: #ffffff;
+      font-size: 11px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .auto {
+      font-size: 11px;
+      font-weight: 400;
+      color: var(--ink-3);
+    }
+  }
+}
+
+.empty {
+  font-size: 12px;
+  color: var(--ink-3);
+  text-align: center;
+  padding: 18px 0;
+  margin: 0;
+}
+
+.note {
+  font-size: 11.5px;
+  color: var(--ink-3);
+  margin: 10px 0 0;
+}
+
+.link {
+  border: none;
+  background: none;
+  color: var(--teal);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+// ── 主版面：左清單、右詳情 ─────────────────────────────
+.layout {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  gap: 16px;
+  align-items: start;
+
+  @media (max-width: 960px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.list-card {
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+
+  .list-tools {
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    border-bottom: 1px solid var(--line-soft);
+  }
+
+  .check {
+    font-size: 12px;
+    color: var(--ink-2);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+  }
+
+  .rows {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    max-height: 560px;
+    overflow-y: auto;
+
+    li + li {
+      border-top: 1px solid var(--line-soft);
+    }
+  }
+
+  .row {
+    width: 100%;
+    border: none;
+    background: #ffffff;
+    text-align: left;
+    padding: 10px 12px;
+    cursor: pointer;
+    font-family: var(--sans);
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    border-left: 3px solid transparent;
+
+    &:hover {
+      background: #f8fafc;
+    }
+
+    &.active {
+      background: var(--teal-soft);
+      border-left-color: var(--teal);
+    }
+
+    .row-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+
+      .name {
+        font-size: 13px;
+        color: var(--ink);
+        font-weight: 500;
+      }
+    }
+
+    .row-bottom {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      flex-wrap: wrap;
+
+      .meta {
+        font-size: 11px;
+        color: var(--ink-3);
+        margin-left: auto;
+      }
+    }
+  }
+
+  .pager {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 6px;
+    padding: 10px 12px;
+    border-top: 1px solid var(--line-soft);
+    font-size: 11.5px;
+    color: var(--ink-3);
+
+    .btn {
+      height: 28px;
+      padding: 4px 10px;
+    }
+
+    span {
+      margin-right: auto;
+    }
+  }
+}
+
+.detail {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+
+.head-card {
+  .head-line {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+
+    .period {
+      font-size: 12px;
+      color: var(--ink-3);
+    }
+
+    .pname {
+      font-family: var(--serif);
+      font-size: 17px;
+      color: var(--navy-deep);
+    }
+  }
+
+  .head-meta {
+    font-size: 12px;
+    color: var(--ink-2);
+    margin-top: 6px;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 4px;
+
+    .btn.small {
+      height: 26px;
+      padding: 3px 10px;
+      margin-left: 8px;
+    }
+  }
+
+  .reason {
+    margin-top: 8px;
+    font-size: 12px;
+    color: var(--ink-2);
+    background: #f8fafc;
+    border-radius: 6px;
+    padding: 6px 10px;
+
+    .k {
+      color: var(--ink-3);
+      margin-right: 8px;
+    }
+  }
+}
+
+// 進度條：建立決策 → 開團 → 結案 → 回填
+.steps {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  row-gap: 6px;
+  margin: 14px 0 0;
+  padding: 0;
+
+  li {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--ink-3);
+    position: relative;
+    padding-right: 6px;
+    white-space: nowrap;
+    min-width: 0;
+
+    &:last-child {
+      flex: 0 0 auto;
+      padding-right: 0;
+    }
+
+    &::after {
+      content: '';
+      flex: 1;
+      min-width: 0;
+      height: 2px;
+      background: var(--line);
+      margin-left: 6px;
+    }
+
+    &:last-child::after {
+      display: none;
+    }
+
+    .dot {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      border: 2px solid var(--line);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-family: var(--mono);
+      background: #ffffff;
+      flex-shrink: 0;
+    }
+
+    &.done {
+      color: var(--navy-deep);
+      font-weight: 500;
+
+      .dot {
+        background: var(--a);
+        border-color: var(--a);
+        color: #ffffff;
+      }
+
+      &::after {
+        background: var(--a);
+      }
+    }
+  }
+}
+
+// 快照與回填結果的鍵值網格
+.snap-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 18px;
+
+  .kv {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12.5px;
+    padding: 5px 0;
+    border-bottom: 1px dashed var(--line-soft);
+    flex-wrap: wrap;
+
+    &.wide {
+      grid-column: 1 / -1;
+    }
+
+    .k {
+      color: var(--ink-3);
+      width: 88px;
+      flex-shrink: 0;
+    }
+
+    .v {
+      color: var(--ink);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+  }
+
+  .src {
+    font-size: 12px;
+    padding: 1px 6px;
+    border-radius: 4px;
+    background: #f0fdf4;
+
+    &.bad {
+      background: #fff7ed;
+      color: #9a3412;
+    }
+  }
+}
+
+.risk {
+  color: var(--risk);
+}
+
+.ok-text {
+  color: #3f7d57;
+  font-weight: 600;
+}
+
+.inline-form {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  margin-top: 10px;
+
+  .fld {
+    width: 200px;
+  }
+}
+
+.result-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 16px;
+
+  .wide {
+    grid-column: 1 / -1;
+  }
+
+  .note-row {
+    display: grid;
+    grid-template-columns: 180px 1fr;
+    gap: 8px;
+  }
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+// ── 標記 3：預測準確度 ────────────────────────────────
+.acc-card {
+  margin-top: 16px;
+
+  .acc-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 12px;
+
+    h4 {
+      margin: 0;
+    }
+  }
+
+  .acc-filters {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+
+    .sel {
+      width: 180px;
+      padding: 6px 8px;
+    }
+  }
+}
+
+.kpis {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
+
+  @media (max-width: 960px) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .kpi {
+    border: 1px solid var(--line-soft);
+    border-radius: 8px;
+    padding: 12px 14px;
+    background: #f8fafc;
+
+    .v {
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--navy-deep);
+    }
+
+    .l {
+      font-size: 12px;
+      color: var(--ink-2);
+    }
+
+    .sub-hint {
+      font-size: 11px;
+      color: var(--ink-3);
+    }
+
+    // §FR-11-3：已回填樣本數須顯著呈現
+    &.primary {
+      background: var(--navy);
+      border-color: var(--navy);
+
+      .v,
+      .l,
+      .sub-hint {
+        color: #ffffff;
+      }
+    }
+  }
+}
+
+.validity {
+  margin: 12px 0 0;
+}
+
+// ── 說明面板 ──────────────────────────────────────────
+.info-section {
+  margin-top: 24px;
+  background: #ffffff;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  padding: 18px 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+
+  .info-header {
+    border-bottom: 1px solid var(--line-soft);
+    padding-bottom: 12px;
+    margin-bottom: 16px;
+
+    h4 {
+      margin: 0;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--navy-deep);
+    }
+  }
+
+  .info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 16px;
+  }
+
+  .info-card {
+    background: #f8fafc;
+    border: 1px solid var(--line-soft);
+    border-radius: 8px;
+    padding: 14px 16px;
+
+    h5 {
+      margin: 0 0 6px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--navy-deep);
+    }
+
+    p {
+      margin: 0;
+      font-size: 12px;
+      color: var(--ink-2);
+      line-height: 1.6;
+
+      strong {
+        color: var(--navy);
+      }
+    }
+  }
+}

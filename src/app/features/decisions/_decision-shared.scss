@@ -1,0 +1,265 @@
+// S-12 決策頁與建立決策對話框共用的樣式。規格依 FRONTEND_UI_GUIDELINES.md §2、§3.5、§4。
+
+@mixin tokens {
+  --navy: #123a56;
+  --navy-deep: #0e2a3f;
+  --teal: #1e7a9e;
+  --teal-soft: #d8eaf2;
+  --a: #77b28c;
+  --b: #d97706;
+  --c: #64748b;
+  --risk: #95190c;
+  --warn: #d97706;
+  --card: #ffffff;
+  --surface: #f8fafc;
+  --ink: #16232e;
+  --ink-2: #4a5a67;
+  --ink-3: #8a9aa6;
+  --line: #dce3e9;
+  --line-soft: #eaeff3;
+  --sans: 'Noto Sans TC', 'PingFang TC', 'Microsoft JhengHei', sans-serif;
+  --serif: 'Noto Serif TC', 'Songti TC', serif;
+  --mono: 'IBM Plex Mono', ui-monospace, monospace;
+
+  font-family: var(--sans);
+  color: var(--ink);
+  line-height: 1.6;
+}
+
+@mixin controls {
+  .mono {
+    font-family: var(--mono);
+  }
+
+  .btn {
+    font-family: var(--sans);
+    font-size: 12px;
+    padding: 6px 14px;
+    height: 34px;
+    border-radius: 7px;
+    border: 1px solid var(--line);
+    background: #ffffff;
+    color: var(--ink-2);
+    cursor: pointer;
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: all 0.2s cubic-bezier(0.19, 1, 0.22, 1);
+
+    &:hover {
+      background: #f1f5f9;
+      border-color: #cbd5e1;
+    }
+
+    &:active {
+      transform: scale(0.96);
+    }
+
+    &.pri {
+      background: var(--teal);
+      border-color: var(--teal);
+      color: #ffffff;
+      font-weight: 500;
+
+      &:hover {
+        background: #186380;
+      }
+    }
+
+    &.danger {
+      background: #fef2f2;
+      border-color: #fecaca;
+      color: var(--risk);
+    }
+
+    &:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+      transform: none;
+    }
+  }
+
+  .range-tabs {
+    display: inline-flex;
+    background: #f1f5f9;
+    padding: 3px;
+    border-radius: 7px;
+    gap: 4px;
+    flex-wrap: wrap;
+
+    .range-btn {
+      border: none;
+      background: transparent;
+      font-family: var(--sans);
+      font-size: 11.5px;
+      color: var(--ink-2);
+      padding: 5px 12px;
+      border-radius: 5px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.2s cubic-bezier(0.19, 1, 0.22, 1);
+
+      &:hover {
+        color: var(--ink);
+      }
+
+      &:active {
+        transform: scale(0.95);
+      }
+
+      &.active {
+        background: #ffffff;
+        color: var(--navy-deep);
+        font-weight: 600;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+      }
+
+      &:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+      }
+    }
+  }
+
+  .status-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 6px;
+    color: #ffffff;
+    white-space: nowrap;
+    background: var(--c);
+
+    &.compact {
+      font-size: 11px;
+      padding: 2px 7px;
+      border-radius: 4px;
+    }
+
+    &.status-normal {
+      background: var(--a);
+    }
+
+    &.status-warn {
+      background: var(--risk);
+    }
+
+    &.status-quota {
+      background: var(--warn);
+    }
+
+    &.override-badge {
+      background: var(--c);
+    }
+  }
+
+  .grade-chip {
+    font-family: var(--serif);
+    font-size: 11px;
+    font-weight: 700;
+    width: 22px;
+    height: 20px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    color: #ffffff;
+
+    &.grade-a {
+      background: var(--a);
+    }
+
+    &.grade-b {
+      background: var(--b);
+    }
+
+    &.grade-c {
+      background: var(--c);
+    }
+  }
+
+  .alert {
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 12.5px;
+    margin-bottom: 12px;
+
+    &.error {
+      background: #fef2f2;
+      color: var(--risk);
+      border: 1px solid #fecaca;
+    }
+
+    &.ok {
+      background: #f0fdf4;
+      color: #166534;
+      border: 1px solid #bbf7d0;
+    }
+
+    &.warn {
+      background: #fffbeb;
+      color: #92400e;
+      border: 1px solid #fde68a;
+    }
+  }
+
+  .txt {
+    font-family: var(--sans);
+    font-size: 13px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: #f8fafc;
+    padding: 8px 10px;
+    color: var(--ink);
+    width: 100%;
+    box-sizing: border-box;
+    transition: all 0.3s cubic-bezier(0.19, 1, 0.22, 1);
+
+    &:hover {
+      background: #f1f5f9;
+    }
+
+    &:focus {
+      outline: none;
+      background: #ffffff;
+      border-color: var(--teal);
+    }
+  }
+
+  .fld {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+
+    .lbl {
+      font-size: 12px;
+      color: var(--ink-2);
+      font-weight: 500;
+
+      em {
+        font-style: normal;
+        color: var(--risk);
+        font-weight: 400;
+      }
+    }
+
+    .hint {
+      font-size: 11px;
+      color: var(--ink-3);
+    }
+
+    .err {
+      font-size: 11px;
+      color: var(--risk);
+    }
+  }
+
+  .muted {
+    color: var(--ink-3);
+  }
+}

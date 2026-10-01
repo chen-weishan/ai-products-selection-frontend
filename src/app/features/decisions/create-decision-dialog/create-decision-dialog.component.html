@@ -1,0 +1,139 @@
+<div class="dlg">
+  <div class="dlg-head">
+    <h3>建立採購決策</h3>
+    <div class="sub">決策會綁定品項目前的主情境評分，並自動產生決策快照</div>
+  </div>
+
+  @if (errorMessage(); as msg) {
+    <div class="alert error">{{ msg }}</div>
+  }
+
+  @if (!context()) {
+    <!-- 步驟 1：挑品項 ─────────────────────────────── -->
+    <div class="picker">
+      <div class="picker-bar">
+        <input class="txt" type="text" placeholder="搜尋品項名稱…" [ngModel]="keyword()"
+               (ngModelChange)="keyword.set($event)" (keyup.enter)="search()" />
+        <div class="range-tabs">
+          <button type="button" class="range-btn" [class.active]="statusFilter() === 'EVALUATING'"
+                  (click)="setStatusFilter('EVALUATING')">評估中</button>
+          <button type="button" class="range-btn" [class.active]="statusFilter() === 'WATCHING'"
+                  (click)="setStatusFilter('WATCHING')">觀察中</button>
+        </div>
+        <button type="button" class="btn" (click)="search()">搜尋</button>
+      </div>
+      <p class="hint">依 §7.4 狀態機，只有「評估中」與「觀察中」的 A 軌品項可以建立決策。</p>
+
+      @if (searching() || loadingContext()) {
+        <p class="empty">載入中…</p>
+      } @else if (options().length === 0) {
+        <p class="empty">沒有符合的品項。</p>
+      } @else {
+        <ul class="options">
+          @for (p of options(); track p.id) {
+            <li>
+              <button type="button" class="option" (click)="pick(p)">
+                <span class="name">{{ p.name }}</span>
+                <span class="cat">{{ p.categoryName ?? '—' }}</span>
+                <span class="score mono">{{ p.latestScore ?? '—' }}</span>
+                @if (p.grade) {
+                  <span [class]="'grade-chip grade-' + p.grade.toLowerCase()">{{ p.grade }}</span>
+                }
+              </button>
+            </li>
+          }
+        </ul>
+      }
+    </div>
+  } @else {
+    @let ctx = context()!;
+    <!-- 步驟 2：決策表單 ──────────────────────────── -->
+    <div class="ctx">
+      <div class="ctx-title">
+        <strong>{{ ctx.productName }}</strong>
+        @if (!data.productId) {
+          <button type="button" class="link" (click)="backToPicker()">改選品項</button>
+        }
+      </div>
+
+      @if (ctx.score; as s) {
+        <div class="ctx-row">
+          <span class="k">綁定評分</span>
+          <span class="mono">{{ s.period }}</span>
+          <span>{{ sceneLabels[s.sceneType] }}</span>
+          <span class="mono big">{{ s.finalScore }}</span>
+          <span [class]="'grade-chip grade-' + s.grade.toLowerCase()">{{ s.grade }}</span>
+        </div>
+      }
+
+      <div class="ctx-row ai">
+        <span class="k">AI 建議</span>
+        @if (ctx.ai; as ai) {
+          <span [class]="'status-badge compact ' + decisionBadge[ai.action]">
+            {{ ai.action }} {{ decisionLabels[ai.action] }}
+          </span>
+          <span>{{ ai.quantityText ?? '' }}</span>
+        } @else {
+          <span class="muted">目前沒有 AI 建議，建立決策時理由必填</span>
+        }
+      </div>
+      @if (ctx.ai?.reasoning; as reasoning) {
+        <p class="reasoning">{{ reasoning }}</p>
+      }
+    </div>
+
+    @if (ctx.allowedDecisions.length === 0) {
+      <div class="alert warn">{{ ctx.blockedReason }}</div>
+    } @else {
+      <div class="form">
+        <div class="fld">
+          <span class="lbl">決策類型 *</span>
+          <div class="range-tabs">
+            @for (t of decisionTypes; track t) {
+              <button type="button" class="range-btn" [class.active]="decision() === t"
+                      [disabled]="!isAllowed(t)" (click)="chooseDecision(t)">
+                {{ t }} {{ decisionLabels[t] }}
+              </button>
+            }
+          </div>
+        </div>
+
+        @if (isAdopt()) {
+          <div class="grid2">
+            <label class="fld">
+              <span class="lbl">建議首批數量 *</span>
+              <input class="txt mono" type="number" min="1" [ngModel]="firstOrderQty()"
+                     (ngModelChange)="firstOrderQty.set($event)" />
+              @if (ctx.ai?.qtyMin && ctx.ai?.qtyMax) {
+                <span class="hint">AI 建議 {{ ctx.ai!.qtyMin }}–{{ ctx.ai!.qtyMax }}</span>
+              }
+              @if (fieldErrors()['firstOrderQty']; as e) { <span class="err">{{ e }}</span> }
+            </label>
+            <label class="fld">
+              <span class="lbl">預計上架日</span>
+              <input class="txt mono" type="date" [ngModel]="expectedListDate()"
+                     (ngModelChange)="expectedListDate.set($event)" />
+            </label>
+          </div>
+        }
+
+        <label class="fld">
+          <span class="lbl">理由 @if (reasonRequired()) { <em>*（未採納 AI 建議時必填）</em> }</span>
+          <textarea class="txt" rows="3" maxlength="500" [ngModel]="reason()"
+                    (ngModelChange)="reason.set($event)"
+                    placeholder="人為什麼不同意 AI，比 AI 說了什麼更有價值"></textarea>
+          @if (fieldErrors()['reason']; as e) { <span class="err">{{ e }}</span> }
+        </label>
+      </div>
+    }
+  }
+
+  <div class="dlg-actions">
+    <button type="button" class="btn" (click)="cancel()">取消</button>
+    @if (context()) {
+      <button type="button" class="btn pri" [disabled]="!canSubmit()" (click)="submit()">
+        {{ submitting() ? '建立中…' : '建立決策' }}
+      </button>
+    }
+  </div>
+</div>
