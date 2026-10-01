@@ -315,9 +315,19 @@ export class ProductFormComponent implements OnInit, OnDestroy {
 
     const stageUntilSupplementsComplete =
       !saveAsDraft && (this.productId() == null || this.persistedStatus() === 'DRAFT');
+    const deferAnalysisUntilSupplementsComplete =
+      !saveAsDraft &&
+      !stageUntilSupplementsComplete &&
+      this.form.controls.trackType.value === 'A';
 
-    this.editor
-      .save(this.productId(), this.buildRequest(stageUntilSupplementsComplete ? true : saveAsDraft))
+    const initialRequest = this.buildRequest(
+      stageUntilSupplementsComplete ? true : saveAsDraft,
+    );
+    const initialSave = deferAnalysisUntilSupplementsComplete
+      ? this.editor.save(this.productId(), initialRequest, { deferAnalysis: true })
+      : this.editor.save(this.productId(), initialRequest);
+
+    initialSave
       .pipe(
         tap((result) => {
           this.warnings.set(result.warnings);
@@ -337,19 +347,29 @@ export class ProductFormComponent implements OnInit, OnDestroy {
             );
           }
           if (this.affinitiesLoaded()) {
+            const affinitySave = deferAnalysisUntilSupplementsComplete
+              ? this.supplements.saveAffinities(productId, this.affinityPayload(), {
+                  deferAnalysis: true,
+                })
+              : this.supplements.saveAffinities(productId, this.affinityPayload());
             actions.push(
               this.captureSupplementSave(
                 '節慶關聯度',
-                this.supplements.saveAffinities(productId, this.affinityPayload()),
+                affinitySave,
               ),
             );
           }
           const reviewFile = this.reviewFile();
           if (this.form.controls.trackType.value === 'A' && this.canImportReviews() && reviewFile) {
+            const reviewUpload = deferAnalysisUntilSupplementsComplete
+              ? this.supplements.uploadReviewFile(productId, reviewFile, {
+                  deferAnalysis: true,
+                })
+              : this.supplements.uploadReviewFile(productId, reviewFile);
             actions.push(
               this.captureSupplementSave(
                 '評論 CSV',
-                this.supplements.uploadReviewFile(productId, reviewFile),
+                reviewUpload,
               ),
             );
           }
@@ -391,13 +411,30 @@ export class ProductFormComponent implements OnInit, OnDestroy {
 
               if (saveAsDraft || this.form.controls.trackType.value !== 'A') return activate;
 
-              return activate.pipe(
+              const finalized = deferAnalysisUntilSupplementsComplete
+                ? activate.pipe(
+                    switchMap((activated) =>
+                      this.editor.finalizeAnalysis(productId).pipe(
+                        map((analysis) => ({
+                          ...activated,
+                          result: {
+                            ...activated.result,
+                            taskId: analysis.taskId,
+                            taskStatus: analysis.taskStatus,
+                          },
+                        })),
+                      ),
+                    ),
+                  )
+                : activate;
+
+              return finalized.pipe(
                 map((activated) => {
                   const taskId = activated.result.taskId;
                   if (taskId == null) return activated;
 
-                  // 後端在正式 A 軌品項建立／更新時已建立 FULL_ANALYSIS；
-                  // 前端只接續追蹤該任務，避免再次呼叫 batch/analyze 造成重複排程。
+                  // 建立／草稿送出由儲存 API 排程；既有正式品項則在所有補充資料
+                  // 寫入成功後，由 finalize API 統一排程。前端只追蹤回傳的 taskId。
                   this.products.trackAnalysisTask(taskId, 1);
                   return {
                     ...activated,

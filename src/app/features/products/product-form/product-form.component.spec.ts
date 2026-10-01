@@ -21,6 +21,7 @@ describe('ProductFormComponent', () => {
   const clearCategoryMarginMedian = vi.fn();
   const loadProduct = vi.fn();
   const saveProduct = vi.fn();
+  const finalizeAnalysis = vi.fn();
   const loadImages = vi.fn();
   const uploadFiles = vi.fn();
   const reorderImages = vi.fn();
@@ -48,6 +49,7 @@ describe('ProductFormComponent', () => {
       clearCategoryMarginMedian,
       loadProduct,
       saveProduct,
+      finalizeAnalysis,
       loadImages,
       uploadFiles,
       reorderImages,
@@ -93,6 +95,7 @@ describe('ProductFormComponent', () => {
         lowConfidence: true,
       }),
     );
+    finalizeAnalysis.mockReturnValue(of({ queued: false }));
     navigate.mockResolvedValue(true);
 
     await TestBed.configureTestingModule({
@@ -132,6 +135,7 @@ describe('ProductFormComponent', () => {
           useValue: {
             load: loadProduct,
             save: saveProduct,
+            finalizeAnalysis,
             clearError: vi.fn(),
             loading: signal(false),
             saving: signal(false),
@@ -441,6 +445,35 @@ describe('ProductFormComponent', () => {
     expect(component.supplementFailureRetainedAsDraft()).toBe(false);
     expect(component.supplementalSaveErrors()).toEqual([]);
     expect(navigate).toHaveBeenCalledWith(['/products']);
+  });
+
+  it('defers an existing formal product analysis until all supplements are saved', () => {
+    component.productId.set(108);
+    component.persistedStatus.set('EVALUATING');
+    component.form.patchValue({
+      name: '既有正式品項',
+      categoryId: 10,
+      trackType: 'A',
+      cost: 80,
+      suggestedPrice: 120,
+    });
+    saveProduct.mockReturnValue(
+      of({ product: { id: 108, name: '既有正式品項', status: 'EVALUATING' }, warnings: [] }),
+    );
+    finalizeAnalysis.mockReturnValue(
+      of({ taskId: 508, taskStatus: 'PENDING', queued: true }),
+    );
+
+    component.save(false);
+
+    expect(saveProduct).toHaveBeenCalledWith(
+      108,
+      expect.objectContaining({ saveAsDraft: false }),
+      { deferAnalysis: true },
+    );
+    expect(saveAffinities).toHaveBeenCalledWith(108, [], { deferAnalysis: true });
+    expect(finalizeAnalysis).toHaveBeenCalledWith(108);
+    expect(trackAnalysisTask).toHaveBeenCalledWith(508, 1);
   });
 
   it('accepts one review CSV dropped on the upload zone', () => {
