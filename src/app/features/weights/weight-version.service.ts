@@ -6,6 +6,7 @@ import {
   ApproveWeightVersionRequest,
   CreateWeightVersionRequest,
   PageResponse,
+  SceneStats,
   WeightVersionDetail,
   WeightVersionSummary,
 } from '../../core/models/weight';
@@ -52,6 +53,15 @@ export class WeightVersionService {
   getDetail(id: number): Observable<WeightVersionDetail> {
     return this.http
       .get<ApiResponse<WeightVersionDetail>>(`${this.baseUrl}/${id}/profiles`, {
+        headers: this.authHeaders,
+      })
+      .pipe(map((res) => res.data));
+  }
+
+  /** 該版本生效區間內的情境判定統計。草稿回全 0。 */
+  getSceneStats(id: number): Observable<SceneStats> {
+    return this.http
+      .get<ApiResponse<SceneStats>>(`${this.baseUrl}/${id}/scene-stats`, {
         headers: this.authHeaders,
       })
       .pipe(map((res) => res.data));
