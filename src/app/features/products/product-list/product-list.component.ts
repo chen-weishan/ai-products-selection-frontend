@@ -248,6 +248,10 @@ export class ProductListComponent implements OnInit {
     });
   }
 
+  openProductDetail(productId: number): void {
+    void this.router.navigate(['/products', productId]);
+  }
+
   retryCategories(): void {
     this.references
       .loadCategories()

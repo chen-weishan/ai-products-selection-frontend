@@ -45,8 +45,8 @@ describe('ProductEditorService', () => {
     const request = {
       name: '抹茶餅乾',
       categoryId: 10,
-      logisticsConditions: ['NORMAL' as const],
-      keywordIds: [30],
+      logisticsConditions: ['NORMAL'] as unknown as Set<'NORMAL'>,
+      keywordIds: [30] as unknown as Set<number>,
     };
 
     const result = await firstValueFrom(service.save(null, request));

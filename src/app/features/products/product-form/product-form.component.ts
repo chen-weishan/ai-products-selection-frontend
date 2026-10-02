@@ -694,10 +694,10 @@ export class ProductFormComponent implements OnInit, OnDestroy {
       season: trackB ? undefined : value.season,
       trackType: value.trackType,
       sourcingStatus: trackB ? (value.sourcingStatus ?? 'PENDING') : undefined,
-      logisticsConditions: trackB ? undefined : [...value.logisticsConditions],
+      logisticsConditions: trackB ? undefined : asGeneratedSet(value.logisticsConditions),
       idealTempMin: value.idealTempMin ?? undefined,
       idealTempMax: value.idealTempMax ?? undefined,
-      keywordIds: [...value.keywordIds],
+      keywordIds: asGeneratedSet(value.keywordIds),
       saveAsDraft,
     };
   }
@@ -860,4 +860,8 @@ function duplicateFestivalValidator(control: AbstractControl): ValidationErrors 
   const values = (control.value ?? []) as { festivalCode?: string | null }[];
   const codes = values.flatMap((value) => (value.festivalCode ? [value.festivalCode] : []));
   return new Set(codes).size === codes.length ? null : { duplicateFestival: true };
+}
+
+function asGeneratedSet<T>(values: readonly T[]): Set<T> {
+  return [...values] as unknown as Set<T>;
 }

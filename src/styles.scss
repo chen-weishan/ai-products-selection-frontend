@@ -53,6 +53,12 @@ body {
   color: var(--mat-sys-on-surface);
 }
 
+// 品項頁的表頭直接黏在實際捲動視窗頂端；加上 Material 類別與 important，
+// 確保能覆寫 MainLayout 元件封裝後的 24px 上方 padding。
+.content-area.mat-drawer-content:has(app-product-list) {
+  padding-top: 0 !important;
+}
+
 .unified-mat-select-panel.mat-mdc-select-panel {
   border: 1px solid #cbd5e1 !important;
   border-radius: 8px !important;

@@ -121,7 +121,7 @@ export class ProductService implements OnDestroy {
     return this.api
       .analyzeBatch({
         productBatchAnalyzeRequest: {
-          productIds: [...productIds],
+          productIds: asGeneratedSet(productIds),
         },
       })
       .pipe(
@@ -147,7 +147,7 @@ export class ProductService implements OnDestroy {
     return this.api
       .queueScoreBatch({
         productBatchQueueScoreRequest: {
-          productIds: [...productIds],
+          productIds: asGeneratedSet(productIds),
         },
       })
       .pipe(
@@ -174,7 +174,7 @@ export class ProductService implements OnDestroy {
     return this.api
       .assignCategory({
         productBatchCategoryRequest: {
-          productIds: [...productIds],
+          productIds: asGeneratedSet(productIds),
           categoryId,
         },
       })
@@ -196,7 +196,7 @@ export class ProductService implements OnDestroy {
     return this.api
       .disableBatch({
         productBatchDisableRequest: {
-          productIds: [...productIds],
+          productIds: asGeneratedSet(productIds),
         },
       })
       .pipe(
@@ -405,4 +405,8 @@ function toErrorMessage(error: unknown): string {
     return error.message;
   }
   return '取得品項清單失敗';
+}
+
+function asGeneratedSet<T>(values: readonly T[]): Set<T> {
+  return [...values] as unknown as Set<T>;
 }
