@@ -183,6 +183,24 @@ export class HeatTagsComponent implements OnInit {
       && !this.isCheckingProductTarget() && !this.targetError() && !this.isSubmitting();
   });
 
+  readonly submitBlockedReason = computed(() => {
+    if (!this.canWrite()) return '目前登入角色沒有新增人工標記權限。';
+    if (!this.sourceUrl().trim()) return '請先輸入來源連結。';
+    if (this.urlError()) return this.urlError();
+    if (!this.selectedProduct() && !this.selectedKeyword()) return '請選擇關聯品項或趨勢關鍵字。';
+    if (this.isCheckingProductTarget()) return '正在確認商品綁定的趨勢關鍵字。';
+    if (this.targetError()) return this.targetError();
+    if (this.selectedProduct() && this.editingTagId() === null && this.selectedProductKeywordIds().length === 0) {
+      return '此商品沒有可套用的趨勢關鍵字。';
+    }
+    if (this.isResolvingPlatform() && !this.isPlatformManuallyOverridden()) return '正在辨識來源平台。';
+    if (this.platformError() && !this.isPlatformManuallyOverridden()) return '平台辨識失敗，請手動選擇平台。';
+    if (this.noteError()) return this.noteError();
+    if (this.timeError()) return this.timeError();
+    if (this.isSubmitting()) return '標記正在送出。';
+    return '';
+  });
+
   ngOnInit(): void {
     const user = this.currentUser();
     this.loadedIdentity = JSON.stringify([user?.id, user?.roles, user?.role]);

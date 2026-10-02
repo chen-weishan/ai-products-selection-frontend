@@ -302,15 +302,15 @@
                 }
               </mat-select>
               @if (form.hasError('keywordRequired')) {
-                <mat-error>B 軌送出時至少選擇 1 個關鍵字</mat-error>
+                <mat-error>正式送出時至少選擇 1 個關鍵字</mat-error>
               } @else if (form.hasError('tooManyKeywords')) {
                 <mat-error>最多選擇 5 個關鍵字</mat-error>
               }
             </mat-form-field>
-            <p class="field-help">用於每日擷取 Google Trends 熱度。</p>
+            <p class="field-help">用於每日熱度合成；商品型人工標記也會依這些關鍵字計算。</p>
             @if (references.trendKeywordError()) {
               <p class="inline-error" role="status">
-                趨勢關鍵字暫時無法載入；A 軌仍可繼續，B 軌請重新載入後再送出。
+                趨勢關鍵字暫時無法載入；可先存為草稿，正式送出前請重新載入並選擇關鍵字。
                 <button mat-button type="button" (click)="retryTrendKeywords()">重新載入</button>
               </p>
             }

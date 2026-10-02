@@ -28,6 +28,7 @@ describe('HeatTagsComponent', () => {
 
   let mockProductService: {
     search: ReturnType<typeof vi.fn>;
+    getById: ReturnType<typeof vi.fn>;
   };
 
   let mockReferenceService: {
@@ -97,6 +98,10 @@ describe('HeatTagsComponent', () => {
     };
 
     mockProductService = {
+      getById: vi.fn().mockReturnValue(of({
+        success: true,
+        data: { id: 101, name: '石墨烯智能溫控眼罩', keywordIds: [201] },
+      })),
       search: vi.fn().mockReturnValue(of({
         success: true,
         data: {

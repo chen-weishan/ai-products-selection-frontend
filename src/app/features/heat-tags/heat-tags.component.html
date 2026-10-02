@@ -111,6 +111,13 @@
                         (click)="clearSelectedTarget()">更換標的</button>
                     }
                 </div>
+                @if (isCheckingProductTarget()) {
+                <p class="sub-hint" role="status">正在確認商品的趨勢關鍵字…</p>
+                } @else if (targetError()) {
+                <p class="inline-error" role="alert">{{ targetError() }}</p>
+                } @else {
+                <p class="sub-hint">將套用至此商品綁定的 {{ selectedProductKeywordIds().length }} 個趨勢關鍵字。</p>
+                }
                 } @else if (selectedKeyword(); as kw) {
                 <div class="selected-chip-card">
                     <span class="status-badge compact override-badge">趨勢關鍵字</span>
@@ -208,6 +215,9 @@
                     (click)="submitTag()">
                     {{ isSubmitting() ? '處理中…' : (editingTagId() !== null ? '儲存變更' : '送出標記') }}
                 </button>
+                @if (submitBlockedReason()) {
+                <span class="validation-message submit-blocked-reason" role="status">{{ submitBlockedReason() }}</span>
+                }
             </div>
         </div>
     </div>

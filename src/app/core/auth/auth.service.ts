@@ -14,8 +14,8 @@ export class AuthService {
   private readonly http = inject(HttpClient);
   private readonly router = inject(Router);
 
-  private readonly ACCESS_TOKEN_KEY = 'ssds_access_Token';
-  private readonly REFRESH_TOKEN_KEY = 'ssds_refresh_Token';
+  private readonly ACCESS_TOKEN_KEY = 'ssds_access_token';
+  private readonly REFRESH_TOKEN_KEY = 'ssds_refresh_token';
   private readonly USER_KEY = 'ssds_user_info';
 
   /** 是否使用前端假資料模式（若後端尚未連接則為 true） */
@@ -28,7 +28,7 @@ export class AuthService {
 
   constructor() {
     const onStorage = (event: StorageEvent) => {
-      if (event.key === null || event.key === this.USER_KEY) {
+      if (event.key === null || event.key === this.USER_KEY || event.key === 'ssds_user_info') {
         this.currentUser.set(this.getStoredUser());
       }
     };
@@ -56,6 +56,7 @@ export class AuthService {
   }
 
   login(credentials: LoginRequest): Observable<LoginResponse> {
+    this.clearStoredAuth();
     if (this.useMock) {
       const account = findMockAccount(credentials.email, credentials.password);
       if (!account) {
@@ -162,7 +163,10 @@ export class AuthService {
     localStorage.removeItem(this.ACCESS_TOKEN_KEY);
     localStorage.removeItem(this.REFRESH_TOKEN_KEY);
     localStorage.removeItem(this.USER_KEY);
+    localStorage.removeItem('ssds_access_Token');
+    localStorage.removeItem('ssds_refresh_Token');
     localStorage.removeItem('ssds_access_token');
+    localStorage.removeItem('ssds_refresh_token');
     localStorage.removeItem('ssds_user_info');
     this.currentUser.set(null);
   }
@@ -173,7 +177,7 @@ export class AuthService {
   }
 
   getAccessToken(): string | null {
-    const token = localStorage.getItem(this.ACCESS_TOKEN_KEY) || localStorage.getItem('ssds_access_token');
+    const token = this.selectStoredAccessToken();
     if (!token) return null;
     if (this.isTokenExpired(token)) {
       this.clearStoredAuth();
@@ -183,7 +187,7 @@ export class AuthService {
   }
 
   getRefreshToken(): string | null {
-    return localStorage.getItem(this.REFRESH_TOKEN_KEY);
+    return localStorage.getItem(this.REFRESH_TOKEN_KEY) || localStorage.getItem('ssds_refresh_Token');
   }
 
   gatRefreshToken(): string | null {
@@ -201,9 +205,12 @@ export class AuthService {
 
   private saveAuthData(response: any): void {
     const token = response.accessToken || response.data?.accessToken;
-    const email = response.email || response.user?.email || response.user?.username || '';
+    const tokenIdentity = this.decodeTokenIdentity(token);
+    const email = tokenIdentity?.email || response.email || response.user?.email || response.user?.username || '';
     const displayName = response.displayName || response.user?.displayName || response.user?.name || email;
-    const rawRoles = response.roles || response.user?.roles || (response.user?.role ? [response.user.role] : ['BUYER']);
+    const rawRoles = tokenIdentity?.roles?.length
+      ? tokenIdentity.roles
+      : response.roles || response.user?.roles || (response.user?.role ? [response.user.role] : ['BUYER']);
     const roles: UserRole[] = Array.isArray(rawRoles) ? rawRoles : [rawRoles];
     const primaryRole: UserRole = roles[0] || 'BUYER';
 
@@ -218,12 +225,14 @@ export class AuthService {
     };
 
     localStorage.setItem(this.ACCESS_TOKEN_KEY, token);
-    localStorage.setItem('ssds_access_token', token);
+    localStorage.removeItem('ssds_access_Token');
 
     if (response.refreshToken) {
       localStorage.setItem(this.REFRESH_TOKEN_KEY, response.refreshToken);
+      localStorage.removeItem('ssds_refresh_Token');
     } else {
       localStorage.removeItem(this.REFRESH_TOKEN_KEY);
+      localStorage.removeItem('ssds_refresh_Token');
     }
 
     localStorage.setItem(this.USER_KEY, JSON.stringify(user));
@@ -232,7 +241,7 @@ export class AuthService {
   }
 
   private getStoredUser(): UserInfo | null {
-    const token = localStorage.getItem(this.ACCESS_TOKEN_KEY) || localStorage.getItem('ssds_access_token');
+    const token = this.selectStoredAccessToken();
     if (!token || this.isTokenExpired(token)) {
       return null;
     }
@@ -241,16 +250,57 @@ export class AuthService {
     try {
       const parsed = JSON.parse(data);
       if (!parsed) return null;
-      const roles: UserRole[] = Array.isArray(parsed.roles) ? parsed.roles : (parsed.role ? [parsed.role] : ['BUYER']);
+      const tokenIdentity = this.decodeTokenIdentity(token);
+      const roles: UserRole[] = tokenIdentity?.roles?.length
+        ? tokenIdentity.roles
+        : Array.isArray(parsed.roles) ? parsed.roles : (parsed.role ? [parsed.role] : ['BUYER']);
+      const email = tokenIdentity?.email ?? parsed.email ?? parsed.username ?? '';
       return {
         id: parsed.id ?? 0,
-        username: parsed.username ?? parsed.email ?? '',
+        username: email,
         name: parsed.name ?? parsed.displayName ?? '使用者',
-        email: parsed.email ?? parsed.username ?? '',
+        email,
         displayName: parsed.displayName ?? parsed.name ?? '使用者',
         role: roles[0] ?? parsed.role ?? 'BUYER',
         roles: roles,
       };
+    } catch {
+      return null;
+    }
+  }
+
+  private selectStoredAccessToken(): string | null {
+    const canonical = localStorage.getItem(this.ACCESS_TOKEN_KEY);
+    const legacy = localStorage.getItem('ssds_access_Token');
+    if (!canonical || !legacy || canonical === legacy) return canonical || legacy;
+
+    const storedUser = localStorage.getItem(this.USER_KEY);
+    let expectedEmail = '';
+    try {
+      const parsed = storedUser ? JSON.parse(storedUser) : null;
+      expectedEmail = String(parsed?.email ?? parsed?.username ?? '').toLowerCase();
+    } catch {
+      // 使用標準鍵作為無法解析舊資料時的安全預設。
+    }
+    if (expectedEmail) {
+      const canonicalEmail = this.decodeTokenIdentity(canonical)?.email?.toLowerCase();
+      const legacyEmail = this.decodeTokenIdentity(legacy)?.email?.toLowerCase();
+      if (canonicalEmail === expectedEmail) return canonical;
+      if (legacyEmail === expectedEmail) return legacy;
+    }
+    return canonical;
+  }
+
+  private decodeTokenIdentity(token: string | null | undefined): { email?: string; roles: UserRole[] } | null {
+    if (!token) return null;
+    try {
+      const parts = token.split('.');
+      if (parts.length !== 3) return null;
+      const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+      const padded = base64.padEnd(Math.ceil(base64.length / 4) * 4, '=');
+      const payload = JSON.parse(atob(padded));
+      const roles = Array.isArray(payload.roles) ? payload.roles : [];
+      return { email: typeof payload.sub === 'string' ? payload.sub : undefined, roles };
     } catch {
       return null;
     }
