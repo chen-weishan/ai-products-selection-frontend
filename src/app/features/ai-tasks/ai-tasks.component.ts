@@ -50,7 +50,6 @@ export class AiTasksComponent implements OnInit, OnDestroy {
   readonly pageIndex = signal<number>(0);
   readonly pageSize = signal<number>(10);
   readonly selectedStatus = signal<string>('ALL');
-  readonly currentTime = signal<number>(Date.now());
 
   readonly isLoading = signal<boolean>(false);
   readonly expandedTaskId = signal<number | null>(null);
@@ -58,19 +57,6 @@ export class AiTasksComponent implements OnInit, OnDestroy {
   readonly loadingItemsTaskId = signal<number | null>(null);
 
   private pollTimer: any = null;
-
-  /**
-   * The current OpenAPI document describes these JSON responses with a wildcard media type, so
-   * the generated client otherwise selects `responseType: 'blob'`. Keep this
-   * override until the client is regenerated from the corrected backend spec.
-   */
-  private jsonOptions(context?: HttpContext) {
-    return {
-      // `never` remains assignable after regeneration changes the generated literal union.
-      httpHeaderAccept: 'application/json' as never,
-      ...(context ? { context } : {}),
-    };
-  }
 
   // ── 計算訊號 (Computed) ──
   readonly activeRunningTask = computed(() => {
@@ -100,7 +86,7 @@ export class AiTasksComponent implements OnInit, OnDestroy {
 
   private loadSummary(silent = false): void {
     const context = silent ? new HttpContext().set(SKIP_LOADING, true) : undefined;
-    this.aiTasksService.summary1('body', false, this.jsonOptions(context)).subscribe({
+    this.aiTasksService.summary1('body', false, { context }).subscribe({
       next: (res) => {
         if (res.data) {
           this.summary.set(res.data);
@@ -113,7 +99,7 @@ export class AiTasksComponent implements OnInit, OnDestroy {
 
   private loadBudget(silent = false): void {
     const context = silent ? new HttpContext().set(SKIP_LOADING, true) : undefined;
-    this.aiBudgetService.current('body', false, this.jsonOptions(context)).subscribe({
+    this.aiBudgetService.current('body', false, { context }).subscribe({
       next: (res) => {
         if (res.data) {
           this.budget.set(res.data);
@@ -139,10 +125,10 @@ export class AiTasksComponent implements OnInit, OnDestroy {
         },
         'body',
         false,
-        this.jsonOptions(context)
+        { context }
       )
       .subscribe({
-        next: (res) => {
+        next: (res: any) => {
           this.isLoading.set(false);
           const pageData = res.data;
           this.tasks.set(pageData?.content ?? []);
@@ -158,7 +144,7 @@ export class AiTasksComponent implements OnInit, OnDestroy {
             }
           }
         },
-        error: (err) => {
+        error: (err: any) => {
           this.isLoading.set(false);
           console.error('Failed to load AI tasks:', err);
         },
@@ -181,7 +167,6 @@ export class AiTasksComponent implements OnInit, OnDestroy {
   private startPolling(): void {
     if (this.pollTimer) return;
     this.pollTimer = setInterval(() => {
-      this.currentTime.set(Date.now());
       this.loadSummary(true);
       this.loadBudget(true);
       this.loadTasks(true);
@@ -227,7 +212,7 @@ export class AiTasksComponent implements OnInit, OnDestroy {
       this.loadingItemsTaskId.set(taskId);
     }
     const context = silent ? new HttpContext().set(SKIP_LOADING, true) : undefined;
-    this.aiTasksService.items({ taskId }, 'body', false, this.jsonOptions(context)).subscribe({
+    this.aiTasksService.items({ taskId }, 'body', false, { context }).subscribe({
       next: (res) => {
         this.loadingItemsTaskId.set(null);
         if (res.data) {
@@ -267,7 +252,7 @@ export class AiTasksComponent implements OnInit, OnDestroy {
               forceRefresh: result.forceRefresh,
             },
           },
-        }, 'body', false, this.jsonOptions())
+        })
         .subscribe({
           next: (res) => {
             const createdTask = res.data;
@@ -301,12 +286,7 @@ export class AiTasksComponent implements OnInit, OnDestroy {
       .subscribe((confirmed) => {
         if (!confirmed) return;
 
-        this.aiTasksService.cancel(
-          { taskId: task.taskId! },
-          'body',
-          false,
-          this.jsonOptions()
-        ).subscribe({
+        this.aiTasksService.cancel({ taskId: task.taskId! }).subscribe({
           next: () => {
             this.snackBar.open(`已成功取消任務 #${task.taskId}`, '關閉', { duration: 3000 });
             this.reload();
@@ -333,12 +313,7 @@ export class AiTasksComponent implements OnInit, OnDestroy {
       .subscribe((confirmed) => {
         if (!confirmed) return;
 
-        this.aiTasksService.retryFailed(
-          { taskId: task.taskId! },
-          'body',
-          false,
-          this.jsonOptions()
-        ).subscribe({
+        this.aiTasksService.retryFailed({ taskId: task.taskId! }).subscribe({
           next: (res) => {
             const newTaskId = res.data?.taskId;
             this.snackBar.open(`已建立重試任務 #${newTaskId}，開始重新排程處理`, '關閉', { duration: 4000 });
@@ -369,7 +344,7 @@ export class AiTasksComponent implements OnInit, OnDestroy {
     if (!startedAt) return '-';
     const start = new Date(startedAt).getTime();
     if (isNaN(start)) return '-';
-    const end = finishedAt ? new Date(finishedAt).getTime() : this.currentTime();
+    const end = finishedAt ? new Date(finishedAt).getTime() : Date.now();
     const diffSec = Math.max(0, Math.floor((end - start) / 1000));
     if (diffSec < 60) return `${diffSec} 秒`;
     const min = Math.floor(diffSec / 60);

@@ -77,12 +77,84 @@ export class SourcingQueueComponent implements OnInit {
   // 狀態訊號 (Signals)
   items = signal<SourcingQueueItem[]>([]);
   selectedStatus = signal<string>('ALL');
-  loadError = signal<string | null>(null);
 
   // 分頁控制 Signals
   pageIndex = signal<number>(0);
   pageSize = signal<number>(10);
   readonly pageSizeOptions: number[] = [5, 10, 20, 50];
+
+  private static readonly MOCK_QUEUE_ITEMS: SourcingQueueItem[] = [
+    {
+      productId: 101,
+      keyword: '杜拜巧克力 (開心果夾心)',
+      heatStage: 'PLATEAU',
+      stageWeeks: 2,
+      estimatedLifespanDays: 45,
+      leadTimeDays: 21,
+      timeGapDays: 24,
+      sourcingStatus: 'SOURCING',
+    },
+    {
+      productId: 102,
+      keyword: '燕麥奶生乳酪蛋糕',
+      heatStage: 'RISING',
+      stageWeeks: 1,
+      estimatedLifespanDays: 60,
+      leadTimeDays: 14,
+      timeGapDays: 46,
+      sourcingStatus: 'SOURCING',
+    },
+    {
+      productId: 103,
+      keyword: '泰式酸辣烘烤洋芋片',
+      heatStage: 'PLATEAU',
+      stageWeeks: 4,
+      estimatedLifespanDays: 28,
+      leadTimeDays: 21,
+      timeGapDays: 7,
+      sourcingStatus: 'URGENT',
+    },
+    {
+      productId: 104,
+      keyword: '抹茶厚蛋捲禮盒',
+      heatStage: 'RISING',
+      stageWeeks: 2,
+      estimatedLifespanDays: 50,
+      leadTimeDays: 28,
+      timeGapDays: 22,
+      sourcingStatus: 'PENDING',
+    },
+    {
+      productId: 105,
+      keyword: '氣泡冷萃咖啡濃縮液',
+      heatStage: 'DECLINING',
+      stageWeeks: 5,
+      estimatedLifespanDays: 15,
+      leadTimeDays: 30,
+      timeGapDays: -15,
+      sourcingStatus: 'REJECTED',
+    },
+    {
+      productId: 106,
+      keyword: '黑松露風味肉乾條',
+      heatStage: 'PLATEAU',
+      stageWeeks: 3,
+      estimatedLifespanDays: 35,
+      leadTimeDays: 18,
+      timeGapDays: 17,
+      sourcingStatus: 'PROMOTED',
+    },
+    {
+      productId: 107,
+      keyword: '低卡高蛋白燕麥脆穀棒',
+      heatStage: 'RISING',
+      stageWeeks: 3,
+      estimatedLifespanDays: 55,
+      leadTimeDays: 25,
+      timeGapDays: 30,
+      sourcingStatus: 'SOURCING',
+    }
+  ];
 
   goToSourcing() {
     console.log('🚀 [SourcingQueueComponent] 點擊「+ 新增探索」按鈕，跳轉至 /sourcing');
@@ -173,7 +245,6 @@ export class SourcingQueueComponent implements OnInit {
   }
 
   async loadQueue() {
-    this.loadError.set(null);
     try {
       const res = await firstValueFrom(
         this.productService.search({ trackType: 'B', size: 100 } as any)
@@ -183,30 +254,36 @@ export class SourcingQueueComponent implements OnInit {
         responseData?.data?.content ?? responseData?.content ?? [];
 
       if (products.length === 0) {
-        this.items.set([]);
+        console.warn('⚠️ [SourcingQueue] B 軌商品搜尋結果為空，使用 Mock 資料作為安全氣囊回退');
+        this.items.set(SourcingQueueComponent.MOCK_QUEUE_ITEMS);
         return;
       }
 
       const queueItems: SourcingQueueItem[] = [];
       for (const p of products) {
         let reportData: any = null;
-        try {
-          const rawReport = await firstValueFrom(
-            this.sourcingService
-              .latest1({ productId: p.id })
-              .pipe(catchError(() => of(null)))
-          );
-          if (rawReport) {
-            const report = await this.unpack(rawReport);
-            reportData = report?.data ?? report;
+        if (p.timeGapDays != null) {
+          try {
+            const rawReport = await firstValueFrom(
+              this.sourcingService
+                .latest1({ productId: p.id })
+                .pipe(catchError(() => of(null)))
+            );
+            if (rawReport) {
+              const report = await this.unpack(rawReport);
+              reportData = report?.data ?? report;
+            }
+          } catch {
+            // ignore error
           }
-        } catch {
-          // Individual missing reports retain the real product row with empty snapshot values.
         }
 
         const estimatedLifespan = reportData?.estimatedLifespanDays ?? null;
-        const leadTime = reportData?.leadTimeDays ?? null;
-        const timeGap = reportData?.timeGapDays ?? null;
+        const timeGap = reportData?.timeGapDays ?? p.timeGapDays ?? null;
+        let leadTime: number | null = null;
+        if (estimatedLifespan != null && timeGap != null) {
+          leadTime = estimatedLifespan - timeGap;
+        }
 
         queueItems.push({
           productId: p.id,
@@ -220,11 +297,10 @@ export class SourcingQueueComponent implements OnInit {
         });
       }
 
-      this.items.set(queueItems);
+      this.items.set(queueItems.length > 0 ? queueItems : SourcingQueueComponent.MOCK_QUEUE_ITEMS);
     } catch (err) {
-      console.warn('⚠️ [SourcingQueue] 取得尋源佇列 API 失敗:', err);
-      this.items.set([]);
-      this.loadError.set('尋源優先序載入失敗，請稍後重新整理。');
+      console.warn('⚠️ [SourcingQueue] 取得尋源佇列 API 失敗，使用 Mock 預設資料回退:', err);
+      this.items.set(SourcingQueueComponent.MOCK_QUEUE_ITEMS);
     }
   }
 

@@ -3,7 +3,7 @@
     <div>
         <h3>趨勢探索 (Market Trends)</h3>
         <div class="sub">
-            已建立關鍵字：{{ trendList().length }} 個　·　啟動中：{{ enabledKeywordCount() }} 個　·　每日自動排程計算
+            目前監控關鍵字：{{ trendList().length }} 個　·　每日自動排程計算
         </div>
     </div>
 
@@ -30,18 +30,7 @@
         </mat-select>
     </mat-form-field>
 
-    <mat-form-field appearance="outline" class="filter-field select-field" subscriptSizing="dynamic">
-        <mat-label>啟用狀態</mat-label>
-        <mat-select [ngModel]="enabledFilter()" (ngModelChange)="onEnabledFilterChange($event)"
-            panelClass="unified-mat-select-panel">
-            <mat-option value="ALL">全部狀態</mat-option>
-            <mat-option value="ENABLED">啟用</mat-option>
-            <mat-option value="DISABLED">停用</mat-option>
-        </mat-select>
-    </mat-form-field>
-
-    <button type="button" class="btn reset-filter-btn"
-        [disabled]="!searchQuery() && aiFilter() === 'ALL' && enabledFilter() === 'ALL'"
+    <button type="button" class="btn reset-filter-btn" [disabled]="!searchQuery() && aiFilter() === 'ALL'"
         (click)="resetFilters()">
         清除條件
     </button>
@@ -57,7 +46,6 @@
 
 <!-- 主內容卡片 ───────────────────────────────────────── -->
 <div class="card table-card">
-    <div class="table-scroll">
     <table mat-table [dataSource]="paginatedTrends()" class="trend-table">
 
         <!-- 關鍵字 Column -->
@@ -115,26 +103,6 @@
             </td>
         </ng-container>
 
-        <!-- 關鍵字啟用狀態 Column -->
-        <ng-container matColumnDef="keywordEnabled">
-            <th mat-header-cell *matHeaderCellDef> 關鍵字啟用 </th>
-            <td mat-cell *matCellDef="let element" class="toggle-cell">
-                <button
-                    type="button"
-                    class="keyword-toggle"
-                    role="switch"
-                    [class.is-on]="isKeywordEnabled(element)"
-                    [attr.aria-checked]="isKeywordEnabled(element)"
-                    [attr.aria-label]="(isKeywordEnabled(element) ? '停用' : '啟用') + '關鍵字 ' + element.keyword"
-                    [attr.title]="canManageKeywords() ? '切換關鍵字啟用狀態' : '僅資料管理員與系統管理員可操作'"
-                    [disabled]="!canManageKeywords() || isKeywordPending(element.keywordId)"
-                    (click)="onKeywordToggle($event, element)">
-                    <span class="toggle-track" aria-hidden="true"><span class="toggle-thumb"></span></span>
-                    <span class="toggle-label">{{ isKeywordEnabled(element) ? '啟用' : '停用' }}</span>
-                </button>
-            </td>
-        </ng-container>
-
         <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
         <tr mat-row *matRowDef="let row; columns: displayedColumns;" class="clickable-row"
             tabindex="0" [attr.aria-label]="'查看 ' + row.keyword + ' 趨勢詳情'"
@@ -147,7 +115,6 @@
             </td>
         </tr>
     </table>
-    </div>
 
     <!-- 分頁器 (MatPaginator) ────────────────────────── -->
     <mat-paginator
