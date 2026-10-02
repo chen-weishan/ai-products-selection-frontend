@@ -213,6 +213,9 @@
 // ── 快速標記表單卡片 ────────────────────────────────────
 .form-card {
   padding: 18px 20px 20px;
+  overflow: visible !important;
+  position: relative;
+  z-index: 20;
 
   .card-header-bar {
     display: flex;
@@ -428,6 +431,7 @@
 
     .search-field-wrapper {
       position: relative;
+      z-index: 100;
 
       .search-target-field {
         width: 100%;
@@ -439,12 +443,12 @@
         top: calc(100% + 4px);
         left: 0;
         right: 0;
-        z-index: 100;
+        z-index: 1000;
         background: #f8fafc !important;
         border: 1px solid #cbd5e1 !important;
         border-radius: 8px !important;
-        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.12),
-          0 8px 10px -6px rgba(0, 0, 0, 0.08) !important;
+        box-shadow: 0 12px 30px -4px rgba(0, 0, 0, 0.16),
+          0 8px 12px -6px rgba(0, 0, 0, 0.1) !important;
         overflow: hidden;
 
         .panel-header {
@@ -467,7 +471,7 @@
         }
 
         .panel-list {
-          max-height: 380px;
+          max-height: 480px;
           overflow-y: auto;
           scrollbar-width: thin;
           scrollbar-color: #cbd5e1 #f8fafc;
