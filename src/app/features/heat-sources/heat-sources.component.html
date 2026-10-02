@@ -11,13 +11,18 @@
   <div>
     <h3>熱度來源狀態 (Heat Sources)</h3>
     <div class="sub">
-      目前運作狀態：{{ activeCount() }} 個已啟用　·　{{ availableCount() }} 個正常運作　·　{{ degradedCount() }} 個降級　·　{{ unavailableCount() }} 個不可用
+      <span *ngIf="!loading() && !sourceError()">目前運作狀態：{{ activeCount() }} 個已啟用　·　{{ availableCount() }} 個正常運作　·　{{
+        degradedCount() }} 個降級　·　{{ unavailableCount() }} 個不可用　·　{{ unknownCount() }} 個狀態未知</span>
+      <div>{{ summaryMessage() }}</div>
+      <div>目前登入：{{ currentUser()?.name || currentUser()?.username || '未登入' }}　·　最近讀取：{{ lastLoadedAt() ?
+        formatLastFetched(lastLoadedAt()) : '尚未成功讀取' }}（台北時間）</div>
     </div>
   </div>
 
   <!-- 右側操作按鈕列 -->
   <div class="tools">
-    <button type="button" class="btn" (click)="loadAll()" [disabled]="loading()">
+    <button type="button" class="btn" (click)="loadAll()"
+      [disabled]="loading() || excludedLoading() || hasPendingOperation()">
       <mat-icon class="spinning-icon" *ngIf="loading()">sync</mat-icon>
       <mat-icon *ngIf="!loading()">refresh</mat-icon>
       <span>重新整理</span>
@@ -29,9 +34,21 @@
   </div>
 </div>
 
+<div class="page-notice">
+  <p>重新整理會讀取已保存的來源狀態與額度；測試連線才會嘗試更新探測結果。採集停用後，既有讀值仍可能參與評分。</p>
+  <p>外部來源的額度是 Apify 帳號本月用量快照（USD），不是各來源獨立支出。同一帳號可能出現在多列，請勿相加。API 尚未提供額度最後成功更新時間，查詢失敗時可能沿用舊值。</p>
+  <p *ngIf="recalculationNotice()" role="status">{{ recalculationNotice() }}</p>
+</div>
+
 <!-- 核心卡片 1：來源列表表格 (遵循規範 .card.table-card) ───── -->
 <div class="card table-card">
-  <div class="table-responsive">
+  <div class="table-state" *ngIf="loading()" role="status">載入熱度來源中…</div>
+  <div class="table-state error" *ngIf="sourceError()" role="alert">
+    載入失敗：{{ sourceError() }}
+    <button type="button" class="btn" (click)="loadSources()">重試來源查詢</button>
+  </div>
+  <div class="table-state" *ngIf="!loading() && !sourceError() && sources().length === 0">目前沒有熱度來源資料</div>
+  <div class="table-responsive" *ngIf="!loading() && !sourceError() && sources().length > 0">
     <table mat-table [dataSource]="sources()" class="sources-table">
 
       <!-- Name Column -->
@@ -67,31 +84,17 @@
         <td mat-cell *matCellDef="let row" class="percentile-cell">
           <!-- 編輯模式 -->
           <div class="weight-edit-box" *ngIf="editingWeightId() === row.id; else readWeight">
-            <input
-              type="number"
-              class="weight-input"
-              [(ngModel)]="editWeightInput"
-              min="0"
-              max="100"
-              step="0.1"
-              placeholder="0-100"
-              (keydown.enter)="saveWeight(row)"
-              (keydown.escape)="cancelEditWeight()"
-            />
+            <input type="number" class="weight-input" [disabled]="isRowBusy(row.id) || !isSysAdmin()"
+              aria-label="合成權重百分比" [ngModel]="editWeightInput()" (ngModelChange)="editWeightInput.set($event)" min="0"
+              max="100" step="0.1" placeholder="0-100" (keydown.enter)="saveWeight(row)"
+              (keydown.escape)="cancelEditWeight()" />
             <span class="unit-pct">%</span>
-            <button
-              type="button"
-              class="btn-mini btn-save"
-              (click)="saveWeight(row)"
-              [disabled]="isRowUpdating(row.id)"
-              matTooltip="儲存權重 (Enter)">
+            <button type="button" class="btn-mini btn-save" (click)="saveWeight(row)"
+              [disabled]="isRowBusy(row.id) || !isSysAdmin()" matTooltip="儲存權重 (Enter)">
               <mat-icon>check</mat-icon>
             </button>
-            <button
-              type="button"
-              class="btn-mini btn-cancel"
-              (click)="cancelEditWeight()"
-              matTooltip="取消 (Esc)">
+            <button type="button" class="btn-mini btn-cancel" [disabled]="isRowBusy(row.id)"
+              (click)="cancelEditWeight()" matTooltip="取消 (Esc)">
               <mat-icon>close</mat-icon>
             </button>
           </div>
@@ -100,19 +103,14 @@
           <ng-template #readWeight>
             <div class="percentile-wrap">
               <div class="percentile-bar-track">
-                <div
-                  class="percentile-bar-fill"
+                <div class="percentile-bar-fill"
                   [class.bar-muted]="row.availability === 'DEGRADED' || row.availability === 'UNAVAILABLE' || !row.enabled"
                   [style.width.%]="(row.compositeWeight ?? 0) * 100">
                 </div>
               </div>
               <span class="weight-number-text">{{ ((row.compositeWeight ?? 0) * 100).toFixed(1) }}%</span>
-              <button
-                *ngIf="isSysAdmin()"
-                type="button"
-                class="btn-icon-action"
-                (click)="startEditWeight(row)"
-                matTooltip="調整合成權重 (僅限管理員)">
+              <button *ngIf="isSysAdmin()" type="button" class="btn-icon-action" [disabled]="isRowBusy(row.id)"
+                (click)="startEditWeight(row)" matTooltip="調整合成權重 (僅限管理員)">
                 <mat-icon>edit</mat-icon>
               </button>
             </div>
@@ -122,7 +120,7 @@
 
       <!-- Quota Column (以美分換算為美元顯示) -->
       <ng-container matColumnDef="quota">
-        <th mat-header-cell *matHeaderCellDef> 額度用量 </th>
+        <th mat-header-cell *matHeaderCellDef> 上次額度用量 </th>
         <td mat-cell *matCellDef="let row">
           <span class="cell-mono quota-val" [class.quota-high]="isQuotaHigh(row)">
             {{ formatQuota(row) }}
@@ -150,9 +148,7 @@
       <ng-container matColumnDef="status">
         <th mat-header-cell *matHeaderCellDef> 狀態 </th>
         <td mat-cell *matCellDef="let row" class="status-cell">
-          <span
-            class="status-badge"
-            [ngClass]="getStatusBadge(row.availability).cssClass"
+          <span class="status-badge" [ngClass]="getStatusBadge(row.availability).cssClass"
             [matTooltip]="getStatusTooltip(row)">
             <mat-icon class="badge-icon">{{ getStatusBadge(row.availability).icon }}</mat-icon>
             <span>{{ getStatusBadge(row.availability).label }}</span>
@@ -167,41 +163,30 @@
         <td mat-cell *matCellDef="let row" class="actions-cell">
           <div class="action-buttons">
             <!-- 測試連線按鈕 -->
-            <button
-              type="button"
-              class="btn-row-action"
-              [disabled]="isRowTesting(row.id) || !isSysAdmin()"
-              (click)="testConnection(row)"
-              [matTooltip]="isSysAdmin() ? '立即探測連線與額度' : '連線測試僅限 SYS_ADMIN 操作'">
+            <button type="button" class="btn-row-action" [disabled]="isRowBusy(row.id) || !isSysAdmin()"
+              (click)="testConnection(row)" [matTooltip]="isSysAdmin() ? '立即探測連線與額度' : '連線測試僅限 SYS_ADMIN 操作'">
               <mat-icon class="spinning-icon" *ngIf="isRowTesting(row.id)">sync</mat-icon>
               <mat-icon *ngIf="!isRowTesting(row.id)">sensors</mat-icon>
               <span>{{ isRowTesting(row.id) ? '探測中...' : '測試' }}</span>
             </button>
 
             <!-- 啟用 / 停用按鈕 -->
-            <button
-              type="button"
-              class="btn-row-action"
-              [class.btn-toggle-off]="row.enabled"
-              [class.btn-toggle-on]="!row.enabled"
-              [disabled]="isRowUpdating(row.id) || !isSysAdmin()"
+            <button type="button" class="btn-row-action" [class.btn-toggle-off]="row.enabled"
+              [class.btn-toggle-on]="!row.enabled" [disabled]="isRowBusy(row.id) || !isSysAdmin()"
               (click)="toggleEnabled(row)"
-              [matTooltip]="isSysAdmin() ? (row.enabled ? '停用此熱度來源' : '啟用此熱度來源') : '來源開關僅限 SYS_ADMIN 操作'">
+              [matTooltip]="isSysAdmin() ? (row.enabled ? '停止採集；既有讀值可能繼續參與評分' : '啟用此來源的採集') : '採集開關僅限 SYS_ADMIN 操作'">
               <mat-icon *ngIf="row.enabled">pause</mat-icon>
               <mat-icon *ngIf="!row.enabled">play_arrow</mat-icon>
-              <span>{{ row.enabled ? '停用' : '啟用' }}</span>
+              <span>{{ row.enabled ? '停止採集' : '啟用採集' }}</span>
             </button>
           </div>
         </td>
       </ng-container>
 
       <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-      <tr
-        mat-row
-        *matRowDef="let row; columns: displayedColumns;"
+      <tr mat-row *matRowDef="let row; columns: displayedColumns;"
         [class.row-highlight-degraded]="row.availability === 'DEGRADED'"
-        [class.row-highlight-unavailable]="row.availability === 'UNAVAILABLE'"
-        [class.row-disabled]="!row.enabled">
+        [class.row-highlight-unavailable]="row.availability === 'UNAVAILABLE'" [class.row-disabled]="!row.enabled">
       </tr>
     </table>
   </div>
@@ -220,31 +205,26 @@
         <h5>容錯與權重動態重分配 (§5.3.2)</h5>
       </div>
       <p>
-        <strong>來源不可用時：</strong> 該來源合成權重歸零，其餘已啟用且可用來源按比例重新正規化。
-        品項分數照常產生，不阻斷選品評分流程，亦不影響話題爆款榜即時產出。
+        來源不可用或狀態未知時不計入設定試算；品類級來源套用 0.5 粒度折扣，再按比例正規化。停用只停止採集，既有讀值仍可能參與合成。
       </p>
-
-      <div class="degrade-box" *ngIf="degradedSources().length > 0; else noDegrade">
-        <div class="degrade-label">
-          <ng-container *ngFor="let source of degradedSources(); let last = last">
-            {{ getSourceName(source.sourceCode) }} ({{ getStatusBadge(source.availability).label }})
-            <ng-container *ngIf="!last">、</ng-container>
-          </ng-container>
-          降級後動態正規化分攤：
-        </div>
-        <div class="degrade-values">
-          <span *ngFor="let s of recalculatedWeights(); let i = index">
-            <ng-container *ngIf="i > 0"> · </ng-container>
-            <strong>{{ s.name }}</strong> {{ s.newPct }}% (原 {{ s.originalPct }}%)
-          </span>
-        </div>
+      <div class="degrade-box">
+        <div class="degrade-label">{{ summaryMessage() }}</div>
+        <ng-container *ngIf="!loading() && !sourceError() && sources().length > 0">
+          <div class="degrade-label">依目前設定與回報狀態試算（非某次評分的實際比例）：</div>
+          <div class="degrade-values" *ngIf="recalculatedWeights().length > 0; else noWeights">
+            <span *ngFor="let source of recalculatedWeights(); let i = index">
+              <ng-container *ngIf="i > 0"> · </ng-container>
+              <strong>{{ source.name }}</strong> {{ source.newPct }}%（設定 {{ source.originalPct }}%<ng-container
+                *ngIf="source.categoryDiscount">，品類折扣 ×0.5</ng-container>）
+              <ng-container *ngIf="!source.enabled">［採集停用，保留既有讀值］</ng-container>
+            </span>
+          </div>
+          <ng-template #noWeights>
+            <div>沒有可用且權重大於零的來源，無法推算比例。</div>
+          </ng-template>
+          <p>實際比例還取決於標的、合成日期與當時有效讀值，需核對該次合成的實際權重。<a routerLink="/trends">前往趨勢分析查看關鍵字明細</a></p>
+        </ng-container>
       </div>
-
-      <ng-template #noDegrade>
-        <div class="degrade-box ok">
-          <div class="degrade-label">目前所有來源皆正常運作，依原設定權重進行常態評分合成。</div>
-        </div>
-      </ng-template>
     </div>
 
     <!-- 卡片 2: 動態不採用來源 (GET /heat-sources/excluded) -->
@@ -252,30 +232,23 @@
       <div class="card-head">
         <h5>未採用第三方平台之說明 (附錄 C 法律評估)</h5>
       </div>
-      <div class="rejected-list" *ngIf="excludedSources().length > 0; else defaultExcluded">
-        <div class="reject-item" *ngFor="let item of excludedSources()">
-          <span class="reject-name">{{ item.platform }}</span>
-          <span class="reject-reason">{{ item.reason }}</span>
-        </div>
+      <div *ngIf="excludedLoading()" role="status">載入排除來源說明中…</div>
+      <div class="error" *ngIf="excludedError()" role="alert">排除來源說明載入失敗：{{ excludedError() }}
+        <button type="button" class="btn" (click)="loadExcludedSources()">重試</button>
       </div>
-      <ng-template #defaultExcluded>
-        <div class="rejected-list">
-          <div class="reject-item">
-            <span class="reject-name">FACEBOOK</span>
-            <span class="reject-reason">CrowdTangle 已關閉，替代品僅開放學術/非營利資格</span>
-          </div>
-          <div class="reject-item">
-            <span class="reject-name">TIKTOK</span>
-            <span class="reject-reason">Research API 排除商業使用者，台灣不在適用資格地區</span>
-          </div>
-          <div class="reject-item">
-            <span class="reject-name">XIAOHONGSHU</span>
-            <span class="reject-reason">無公開 API，第三方平台條款禁止爬蟲轉供商業使用</span>
+      <ng-container *ngIf="!excludedLoading() && !excludedError()">
+        <div class="rejected-list" *ngIf="excludedSources().length > 0; else noExcluded">
+          <div class="reject-item" *ngFor="let item of excludedSources()">
+            <span class="reject-name">{{ item.platform }}</span>
+            <span class="reject-reason">{{ item.reason }}</span>
           </div>
         </div>
-      </ng-template>
+        <ng-template #noExcluded>
+          <p>目前沒有排除來源說明。</p>
+        </ng-template>
+      </ng-container>
       <div class="reject-footer-note">
-        以上平台一律改由 S-15 人工熱度標記涵蓋。系統不建置未授權爬蟲。
+        人工熱度標記可涵蓋未納入自動採集的社群觀察。
       </div>
     </div>
   </div>

@@ -467,8 +467,21 @@
         }
 
         .panel-list {
-          max-height: 240px;
+          max-height: 380px;
           overflow-y: auto;
+          scrollbar-width: thin;
+          scrollbar-color: #cbd5e1 #f8fafc;
+
+          &::-webkit-scrollbar {
+            width: 6px;
+          }
+          &::-webkit-scrollbar-track {
+            background: #f8fafc;
+          }
+          &::-webkit-scrollbar-thumb {
+            background-color: #cbd5e1;
+            border-radius: 4px;
+          }
 
           .panel-item {
             display: flex;
@@ -538,6 +551,11 @@
       margin-left: auto;
     }
   }
+}
+
+.validation-message {
+  color: var(--risk);
+  font-size: 12px;
 }
 
 // ── 表格卡片 (規範 2.5 / 原型 A) ────────────────────────

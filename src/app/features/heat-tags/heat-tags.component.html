@@ -1,338 +1,390 @@
 <!-- 頁首標題列 (FRONTEND_UI_GUIDELINES 2.3) ────────────────────────────── -->
 <div class="mh">
-  <div>
-    <h3>人工熱度標記 (Heat Tags)</h3>
-    <div class="sub">
-      本週已標記 {{ weeklyCount() }} 筆　·　平均耗時 24 秒（30 秒內結構化完成）
+    <div>
+        <h3>人工熱度標記 (Heat Tags)</h3>
+        <div class="sub">
+            本週已標記 {{ weeklyCount() }} 筆<br>目前登入：{{ currentUser()?.name || '未登入' }}
+        </div>
     </div>
-  </div>
 
-  <div class="tools">
-    <div class="range-tabs">
-      <button type="button" class="range-btn" [class.active]="scope() === 'ALL'" (click)="switchScope('ALL')">
-        全部標記
-      </button>
-      <button type="button" class="range-btn" [class.active]="scope() === 'MINE'" (click)="switchScope('MINE')">
-        我的標記
-      </button>
+    <div class="tools">
+        <div class="range-tabs">
+            <button type="button" class="range-btn" [class.active]="scope() === 'ALL'" (click)="switchScope('ALL')">
+                全部標記
+            </button>
+            <button type="button" class="range-btn" [class.active]="scope() === 'MINE'" (click)="switchScope('MINE')">
+                我的標記
+            </button>
+        </div>
+        <button type="button" class="btn" (click)="loadTags()">
+            重新整理
+        </button>
     </div>
-    <button type="button" class="btn" (click)="loadTags()">
-      重新整理
-    </button>
-  </div>
 </div>
 
 <!-- 快速標記表單卡片 (S-15, FR-14-1, 規範 2.5 / 3.1) ────────────────────── -->
+@if (canWrite()) {
 <div class="card form-card">
-  <div class="card-header-bar">
-    <div class="card-title-group">
-      <h4>30 秒快速標記表單</h4>
-      <span class="sub-hint">零法律風險 · 自動平台辨識 · 結構化社群觀察納入評分</span>
-    </div>
-
-    @if (editingTagId() !== null) {
-    <div class="edit-badge-wrap">
-      <span class="status-badge compact status-quota">正在編輯 #{{ editingTagId() }}</span>
-      <button type="button" class="btn btn-xs" (click)="cancelEdit()">取消編輯</button>
-    </div>
-    }
-  </div>
-
-  <div class="form-content">
-    <!-- 步驟 1: 貼上連結與平台辨識 -->
-    <div class="form-row url-platform-row">
-      <mat-form-field appearance="outline" class="form-field url-field" subscriptSizing="dynamic">
-        <mat-label>貼上社群連結（Threads / TikTok / 小紅書 / IG / FB）*</mat-label>
-        <input matInput type="url" placeholder="https://www.threads.net/@..." [ngModel]="sourceUrl()"
-          (ngModelChange)="onUrlChange($event)" />
-      </mat-form-field>
-
-      <mat-form-field appearance="outline" class="form-field platform-field" subscriptSizing="dynamic">
-        <mat-label>平台（自動辨識 / 手動覆寫）*</mat-label>
-        <mat-select [ngModel]="platform()" (ngModelChange)="selectPlatform($event)"
-          panelClass="unified-mat-select-panel">
-          @for (opt of platformOptions; track opt.value) {
-          <mat-option [value]="opt.value">{{ opt.label }}</mat-option>
-          }
-        </mat-select>
-      </mat-form-field>
-
-      @if (platformResolvedLabel()) {
-      <div class="platform-feedback">
-        <span class="status-badge compact"
-          [ngClass]="isPlatformManuallyOverridden() ? 'override-badge' : 'status-normal'">
-          {{ platformResolvedLabel() }}
-        </span>
-      </div>
-      }
-    </div>
-
-    <!-- 步驟 2 與 步驟 3：雙欄佈局 (等級 + 標的) -->
-    <div class="two-col-grid">
-      <!-- 步驟 2: 熱度等級 (1 ~ 5) -->
-      <div class="level-box">
-        <div class="field-label-row">
-          <span class="field-label">熱度等級 *</span>
-          <span class="sub-hint mono">1＝零星討論 ⋯ 5＝洗版等級</span>
-        </div>
-        <div class="level-btn-group">
-          @for (lvl of [1, 2, 3, 4, 5]; track lvl) {
-          <button type="button" class="level-btn mono" [class.active]="heatLevel() === lvl"
-            (click)="selectHeatLevel(lvl)">
-            {{ lvl }}
-          </button>
-          }
-        </div>
-      </div>
-
-      <!-- 步驟 3: 關聯品項／關鍵字搜尋 -->
-      <div class="target-box">
-        <div class="field-label-row">
-          <span class="field-label">關聯品項／關鍵字 *</span>
-          <span class="sub-hint">選定品項（A 軌）或關聯趨勢關鍵字（自動進 B 軌）</span>
+    <div class="card-header-bar">
+        <div class="card-title-group">
+            <h4>人工標記</h4>
+            <span class="sub-hint">自動平台辨識 · 結構化社群觀察納入評分</span>
         </div>
 
-        @if (selectedProduct(); as prod) {
-        <div class="selected-chip-card">
-          <span class="status-badge compact status-normal">A 軌品項</span>
-          <span class="chip-title">{{ prod.name }}</span>
-          @if (prod.track) {
-          <span class="track-tag mono">{{ prod.track }} 軌</span>
-          }
-          @if (!editingTagId()) {
-          <button type="button" class="btn btn-xs chip-remove-btn" (click)="clearSelectedTarget()">更換標的</button>
-          }
-        </div>
-        } @else if (selectedKeyword(); as kw) {
-        <div class="selected-chip-card">
-          <span class="status-badge compact override-badge">趨勢關鍵字</span>
-          <span class="chip-title">{{ kw.keyword }}</span>
-          <span class="track-tag mono">自動進 B 軌</span>
-          @if (!editingTagId()) {
-          <button type="button" class="btn btn-xs chip-remove-btn" (click)="clearSelectedTarget()">更換標的</button>
-          }
-        </div>
-        } @else {
-        <div class="search-field-wrapper" (focusout)="onSearchFocusOut($event)">
-          <mat-form-field appearance="outline" class="form-field search-target-field" subscriptSizing="dynamic">
-            <mat-label>搜尋既有品項或趨勢關鍵字…</mat-label>
-            <input matInput placeholder="輸入名稱或關鍵字搜尋…" [ngModel]="searchQuery()"
-              (ngModelChange)="onSearchInput($event)" (focus)="onSearchInput(searchQuery())"
-              (keydown.escape)="isSearchOpen.set(false)" />
-          </mat-form-field>
-
-          @if (isSearchOpen()) {
-          <div class="search-floating-panel">
-            <div class="panel-header">
-              <span>搜尋建議（品項或關鍵字擇一綁定）</span>
-              <button type="button" class="btn btn-xs" (click)="isSearchOpen.set(false)">關閉</button>
-            </div>
-
-            @if (isSearching()) {
-            <div class="panel-empty">搜尋中…</div>
-            } @else if (searchResults().length > 0) {
-            <div class="panel-list">
-              @for (item of searchResults(); track item.type + '_' + item.id) {
-              <div class="panel-item" (mousedown)="$event.preventDefault()" (click)="selectTarget(item)">
-                <span class="status-badge compact"
-                  [ngClass]="item.type === 'PRODUCT' ? 'status-normal' : 'override-badge'">
-                  {{ item.type === 'PRODUCT' ? '品項' : '關鍵字' }}
-                </span>
-                <span class="item-title">{{ item.title }}</span>
-                <span class="item-sub mono">{{ item.sub }}</span>
-                @if (item.track) {
-                <span class="track-tag mono">{{ item.track }} 軌</span>
-                }
-              </div>
-              }
-            </div>
-            } @else {
-            <div class="panel-empty">無匹配標的，請嘗試其他關鍵字</div>
-            }
-          </div>
-          }
-        </div>
-        }
-      </div>
-    </div>
-
-    <!-- 步驟 4: 備註輸入 -->
-    <div class="form-row">
-      <mat-form-field appearance="outline" class="form-field note-field" subscriptSizing="dynamic">
-        <mat-label>備註（選填）</mat-label>
-        <input matInput placeholder="留言區在問哪裡買得到、爆款特徵等觀察重點（選填）" [ngModel]="note()"
-          (ngModelChange)="note.set($event)" />
-      </mat-form-field>
-    </div>
-
-    <!-- 表單底欄：觀察時間與送出按鈕 -->
-    <div class="form-footer-bar">
-      <div class="observed-time-text">
-        <span class="sub mono">觀察時間：{{ observedAt() | date:'yyyy-MM-dd HH:mm' }}　自動帶入</span>
-      </div>
-
-      <div class="footer-btn-group">
         @if (editingTagId() !== null) {
-        <button type="button" class="btn" (click)="cancelEdit()">取消</button>
+        <div class="edit-badge-wrap">
+            <span class="status-badge compact status-quota">正在編輯 #{{ editingTagId() }}</span>
+            <button type="button" class="btn btn-xs" (click)="cancelEdit()">取消編輯</button>
+        </div>
         }
-        <button type="button" class="btn pri submit-btn" [disabled]="!isFormValid() || isSubmitting()"
-          (click)="submitTag()">
-          {{ isSubmitting() ? '處理中…' : (editingTagId() !== null ? '儲存變更' : '送出標記') }}
-        </button>
-      </div>
     </div>
-  </div>
+
+    <div class="form-content">
+        <!-- 步驟 1: 貼上連結與平台辨識 -->
+        <div class="form-row url-platform-row">
+            <mat-form-field appearance="outline" class="form-field url-field" subscriptSizing="dynamic">
+                <mat-label>貼上社群連結（Threads / TikTok / 小紅書 / IG / FB）*</mat-label>
+                <input matInput type="url" placeholder="https://www.threads.net/@..." [ngModel]="sourceUrl()"
+                    (ngModelChange)="onUrlChange($event)" />
+                @if (urlError()) { <mat-hint class="validation-message" role="alert">{{ urlError() }}</mat-hint> }
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="form-field platform-field" subscriptSizing="dynamic">
+                <mat-label>平台（自動辨識 / 手動覆寫）*</mat-label>
+                <mat-select [ngModel]="platform()" (ngModelChange)="selectPlatform($event)"
+                    panelClass="unified-mat-select-panel">
+                    @for (opt of platformOptions; track opt.value) {
+                    <mat-option [value]="opt.value">{{ opt.label }}</mat-option>
+                    }
+                </mat-select>
+            </mat-form-field>
+
+            @if (platformResolvedLabel()) {
+            <div class="platform-feedback">
+                <span class="status-badge compact"
+                    [ngClass]="isPlatformManuallyOverridden() ? 'override-badge' : 'status-normal'">
+                    {{ platformResolvedLabel() }}
+                </span>
+            </div>
+            }
+        </div>
+
+        @if (isResolvingPlatform() && !isPlatformManuallyOverridden()) {
+        <p class="sub" role="status">平台辨識中…</p>
+        }
+        @if (platformError()) { <p class="validation-message" role="alert">{{ platformError() }}</p> }
+        <!-- 步驟 2 與 步驟 3：雙欄佈局 (等級 + 標的) -->
+        <div class="two-col-grid">
+            <!-- 步驟 2: 熱度等級 (1 ~ 5) -->
+            <div class="level-box">
+                <div class="field-label-row">
+                    <span class="field-label">熱度等級 *</span>
+                    <span class="sub-hint mono">1＝零星討論 ⋯ 5＝洗版等級</span>
+                </div>
+                <div class="level-btn-group">
+                    @for (lvl of [1, 2, 3, 4, 5]; track lvl) {
+                    <button type="button" class="level-btn mono" [class.active]="heatLevel() === lvl"
+                        (click)="selectHeatLevel(lvl)">
+                        {{ lvl }}
+                    </button>
+                    }
+                </div>
+            </div>
+
+            <!-- 步驟 3: 關聯品項／關鍵字搜尋 -->
+            <div class="target-box">
+                <div class="field-label-row">
+                    <span class="field-label">關聯品項／關鍵字 *</span>
+                    <span class="sub-hint">選定既有 A／B 軌品項或趨勢關鍵字；標記關鍵字不會自動建立品項</span>
+                </div>
+
+                @if (selectedProduct(); as prod) {
+                <div class="selected-chip-card">
+                    <span class="status-badge compact status-normal">{{ prod.track ? prod.track + ' 軌品項' : '既有品項'
+                        }}</span>
+                    <span class="chip-title">{{ prod.name }}</span>
+                    @if (prod.track) {
+                    <span class="track-tag mono">{{ prod.track }} 軌</span>
+                    }
+                    @if (!editingTagId()) {
+                    <button type="button" class="btn btn-xs chip-remove-btn"
+                        (click)="clearSelectedTarget()">更換標的</button>
+                    }
+                </div>
+                } @else if (selectedKeyword(); as kw) {
+                <div class="selected-chip-card">
+                    <span class="status-badge compact override-badge">趨勢關鍵字</span>
+                    <span class="chip-title">{{ kw.keyword }}</span>
+                    <span class="track-tag mono">關鍵字標記</span>
+                    @if (!editingTagId()) {
+                    <button type="button" class="btn btn-xs chip-remove-btn"
+                        (click)="clearSelectedTarget()">更換標的</button>
+                    }
+                </div>
+                } @else {
+                <div class="search-field-wrapper" (focusout)="onSearchFocusOut($event)">
+                    <mat-form-field appearance="outline" class="form-field search-target-field"
+                        subscriptSizing="dynamic">
+                        <mat-label>搜尋既有品項或趨勢關鍵字…</mat-label>
+                        <input matInput placeholder="輸入名稱或關鍵字搜尋…" [ngModel]="searchQuery()"
+                            (ngModelChange)="onSearchInput($event)" (focus)="onSearchInput(searchQuery())"
+                            (keydown.escape)="isSearchOpen.set(false)" />
+                    </mat-form-field>
+
+                    @if (isSearchOpen()) {
+                    <div class="search-floating-panel">
+                        <div class="panel-header">
+                            <span>搜尋建議（共 {{ searchResults().length }} 筆，品項或關鍵字擇一綁定）</span>
+                            <button type="button" class="btn btn-xs" (click)="isSearchOpen.set(false)">關閉</button>
+                        </div>
+
+                        @if (searchError()) {
+                        <div class="panel-empty" role="alert">{{ searchError() }}
+                            <button type="button" class="btn btn-xs"
+                                (click)="onSearchInput(searchQuery())">重試搜尋</button>
+                        </div>
+                        }
+                        @if (hasMoreProducts()) {
+                        <button type="button" class="btn" [disabled]="isSearching()"
+                            (click)="loadMoreProducts()">載入更多品項</button>
+                        }
+                        @if (isSearching()) {
+                        <div class="panel-empty">搜尋中…</div>
+                        } @else if (searchResults().length > 0) {
+                        <div class="panel-list">
+                            @for (item of searchResults(); track item.type + '_' + item.id) {
+                            <div class="panel-item" role="button" tabindex="0" (keydown.enter)="selectTarget(item)"
+                                (keydown.space)="$event.preventDefault(); selectTarget(item)"
+                                (mousedown)="$event.preventDefault()" (click)="selectTarget(item)">
+                                <span class="status-badge compact"
+                                    [ngClass]="item.type === 'PRODUCT' ? 'status-normal' : 'override-badge'">
+                                    {{ item.type === 'PRODUCT' ? '品項' : '關鍵字' }}
+                                </span>
+                                <span class="item-title">{{ item.title }}</span>
+                                <span class="item-sub mono">{{ item.sub }}</span>
+                                @if (item.track) {
+                                <span class="track-tag mono">{{ item.track }} 軌</span>
+                                }
+                            </div>
+                            }
+                        </div>
+                        } @else {
+                        <div class="panel-empty">無匹配標的，請嘗試其他關鍵字</div>
+                        }
+                    </div>
+                    }
+                </div>
+                }
+            </div>
+        </div>
+
+        <!-- 步驟 4: 備註輸入 -->
+        <div class="form-row">
+            <mat-form-field appearance="outline" class="form-field note-field" subscriptSizing="dynamic">
+                <mat-label>備註（選填）</mat-label>
+                <input matInput placeholder="留言區在問哪裡買得到、爆款特徵等觀察重點（選填）" [ngModel]="note()"
+                    (ngModelChange)="note.set($event)" />
+                <mat-hint>{{ note().length }} / 255 字 @if (noteError()) { <span class="validation-message"
+                        role="alert">{{ noteError() }}</span> }</mat-hint>
+            </mat-form-field>
+        </div>
+
+        <!-- 表單底欄：觀察時間與送出按鈕 -->
+        <div class="form-footer-bar">
+            <div class="observed-time-text">
+                <mat-form-field appearance="outline" class="form-field" subscriptSizing="dynamic">
+                    <mat-label>觀察時間</mat-label>
+                    <input matInput type="datetime-local" step="1" [ngModel]="observedAt()"
+                        (ngModelChange)="observedAt.set($event)" />
+                    @if (timeError()) { <mat-hint class="validation-message" role="alert">{{ timeError() }}</mat-hint> }
+                </mat-form-field>
+            </div>
+
+            <div class="footer-btn-group">
+                @if (editingTagId() !== null) {
+                <button type="button" class="btn" (click)="cancelEdit()">取消</button>
+                }
+                <button type="button" class="btn pri submit-btn" [disabled]="!isFormValid() || isSubmitting()"
+                    (click)="submitTag()">
+                    {{ isSubmitting() ? '處理中…' : (editingTagId() !== null ? '儲存變更' : '送出標記') }}
+                </button>
+            </div>
+        </div>
+    </div>
 </div>
+
+}
 
 <!-- 主資料表格卡片 (FRONTEND_UI_GUIDELINES 原型 A / 2.5 / 3.6) ──────── -->
 <div class="card table-card">
-  <div class="table-card-head">
-    <h4>近期標記清單（{{ tags().length }} 筆）</h4>
-    <div class="sub">觀察視窗：{{ days() }} 天　·　依觀察時間倒序排列</div>
-  </div>
+    <div class="table-card-head">
+        <h4>近期標記清單（{{ tags().length }} 筆）</h4>
+        <div class="sub">觀察視窗：{{ days() }} 天　·　依觀察時間倒序排列</div>
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>觀察視窗</mat-label>
+            <mat-select [ngModel]="days()" (ngModelChange)="days.set($event); loadTags()"
+                panelClass="unified-mat-select-panel">
+                @for (window of [7, 14, 30, 90]; track window) {
+                <mat-option [value]="window">最近 {{ window }} 天</mat-option>
+                }
+            </mat-select>
+        </mat-form-field>
+    </div>
 
-  <table class="data-table">
-    <thead>
-      <tr>
-        <th class="col-target">關聯標的</th>
-        <th class="col-platform">平台</th>
-        <th class="col-level cell-center">等級</th>
-        <th class="col-tagger">標記人</th>
-        <th class="col-time cell-center">觀察時間</th>
-        <th class="col-weight cell-center">現行權重 (AC-14-2)</th>
-        <th class="col-actions cell-center">操作</th>
-      </tr>
-    </thead>
-    <tbody>
-      @for (tag of paginatedTags(); track tag.id || $index) {
-      <tr [class.is-editing]="editingTagId() === tag.id">
-        <!-- 關聯標的 -->
-        <td class="target-cell">
-          <div class="target-main-line">
-            <span class="status-badge compact" [ngClass]="tag.productId ? 'status-normal' : 'override-badge'">
-              {{ tag.productId ? '品項' : '關鍵字' }}
-            </span>
-            <span class="target-name">
-              {{ tag.productName || tag.keywordText || '未命名標的' }}
-            </span>
-          </div>
-          @if (tag.note) {
-          <div class="target-note" [title]="tag.note">{{ tag.note }}</div>
-          }
-          @if (tag.sourceUrl) {
-          <a class="source-link mono" [href]="tag.sourceUrl" target="_blank" rel="noopener noreferrer"
-            title="開啟外部來源連結">
-            {{ tag.sourceUrl }}
-          </a>
-          }
-        </td>
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th class="col-target">關聯標的</th>
+                <th class="col-platform">平台</th>
+                <th class="col-level cell-center">等級</th>
+                <th class="col-tagger">標記人</th>
+                <th class="col-time cell-center">觀察時間</th>
+                <th class="col-weight cell-center">現行權重 (AC-14-2)</th>
+                <th class="col-actions cell-center">操作</th>
+            </tr>
+        </thead>
+        <tbody>
+            @if (isLoadingList()) {
+            <tr>
+                <td colspan="7" class="empty-cell" role="status">載入標記中…</td>
+            </tr>
+            } @else if (listError()) {
+            <tr>
+                <td colspan="7" class="empty-cell" role="alert">載入失敗：{{ listError() }}
+                    <button type="button" class="btn" (click)="loadTags()">重試</button>
+                </td>
+            </tr>
+            } @else {
+            @for (tag of paginatedTags(); track tag.id || $index) {
+            <tr [class.is-editing]="editingTagId() === tag.id">
+                <!-- 關聯標的 -->
+                <td class="target-cell">
+                    <div class="target-main-line">
+                        <span class="status-badge compact"
+                            [ngClass]="tag.productId ? 'status-normal' : 'override-badge'">
+                            {{ tag.productId ? '品項' : '關鍵字' }}
+                        </span>
+                        <span class="target-name">
+                            {{ tag.productName || tag.keywordText || '未命名標的' }}
+                        </span>
+                    </div>
+                    @if (tag.note) {
+                    <div class="target-note" [title]="tag.note">{{ tag.note }}</div>
+                    }
+                    @if (tag.sourceUrl) {
+                    <a class="source-link mono" [href]="tag.sourceUrl" target="_blank" rel="noopener noreferrer"
+                        title="開啟外部來源連結">
+                        {{ tag.sourceUrl }}
+                    </a>
+                    }
+                </td>
 
-        <!-- 平台 -->
-        <td>
-          <span class="plat-badge" [ngClass]="getPlatformClass(tag.platform)">
-            {{ getPlatformLabel(tag.platform) }}
-          </span>
-        </td>
+                <!-- 平台 -->
+                <td>
+                    <span class="plat-badge" [ngClass]="getPlatformClass(tag.platform)">
+                        {{ getPlatformLabel(tag.platform) }}
+                    </span>
+                </td>
 
-        <!-- 等級 -->
-        <td class="cell-center">
-          <span class="level-indicator mono">{{ tag.heatLevel }}</span>
-        </td>
+                <!-- 等級 -->
+                <td class="cell-center">
+                    <span class="level-indicator mono">{{ tag.heatLevel }}</span>
+                </td>
 
-        <!-- 標記人 -->
-        <td class="tagger-cell">
-          {{ tag.taggedByName || '採購人員' }}
-        </td>
+                <!-- 標記人 -->
+                <td class="tagger-cell">
+                    {{ tag.taggedByName || '採購人員' }}
+                </td>
 
-        <!-- 時間 -->
-        <td class="cell-center mono time-cell" [title]="tag.observedAt">
-          {{ formatRelativeTime(tag.observedAt) }}
-        </td>
+                <!-- 時間 -->
+                <td class="cell-center mono time-cell" [title]="tag.observedAt">
+                    {{ formatRelativeTime(tag.observedAt) }}
+                </td>
 
-        <!-- 現行權重 (AC-14-2) -->
-        <td class="cell-center">
-          <span class="mono" [ngClass]="getWeightDisplay(tag.currentWeight).cssClass"
-            title="AC-14-2：依時間階梯衰減">
-            {{ getWeightDisplay(tag.currentWeight).text }}
-          </span>
-        </td>
+                <!-- 現行權重 (AC-14-2) -->
+                <td class="cell-center">
+                    <span class="mono" [ngClass]="getWeightDisplay(tag.currentWeight).cssClass" title="AC-14-2：依時間階梯衰減">
+                        {{ getWeightDisplay(tag.currentWeight).text }}
+                    </span>
+                </td>
 
-        <!-- 操作 -->
-        <td class="cell-center actions-cell">
-          @if (canModifyTag(tag)) {
-          <div class="action-btn-group">
-            <button type="button" class="btn btn-xs" (click)="startEdit(tag)" title="編輯此筆標記">
-              編輯
-            </button>
-            <button type="button" class="btn btn-xs danger" (click)="deleteTag(tag)" title="刪除此筆標記">
-              刪除
-            </button>
-          </div>
-          } @else {
-          <span class="muted-text">—</span>
-          }
-        </td>
-      </tr>
-      } @empty {
-      <tr>
-        <td colspan="7" class="empty-cell">
-          {{ scope() === 'MINE' ? '您目前尚未建立過熱度標記，上方貼上社群連結即可快速新增！' : '目前尚無人工熱度標記資料' }}
-        </td>
-      </tr>
-      }
-    </tbody>
-  </table>
+                <!-- 操作 -->
+                <td class="cell-center actions-cell">
+                    @if (canModifyTag(tag)) {
+                    <div class="action-btn-group">
+                        <button type="button" class="btn btn-xs" (click)="startEdit(tag)" title="編輯此筆標記">
+                            編輯
+                        </button>
+                        <button type="button" class="btn btn-xs danger" (click)="deleteTag(tag)" title="刪除此筆標記">
+                            刪除
+                        </button>
+                    </div>
+                    } @else {
+                    <span class="muted-text">—</span>
+                    }
+                </td>
+            </tr>
+            } @empty {
+            <tr>
+                <td colspan="7" class="empty-cell">
+                    {{ scope() === 'MINE' ? '此觀察視窗內沒有您的熱度標記' : '此觀察視窗內沒有人工熱度標記資料' }}
+                </td>
+            </tr>
+            }
+            }
+        </tbody>
+    </table>
 
-  <!-- 分頁器 (規範 3.6) -->
-  <mat-paginator [length]="tags().length" [pageSize]="pageSize()" [pageIndex]="pageIndex()"
-    [pageSizeOptions]="[5, 10, 20]" (page)="onPageChange($event)"
-    [selectConfig]="{ panelClass: 'unified-mat-select-panel' }">
-  </mat-paginator>
+    <!-- 分頁器 (規範 3.6) -->
+    <mat-paginator [length]="tags().length" [pageSize]="pageSize()" [pageIndex]="pageIndex()"
+        [pageSizeOptions]="[5, 10, 20]" (page)="onPageChange($event)"
+        [selectConfig]="{ panelClass: 'unified-mat-select-panel' }">
+    </mat-paginator>
 </div>
 
 <!-- 底部業務規則說明面板 (遵循 FRONTEND_UI_GUIDELINES.md 5.1 規範) ────── -->
 <div class="info-section">
-  <div class="info-header">
-    <div class="info-title">
-      <h4>人工熱度標記與時間衰減規則說明</h4>
-    </div>
-  </div>
-
-  <div class="info-grid">
-    <!-- 卡片 1: 時間衰減機制 -->
-    <div class="info-card">
-      <div class="card-head">
-        <h5>時間階梯衰減（AC-14-2）</h5>
-      </div>
-      <p>
-        <strong>14 天內：</strong> 權重維持 <strong>100%</strong> 全額計入當期熱度。<br>
-        <strong>14 ～ 30 天：</strong> 權重階梯減半為 <strong>50%</strong>。<br>
-        <strong>超過 30 天：</strong> 標記<strong>完全失效 (0%)</strong>，避免過期陳舊爆款持續干擾當期選品推薦。
-      </p>
+    <div class="info-header">
+        <div class="info-title">
+            <h4>人工熱度標記與時間衰減規則說明</h4>
+        </div>
     </div>
 
-    <!-- 卡片 2: 多人標記聚合與信心係數 -->
-    <div class="info-card">
-      <div class="card-head">
-        <h5>多人標記聚合與信心係數（AC-14-3 / AC-14-7）</h5>
-      </div>
-      <p>
-        同標的多筆標記以時間衰減權重加權平均，<strong>相異標記人數本身即為信心度指標</strong>：<br>
-        <strong>1 人標記：</strong> 信心係數 <strong>0.6</strong><br>
-        <strong>2 人標記：</strong> 信心係數 <strong>0.8</strong><br>
-        <strong>3 人以上：</strong> 信心係數 <strong>1.0</strong>（同一人多次標記只計一人）。
-      </p>
-    </div>
+    <div class="info-grid">
+        <!-- 卡片 1: 時間衰減機制 -->
+        <div class="info-card">
+            <div class="card-head">
+                <h5>時間階梯衰減（AC-14-2）</h5>
+            </div>
+            <p>
+                <strong>14 天內：</strong> 權重維持 <strong>100%</strong> 全額計入當期熱度。<br>
+                <strong>滿 14 天、未滿 30 天：</strong> 權重階梯減半為 <strong>50%</strong>。<br>
+                <strong>滿 30 天：</strong> 標記<strong>完全失效 (0%)</strong>，避免過期陳舊爆款持續干擾當期選品推薦。
+            </p>
+        </div>
 
-    <!-- 卡片 3: 替代爬蟲策略與自有資產 -->
-    <div class="info-card">
-      <div class="card-head">
-        <h5>零法律風險之社群觀察結構化</h5>
-      </div>
-      <p>
-        FB、TikTok、小紅書等平台均無合法開放之程式化 API。<br>
-        採購團隊在日常瀏覽社群時，透過<strong>30 秒就地結構化標記</strong>取代高風險爬蟲，不僅具備早期爆款敏銳度，更能穩健累積為企業專有之選品資料資產。
-      </p>
+        <!-- 卡片 2: 多人標記聚合與信心係數 -->
+        <div class="info-card">
+            <div class="card-head">
+                <h5>多人標記聚合與信心係數（AC-14-3 / AC-14-7）</h5>
+            </div>
+            <p>
+                同標的多筆標記以時間衰減權重加權平均，<strong>相異標記人數本身即為信心度指標</strong>：<br>
+                <strong>1 人標記：</strong> 信心係數 <strong>0.6</strong><br>
+                <strong>2 人標記：</strong> 信心係數 <strong>0.8</strong><br>
+                <strong>3 人以上：</strong> 信心係數 <strong>1.0</strong>（同一人多次標記只計一人）。
+            </p>
+        </div>
+
+        <!-- 卡片 3: 替代爬蟲策略與自有資產 -->
+        <div class="info-card">
+            <div class="card-head">
+                <h5>零法律風險之社群觀察結構化</h5>
+            </div>
+            <p>
+                FB、TikTok、小紅書等平台均無合法開放之程式化 API。<br>
+                採購團隊在日常瀏覽社群時，透過<strong>30 秒就地結構化標記</strong>取代高風險爬蟲，不僅具備早期爆款敏銳度，更能穩健累積為企業專有之選品資料資產。
+            </p>
+        </div>
     </div>
-  </div>
 </div>

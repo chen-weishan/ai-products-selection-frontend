@@ -1,4 +1,4 @@
-import { Injectable, computed, inject, signal } from '@angular/core';
+import { DestroyRef, Injectable, computed, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { LoginRequest, LoginResponse, UserInfo, UserRole } from '../models/auth-model';
@@ -25,6 +25,16 @@ export class AuthService {
   readonly mockAccounts: MockAccount[] = MOCK_ACCOUNTS;
 
   readonly currentUser = signal<UserInfo | null>(this.getStoredUser());
+
+  constructor() {
+    const onStorage = (event: StorageEvent) => {
+      if (event.key === null || event.key === this.USER_KEY) {
+        this.currentUser.set(this.getStoredUser());
+      }
+    };
+    window.addEventListener('storage', onStorage);
+    inject(DestroyRef).onDestroy(() => window.removeEventListener('storage', onStorage));
+  }
 
   readonly isLoggedIn = computed(() => !!this.currentUser() && !!this.getAccessToken());
 
@@ -65,7 +75,6 @@ export class AuthService {
 
     const loginUrl = environment?.apiBaseUrl ? `${environment.apiBaseUrl}/auth/login` : '/api/v1/auth/login';
     return this.http.post<unknown>(loginUrl, credentials).pipe(
-      tap(res => console.log('[AuthService] /auth/login response:', res)),
       map(res => {
         const anyRes = res as any;
         const tokens = anyRes?.data?.tokens || anyRes?.tokens;
@@ -120,19 +129,13 @@ export class AuthService {
     );
   }
 
-  /** 快速以指定角色模擬登入 */
+  /** 以指定測試帳號登入，身分及 Token 一律由後端核發。 */
   loginAsMock(roleOrEmail: UserRole | string): Observable<LoginResponse> {
     const account = this.mockAccounts.find(
       a => a.role === roleOrEmail || a.email.toLowerCase() === roleOrEmail.toLowerCase()
-    ) || this.mockAccounts[0];
-
-    const mockResponse = createMockLoginResponse(account);
-    return of(mockResponse as any).pipe(
-      delay(200),
-      tap(res => {
-        this.saveAuthData(res);
-      })
     );
+    if (!account) return throwError(() => new Error('找不到指定的測試帳號'));
+    return this.login({ email: account.email, password: account.password });
   }
 
   isTokenExpired(token: string | null): boolean {
@@ -219,6 +222,8 @@ export class AuthService {
 
     if (response.refreshToken) {
       localStorage.setItem(this.REFRESH_TOKEN_KEY, response.refreshToken);
+    } else {
+      localStorage.removeItem(this.REFRESH_TOKEN_KEY);
     }
 
     localStorage.setItem(this.USER_KEY, JSON.stringify(user));
@@ -243,7 +248,7 @@ export class AuthService {
         name: parsed.name ?? parsed.displayName ?? '使用者',
         email: parsed.email ?? parsed.username ?? '',
         displayName: parsed.displayName ?? parsed.name ?? '使用者',
-        role: parsed.role ?? roles[0] ?? 'BUYER',
+        role: roles[0] ?? parsed.role ?? 'BUYER',
         roles: roles,
       };
     } catch {

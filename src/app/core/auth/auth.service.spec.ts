@@ -60,4 +60,34 @@ describe('AuthService', () => {
     expect(service.currentUser()).toBeNull();
     expect(navigate).toHaveBeenCalledWith(['/login']);
   });
+
+  it('switches test accounts using a real login and replaces the previous user and tokens', () => {
+    localStorage.setItem('ssds_refresh_Token', 'old-admin-refresh');
+    service.currentUser.set({ id: 4, name: '系統管理員', roles: ['SYS_ADMIN'], role: 'SYS_ADMIN' });
+    service.loginAsMock('BUYER').subscribe();
+    const request = http.expectOne(`${environment.apiBaseUrl}/auth/login`);
+    expect(request.request.body.email).toBe('buyer@ssds.dev');
+    request.flush({ success: true, data: {
+      tokens: { accessToken: 'buyer-token' },
+      user: { id: 1, email: 'buyer@ssds.dev', displayName: '採購人員', roles: ['BUYER'] }
+    } });
+    expect(service.currentUser()).toEqual(expect.objectContaining({ id: 1, name: '採購人員', role: 'BUYER', roles: ['BUYER'] }));
+    expect(service.getAccessToken()).toBe('buyer-token');
+    expect(service.getRefreshToken()).toBeNull();
+  });
+
+  it('rejects an unknown test account instead of silently logging in as another user', () => {
+    let error: Error | undefined;
+    service.loginAsMock('unknown').subscribe({ error: err => error = err });
+    expect(error?.message).toContain('找不到');
+    http.expectNone(`${environment.apiBaseUrl}/auth/login`);
+  });
+
+  it('updates the displayed identity when another tab changes the logged-in account', () => {
+    localStorage.setItem('ssds_access_Token', 'buyer-token');
+    localStorage.setItem('ssds_user_info', JSON.stringify({ id: 1, name: '採購人員', role: 'SYS_ADMIN', roles: ['BUYER'] }));
+    window.dispatchEvent(new StorageEvent('storage', { key: 'ssds_user_info' }));
+    expect(service.currentUser()?.name).toBe('採購人員');
+    expect(service.currentUser()?.role).toBe('BUYER');
+  });
 });

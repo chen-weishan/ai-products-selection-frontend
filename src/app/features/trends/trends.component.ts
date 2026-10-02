@@ -8,7 +8,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatSelectModule } from '@angular/material/select';
 import { MatInputModule } from '@angular/material/input';
 import { FormsModule } from '@angular/forms';
-import { MOCK_TREND_LIST } from '../../core/mock/trend-mock';
+import { Subscription } from 'rxjs';
 
 /**
  * 繁體中文語系設定 - Material 分頁器
@@ -51,6 +51,7 @@ export class TrendsComponent implements OnInit {
   private readonly trendService = inject(TrendControllerService);
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
+  private loadSubscription?: Subscription;
   isLoading = signal(false);
   errorMessage = signal<string | null>(null);
   trendList = signal<TrendSignalRow[]>([]);
@@ -115,19 +116,21 @@ export class TrendsComponent implements OnInit {
   }
 
   loadTrends() {
+    this.loadSubscription?.unsubscribe();
     this.isLoading.set(true);
     this.errorMessage.set(null);
-    this.trendService.getTrends()
+    this.loadSubscription = this.trendService.getTrends()
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (res) => {
-          this.trendList.set(res && res.length > 0 ? res : MOCK_TREND_LIST);
+          this.trendList.set(res ?? []);
           this.isLoading.set(false);
           this.pageIndex.set(0);
         },
         error: (err) => {
-          console.warn('[TrendsComponent] 後端 API 請求失敗，自動使用 Mock 假資料回退:', err);
-          this.trendList.set(MOCK_TREND_LIST);
+          console.error('[TrendsComponent] 後端 API 請求失敗:', err);
+          this.trendList.set([]);
+          this.errorMessage.set('趨勢資料載入失敗，請稍後再試。');
           this.isLoading.set(false);
           this.pageIndex.set(0);
         }
@@ -139,16 +142,28 @@ export class TrendsComponent implements OnInit {
     'heatToday',
     'slope7d',
     'slope30d',
+    'stage',
     'aiSignal'
   ];
 
   goToDetail(keywordId: number | string): void {
-    if (keywordId === null || keywordId === undefined) { console.warn('沒有對應資料'); return; };
-    this.router.navigate(['/trends', keywordId]);
+    const id = Number(keywordId);
+    if (!Number.isInteger(id) || id <= 0) return;
+    this.router.navigate(['/trends', id]);
+  }
+
+  onRowKeydown(event: KeyboardEvent, keywordId: number | string): void {
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+    event.preventDefault();
+    this.goToDetail(keywordId);
+  }
+
+  formatStage(stage: string | null | undefined): string {
+    return ({ RISING: '上升期', PLATEAU: '高原期', DECLINING: '衰退期' } as Record<string, string>)[stage ?? ''] ?? '-';
   }
 
   formatSlope(value: number | null | undefined): string {
-    if (value === null || value === undefined) return '';
+    if (value === null || value === undefined) return '-';
     const percentage = Math.round(value * 100);
     const sign = percentage > 0 ? '+' : '';
     return `${sign}${percentage}%`;

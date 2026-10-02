@@ -1,12 +1,13 @@
 import { CommonModule, DatePipe } from '@angular/common';
-import { ChangeDetectorRef, Component, ElementRef, HostListener, OnInit, computed, inject, signal } from '@angular/core';
+import { ChangeDetectorRef, Component, DestroyRef, ElementRef, HostListener, OnInit, computed, effect, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { Subject, debounceTime, distinctUntilChanged } from 'rxjs';
+import { EMPTY, Subject, Subscription, catchError, forkJoin, of, switchMap, takeUntil, timer } from 'rxjs';
 
 import {
   ManualHeatTagControllerService,
@@ -56,6 +57,19 @@ export class HeatTagsComponent implements OnInit {
   private readonly snackBar = inject(MatSnackBar);
   private readonly cdr = inject(ChangeDetectorRef);
   private readonly elementRef = inject(ElementRef);
+  private readonly destroyRef = inject(DestroyRef);
+  private listSubscription?: Subscription;
+  private searchSubscription?: Subscription;
+  private initialized = false;
+  private loadedIdentity = '';
+  readonly currentUser = this.authService.currentUser;
+  readonly canWrite = computed(() => this.authService.hasRole(['BUYER', 'BUYER_LEAD', 'DATA_ADMIN', 'SYS_ADMIN']));
+  readonly listError = signal('');
+  readonly searchError = signal('');
+  readonly platformError = signal('');
+  readonly hasMoreProducts = signal(false);
+  private productSearchPage = 0;
+  private searchedQuery = '';
 
   // ── 清單狀態 ──
   readonly tags = signal<ManualHeatTagResponse[]>([]);
@@ -94,7 +108,46 @@ export class HeatTagsComponent implements OnInit {
   readonly platformOptions = PLATFORM_OPTIONS;
 
   private readonly urlInput$ = new Subject<string>();
-  private readonly searchInput$ = new Subject<string>();
+  private readonly searchInput$ = new Subject<string | null>();
+  private readonly identityChanged$ = new Subject<void>();
+  private originalObservedAt?: string;
+  private originalObservedInput?: string;
+
+  constructor() {
+    effect(() => {
+      const user = this.currentUser();
+      const identity = JSON.stringify([user?.id, user?.roles, user?.role]);
+      if (this.initialized && identity !== this.loadedIdentity) {
+        this.loadedIdentity = identity;
+        this.identityChanged$.next();
+        this.isSubmitting.set(false);
+        this.cancelEdit();
+        this.searchSubscription?.unsubscribe();
+        this.searchResults.set([]);
+        this.isSearchOpen.set(false);
+        this.loadTags();
+      }
+    });
+    this.destroyRef.onDestroy(() => {
+      this.listSubscription?.unsubscribe();
+      this.searchSubscription?.unsubscribe();
+    });
+  }
+
+  readonly urlError = computed(() => {
+    const value = this.sourceUrl().trim();
+    if (!value) return '';
+    if (value.length > 512) return '來源連結不可超過 512 字';
+    try {
+      const url = new URL(value);
+      if (!['http:', 'https:'].includes(url.protocol) || !url.hostname.includes('.')) throw new Error();
+      return '';
+    } catch {
+      return '請輸入完整的 http:// 或 https:// 連結';
+    }
+  });
+  readonly noteError = computed(() => this.note().length > 255 ? '備註不可超過 255 字' : '');
+  readonly timeError = computed(() => !this.observedAt() || !Number.isFinite(new Date(this.observedAt()).getTime()) ? '請輸入有效的觀察時間' : '');
 
   // ── 計算屬性 ──
   readonly weeklyCount = computed(() => {
@@ -108,10 +161,17 @@ export class HeatTagsComponent implements OnInit {
   readonly isFormValid = computed(() => {
     const hasUrl = this.sourceUrl().trim().length > 0;
     const hasTarget = this.selectedProduct() !== null || this.selectedKeyword() !== null;
-    return hasUrl && hasTarget && !this.isSubmitting();
+    return this.canWrite() && hasUrl && hasTarget && !this.urlError() && !this.noteError() && !this.timeError()
+      && this.heatLevel() >= 1 && this.heatLevel() <= 5
+      && PLATFORM_OPTIONS.some(p => p.value === this.platform())
+      && (!this.isResolvingPlatform() || this.isPlatformManuallyOverridden())
+      && (!this.platformError() || this.isPlatformManuallyOverridden()) && !this.isSubmitting();
   });
 
   ngOnInit(): void {
+    const user = this.currentUser();
+    this.loadedIdentity = JSON.stringify([user?.id, user?.roles, user?.role]);
+    this.initialized = true;
     this.resetObservedTime();
     this.loadTags();
     this.setupUrlDebounce();
@@ -131,43 +191,42 @@ export class HeatTagsComponent implements OnInit {
   // ── URL 自動辨識平台 ──
   private setupUrlDebounce(): void {
     this.urlInput$.pipe(
-      debounceTime(400),
-      distinctUntilChanged()
-    ).subscribe(url => {
-      if (!url || !url.trim() || url.trim().length < 4) {
-        this.platformResolvedLabel.set('');
-        return;
-      }
-      this.isResolvingPlatform.set(true);
-      const jsonOptions = { httpHeaderAccept: 'application/json' as any };
-      this.heatTagApi.resolvePlatform(
-        { resolvePlatformRequest: { sourceUrl: url.trim() } },
-        'body',
-        false,
-        jsonOptions
-      ).subscribe({
-        next: (res: any) => {
-          this.isResolvingPlatform.set(false);
-          const detected = res?.data?.platform || res?.platform;
-          if (detected) {
-            if (!this.isPlatformManuallyOverridden()) {
-              this.platform.set(detected);
-            }
-            this.platformResolvedLabel.set(`已辨識　${this.getPlatformLabel(detected)}`);
+      switchMap(url => {
+        if (!url.trim() || this.urlError() || !this.canWrite()) return EMPTY;
+        return timer(400).pipe(switchMap(() => this.heatTagApi.resolvePlatform(
+          { resolvePlatformRequest: { sourceUrl: url.trim() } }, 'body', false,
+          { httpHeaderAccept: 'application/json' as any }
+        ).pipe(catchError(() => {
+          if (!this.isPlatformManuallyOverridden()) {
+            this.platformError.set('平台辨識失敗，請手動選擇平台後送出');
           }
-          this.cdr.markForCheck();
-        },
-        error: () => {
           this.isResolvingPlatform.set(false);
-          this.cdr.markForCheck();
-        }
-      });
+          return EMPTY;
+        }))));
+      }),
+      takeUntilDestroyed(this.destroyRef)
+    ).subscribe(res => {
+      this.isResolvingPlatform.set(false);
+      if (this.isPlatformManuallyOverridden()) return;
+      const detected = res.data?.platform;
+      if (detected && PLATFORM_OPTIONS.some(p => p.value === detected)) {
+        this.platform.set(detected);
+        this.platformError.set('');
+        this.platformResolvedLabel.set(`已辨識　${this.getPlatformLabel(detected)}`);
+      } else {
+        this.platformError.set('無法辨識平台，請手動選擇');
+      }
+      this.cdr.markForCheck();
     });
   }
 
   onUrlChange(value: string): void {
     this.sourceUrl.set(value);
     this.isPlatformManuallyOverridden.set(false);
+    this.platformResolvedLabel.set('');
+    this.platformError.set('');
+    this.platform.set('OTHER');
+    this.isResolvingPlatform.set(!!value.trim() && !this.urlError());
     this.urlInput$.next(value);
   }
 
@@ -175,6 +234,7 @@ export class HeatTagsComponent implements OnInit {
   selectPlatform(value: string): void {
     this.platform.set(value);
     this.isPlatformManuallyOverridden.set(true);
+    this.platformError.set('');
     this.platformResolvedLabel.set(`手動指定　${this.getPlatformLabel(value)}`);
     this.cdr.markForCheck();
   }
@@ -188,15 +248,18 @@ export class HeatTagsComponent implements OnInit {
   // ── 關聯品項／關鍵字搜尋 ──
   private setupSearchDebounce(): void {
     this.searchInput$.pipe(
-      debounceTime(300),
-      distinctUntilChanged()
-    ).subscribe(query => {
-      this.performSearch(query);
-    });
+      switchMap(query => query === null ? EMPTY : timer(300).pipe(switchMap(() => of(query)))),
+      takeUntilDestroyed(this.destroyRef)
+    ).subscribe(query => this.performSearch(query));
   }
 
   onSearchInput(query: string): void {
+    this.searchSubscription?.unsubscribe();
     this.searchQuery.set(query);
+    this.searchResults.set([]);
+    this.searchError.set('');
+    this.hasMoreProducts.set(false);
+    this.isSearching.set(true);
     this.isSearchOpen.set(true);
     this.searchInput$.next(query);
   }
@@ -222,79 +285,69 @@ export class HeatTagsComponent implements OnInit {
   }
 
   private performSearch(query: string): void {
-    if (!query || query.trim().length === 0) {
-      this.loadDefaultTargets();
-      return;
-    }
+    this.searchSubscription?.unsubscribe();
+    this.productSearchPage = 0;
+    this.searchedQuery = query.trim();
     this.isSearching.set(true);
-    const trimmed = query.trim();
-    const jsonOptions = { httpHeaderAccept: 'application/json' as any };
+    const jsonOptions = { httpHeaderAccept: 'application/json' as const };
+    const keywordParams = this.searchedQuery ? { keyword: this.searchedQuery, enabled: true } : { enabled: true };
+    this.searchSubscription = forkJoin({
+      keywords: this.referenceApi.getTrendKeywords(keywordParams, 'body', false, jsonOptions).pipe(
+        catchError(err => {
+          this.searchError.set(`關鍵字搜尋失敗：${this.errorMessage(err)}`);
+          return of(null);
+        })
+      ),
+      products: this.productApi.search({ keyword: this.searchedQuery || undefined, size: 20, page: 0 }, 'body', false, jsonOptions).pipe(
+        catchError(err => {
+          this.searchError.update(message => [message, `品項搜尋失敗：${this.errorMessage(err)}`].filter(Boolean).join('；'));
+          return of(null);
+        })
+      )
+    }).pipe(takeUntilDestroyed(this.destroyRef)).subscribe(({ keywords, products }) => {
+      const kwOptions: TargetOption[] = (keywords?.data || []).filter(k => k.id != null).map(k => ({
+        type: 'KEYWORD', id: k.id!, title: k.keyword || '', sub: '趨勢關鍵字'
+      }));
+      this.searchResults.set([...kwOptions, ...this.productOptions(products?.data?.content || [])]);
+      this.hasMoreProducts.set((products?.data?.totalPages || 0) > 1);
+      this.isSearching.set(false);
+      this.cdr.markForCheck();
+    });
+  }
 
-    // 同時搜尋關鍵字與品項
-    this.referenceApi.getTrendKeywords({ keyword: trimmed, enabled: true }, 'body', false, jsonOptions).subscribe({
-      next: (kwRes: any) => {
-        const kwData = kwRes?.data || kwRes || [];
-        const keywordOptions: TargetOption[] = (Array.isArray(kwData) ? kwData : []).map(k => ({
-          type: 'KEYWORD' as const,
-          id: k.id,
-          title: k.keyword,
-          sub: '趨勢關鍵字'
-        }));
-
-        this.productApi.search({ keyword: trimmed, size: 5 } as any, 'body', false, jsonOptions).subscribe({
-          next: (prodRes: any) => {
-            this.isSearching.set(false);
-            const content = prodRes?.data?.content || prodRes?.data || [];
-            const productOptions: TargetOption[] = (Array.isArray(content) ? content : []).map(p => ({
-              type: 'PRODUCT' as const,
-              id: p.id,
-              title: p.name,
-              sub: p.categoryName || '既有品項',
-              track: p.trackType || 'A'
-            }));
-            this.searchResults.set([...keywordOptions, ...productOptions]);
-            this.cdr.markForCheck();
-          },
-          error: () => {
-            this.isSearching.set(false);
-            this.searchResults.set(keywordOptions);
-            this.cdr.markForCheck();
-          }
-        });
-      },
-      error: () => {
+  loadMoreProducts(): void {
+    if (this.isSearching() || !this.hasMoreProducts()) return;
+    const nextPage = this.productSearchPage + 1;
+    this.isSearching.set(true);
+    this.searchSubscription = this.productApi.search({
+      keyword: this.searchedQuery || undefined, size: 20, page: nextPage
+    }, 'body', false, { httpHeaderAccept: 'application/json' }).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: res => {
+        this.productSearchPage = nextPage;
+        const options = this.productOptions(res.data?.content || []);
+        this.searchResults.update(current => [...current, ...options.filter(p => !current.some(c => c.type === p.type && c.id === p.id))]);
+        this.hasMoreProducts.set(nextPage + 1 < (res.data?.totalPages || 0));
         this.isSearching.set(false);
-        this.searchResults.set([]);
-        this.cdr.markForCheck();
+      },
+      error: err => {
+        this.searchError.set(`載入更多失敗：${this.errorMessage(err)}`);
+        this.isSearching.set(false);
       }
     });
   }
 
-  private loadDefaultTargets(): void {
-    this.isSearching.set(true);
-    const jsonOptions = { httpHeaderAccept: 'application/json' as any };
-    this.referenceApi.getTrendKeywords({ enabled: true }, 'body', false, jsonOptions).subscribe({
-      next: (res: any) => {
-        this.isSearching.set(false);
-        const data = res?.data || res || [];
-        const kwOptions: TargetOption[] = (Array.isArray(data) ? data.slice(0, 8) : []).map(k => ({
-          type: 'KEYWORD' as const,
-          id: k.id,
-          title: k.keyword,
-          sub: '趨勢關鍵字'
-        }));
-        this.searchResults.set(kwOptions);
-        this.cdr.markForCheck();
-      },
-      error: () => {
-        this.isSearching.set(false);
-        this.searchResults.set([]);
-        this.cdr.markForCheck();
-      }
-    });
+  private productOptions(products: { id?: number; name?: string; categoryName?: string; trackType?: string }[]): TargetOption[] {
+    return products.filter(p => p.id != null).map(p => ({
+      type: 'PRODUCT', id: p.id!, title: p.name || '', sub: p.categoryName || '既有品項', track: p.trackType
+    }));
+  }
+
+  private errorMessage(err: any): string {
+    return err?.error?.error?.message || err?.error?.message || (err?.status === 0 ? '無法連線至伺服器' : err?.message) || '請稍後重試';
   }
 
   selectTarget(option: TargetOption): void {
+    this.cancelSearch();
     if (option.type === 'PRODUCT') {
       this.selectedProduct.set({ id: option.id, name: option.title, track: option.track });
       this.selectedKeyword.set(null);
@@ -308,17 +361,31 @@ export class HeatTagsComponent implements OnInit {
   }
 
   clearSelectedTarget(): void {
+    this.cancelSearch();
     this.selectedProduct.set(null);
     this.selectedKeyword.set(null);
     this.searchQuery.set('');
     this.cdr.markForCheck();
   }
 
+  private cancelSearch(): void {
+    this.searchInput$.next(null);
+    this.searchSubscription?.unsubscribe();
+    this.isSearching.set(false);
+    this.isSearchOpen.set(false);
+    this.searchError.set('');
+    this.searchResults.set([]);
+    this.hasMoreProducts.set(false);
+  }
+
   // ── 載入標記清單 ──
   loadTags(): void {
+    this.listSubscription?.unsubscribe();
+    this.listError.set('');
+    this.tags.set([]);
     this.isLoadingList.set(true);
     const jsonOptions = { httpHeaderAccept: 'application/json' as any };
-    this.heatTagApi.list1(
+    this.listSubscription = this.heatTagApi.list1(
       { scope: this.scope(), days: this.days() },
       'body',
       false,
@@ -333,7 +400,7 @@ export class HeatTagsComponent implements OnInit {
       },
       error: (err) => {
         this.isLoadingList.set(false);
-        console.error('[HeatTags] 載入標記清單失敗:', err);
+        this.listError.set(this.errorMessage(err));
         this.tags.set([]);
         this.pageIndex.set(0);
         this.cdr.markForCheck();
@@ -360,7 +427,8 @@ export class HeatTagsComponent implements OnInit {
 
     this.isSubmitting.set(true);
     const jsonOptions = { httpHeaderAccept: 'application/json' as any };
-    const observedInstant = this.observedAt() ? new Date(this.observedAt()).toISOString() : new Date().toISOString();
+    const observedInstant = this.editingTagId() !== null && this.originalObservedAt && this.observedAt() === this.originalObservedInput
+      ? this.originalObservedAt! : new Date(this.observedAt()).toISOString();
 
     const editId = this.editingTagId();
     if (editId !== null) {
@@ -378,7 +446,7 @@ export class HeatTagsComponent implements OnInit {
         'body',
         false,
         jsonOptions
-      ).subscribe({
+      ).pipe(takeUntil(this.identityChanged$), takeUntilDestroyed(this.destroyRef)).subscribe({
         next: () => {
           this.isSubmitting.set(false);
           this.snackBar.open('標記更新成功', '關閉', { duration: 3000 });
@@ -388,7 +456,7 @@ export class HeatTagsComponent implements OnInit {
         error: (err) => {
           this.isSubmitting.set(false);
           console.error('[HeatTags] 更新標記失敗:', err);
-          const msg = err?.error?.message || err?.message || '更新失敗';
+          const msg = this.errorMessage(err);
           this.snackBar.open(`更新失敗: ${msg}`, '關閉', { duration: 4000 });
           this.cdr.markForCheck();
         }
@@ -410,7 +478,7 @@ export class HeatTagsComponent implements OnInit {
         'body',
         false,
         jsonOptions
-      ).subscribe({
+      ).pipe(takeUntil(this.identityChanged$), takeUntilDestroyed(this.destroyRef)).subscribe({
         next: () => {
           this.isSubmitting.set(false);
           this.snackBar.open('人工熱度標記建立成功！', '關閉', { duration: 3000 });
@@ -420,7 +488,7 @@ export class HeatTagsComponent implements OnInit {
         error: (err) => {
           this.isSubmitting.set(false);
           console.error('[HeatTags] 新增標記失敗:', err);
-          const msg = err?.error?.message || err?.message || '新增失敗';
+          const msg = this.errorMessage(err);
           this.snackBar.open(`標記失敗: ${msg}`, '關閉', { duration: 4000 });
           this.cdr.markForCheck();
         }
@@ -430,8 +498,11 @@ export class HeatTagsComponent implements OnInit {
 
   // ── 進入編輯模式 ──
   startEdit(tag: ManualHeatTagResponse): void {
-    if (!tag.id) return;
+    if (!tag.id || !this.canModifyTag(tag) || this.isSubmitting()) return;
+    this.cancelSearch();
+    this.resetObservedTime();
     this.editingTagId.set(tag.id);
+    this.onUrlChange('');
     this.sourceUrl.set(tag.sourceUrl || '');
     this.platform.set(tag.platform || 'THREADS');
     this.isPlatformManuallyOverridden.set(true);
@@ -448,9 +519,11 @@ export class HeatTagsComponent implements OnInit {
       const min = String(d.getMinutes()).padStart(2, '0');
       this.observedAt.set(`${yyyy}-${mm}-${dd}T${hh}:${min}`);
     }
+    this.originalObservedAt = tag.observedAt;
+    this.originalObservedInput = this.observedAt();
 
     if (tag.productId) {
-      this.selectedProduct.set({ id: tag.productId, name: tag.productName || `品項 #${tag.productId}` });
+      this.selectedProduct.set({ id: tag.productId, name: tag.productName || `品項 #${tag.productId}`, track: this.selectedProduct()?.id === tag.productId ? this.selectedProduct()?.track : undefined });
       this.selectedKeyword.set(null);
     } else if (tag.keywordId) {
       this.selectedKeyword.set({ id: tag.keywordId, keyword: tag.keywordText || `關鍵字 #${tag.keywordId}` });
@@ -468,8 +541,10 @@ export class HeatTagsComponent implements OnInit {
   }
 
   resetForm(): void {
-    this.sourceUrl.set('');
-    this.platform.set('THREADS');
+    this.originalObservedAt = undefined;
+    this.originalObservedInput = undefined;
+    this.onUrlChange('');
+    this.platform.set('OTHER');
     this.platformResolvedLabel.set('');
     this.isPlatformManuallyOverridden.set(false);
     this.heatLevel.set(5);
@@ -481,14 +556,15 @@ export class HeatTagsComponent implements OnInit {
 
   // ── 刪除標記 ──
   deleteTag(tag: ManualHeatTagResponse): void {
-    if (!tag.id) return;
+    if (!tag.id || !this.canModifyTag(tag) || this.isSubmitting()) return;
     const confirmName = tag.productName || tag.keywordText || '此筆標記';
     if (!confirm(`確定要刪除「${confirmName}」的熱度標記嗎？`)) {
       return;
     }
 
     const jsonOptions = { httpHeaderAccept: 'application/json' as any };
-    this.heatTagApi.delete1({ id: tag.id }, 'body', false, jsonOptions).subscribe({
+    this.heatTagApi.delete1({ id: tag.id }, 'body', false, jsonOptions)
+      .pipe(takeUntil(this.identityChanged$), takeUntilDestroyed(this.destroyRef)).subscribe({
       next: () => {
         this.snackBar.open('標記已刪除', '關閉', { duration: 2500 });
         if (this.editingTagId() === tag.id) {
@@ -498,7 +574,7 @@ export class HeatTagsComponent implements OnInit {
       },
       error: (err) => {
         console.error('[HeatTags] 刪除標記失敗:', err);
-        const msg = err?.error?.message || err?.message || '刪除失敗';
+        const msg = this.errorMessage(err);
         this.snackBar.open(`刪除失敗: ${msg}`, '關閉', { duration: 3000 });
       }
     });
@@ -506,11 +582,12 @@ export class HeatTagsComponent implements OnInit {
 
   canModifyTag(tag: ManualHeatTagResponse): boolean {
     const user = this.authService.currentUser();
-    if (!user) return false;
+    if (!user || !this.canWrite()) return false;
     // 管理員可代管
     if (this.authService.hasRole(['SYS_ADMIN'])) return true;
     // 本人建立
-    return tag.taggedById === Number(user.id) || tag.taggedByName === user.name;
+    const id = Number(user.id);
+    return Number.isFinite(id) && id > 0 && tag.taggedById === id;
   }
 
   // ── 格式化工具 ──
@@ -534,7 +611,9 @@ export class HeatTagsComponent implements OnInit {
     if (!isoString) return '-';
     try {
       const target = new Date(isoString).getTime();
+      if (!Number.isFinite(target)) return '-';
       const diffMs = Date.now() - target;
+      if (diffMs < 0) return '未來時間';
       const diffSec = Math.floor(diffMs / 1000);
       const diffMin = Math.floor(diffSec / 60);
       const diffHour = Math.floor(diffMin / 60);

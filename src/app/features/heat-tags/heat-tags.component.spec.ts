@@ -2,7 +2,7 @@ import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
-import { of, throwError } from 'rxjs';
+import { of, Subject, throwError } from 'rxjs';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
 import { HeatTagsComponent } from './heat-tags.component';
@@ -34,7 +34,7 @@ describe('HeatTagsComponent', () => {
     getTrendKeywords: ReturnType<typeof vi.fn>;
   };
 
-  let mockCurrentUser = signal<any>({ id: '1', name: '王小美', roles: ['PRODUCT_OPERATOR'] });
+  let mockCurrentUser = signal<any>({ id: '1', name: '王小美', roles: ['BUYER'] });
 
   let mockAuthService: {
     currentUser: typeof mockCurrentUser;
@@ -116,7 +116,7 @@ describe('HeatTagsComponent', () => {
       })),
     };
 
-    mockCurrentUser = signal<any>({ id: '1', name: '王小美', roles: ['PRODUCT_OPERATOR'] });
+    mockCurrentUser = signal<any>({ id: '1', name: '王小美', roles: ['BUYER'] });
     mockAuthService = {
       currentUser: mockCurrentUser,
       hasRole: vi.fn().mockImplementation((roles: string[]) => {
@@ -147,7 +147,179 @@ describe('HeatTagsComponent', () => {
   });
 
   afterEach(() => {
+    fixture.destroy();
     vi.useRealTimers();
+  });
+
+  describe('Regression checks', () => {
+    it('preserves the original observation instant when editing only the note', () => {
+      vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
+      const tag = { ...sampleTags[0], observedAt: '2026-09-01T04:34:56.789Z' };
+      component.startEdit(tag);
+      component.note.set('只改備註');
+      component.submitTag();
+      expect(mockHeatTagService.update1).toHaveBeenCalledWith(expect.objectContaining({
+        manualHeatTagUpdateRequest: expect.objectContaining({ observedAt: tag.observedAt })
+      }), 'body', false, expect.anything());
+    });
+
+    it('does not apply a previous account’s pending submission response to the new account', () => {
+      const response = new Subject<any>();
+      mockHeatTagService.create1.mockReturnValue(response);
+      component.onUrlChange('https://www.threads.net/p/1');
+      component.selectPlatform('THREADS');
+      component.selectTarget({ type: 'PRODUCT', id: 101, title: '品項' });
+      component.submitTag();
+      expect(component.isSubmitting()).toBe(true);
+      mockCurrentUser.set({ id: '2', name: '陳大明', roles: ['BUYER'] });
+      fixture.detectChanges();
+      response.next({ data: sampleTags[0] });
+      expect(component.isSubmitting()).toBe(false);
+      expect(mockSnackBar.open).not.toHaveBeenCalled();
+    });
+
+    it('blocks submission during platform debounce and failed resolution until manually selected', async () => {
+      vi.useFakeTimers();
+      mockHeatTagService.resolvePlatform.mockReturnValue(throwError(() => ({ status: 0 })));
+      component.onUrlChange('https://www.tiktok.com/video/1');
+      component.selectTarget({ type: 'KEYWORD', id: 201, title: '手套' });
+      component.submitTag();
+      expect(mockHeatTagService.create1).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(450);
+      expect(component.platformError()).toContain('手動');
+      expect(component.isFormValid()).toBe(false);
+      component.selectPlatform('TIKTOK');
+      expect(component.isFormValid()).toBe(true);
+    });
+
+    it('ignores old platform responses as soon as the URL changes', async () => {
+      vi.useFakeTimers();
+      const oldResponse = new Subject<any>();
+      mockHeatTagService.resolvePlatform.mockReturnValueOnce(oldResponse).mockReturnValueOnce(of({ data: { platform: 'INSTAGRAM' } }));
+      component.onUrlChange('https://www.tiktok.com/video/1');
+      await vi.advanceTimersByTimeAsync(450);
+      component.onUrlChange('https://www.instagram.com/p/2');
+      oldResponse.next({ data: { platform: 'TIKTOK' } });
+      expect(component.platform()).toBe('OTHER');
+      await vi.advanceTimersByTimeAsync(450);
+      expect(component.platform()).toBe('INSTAGRAM');
+    });
+
+    it('keeps the manual platform label after a delayed automatic response', async () => {
+      vi.useFakeTimers();
+      const response = new Subject<any>();
+      mockHeatTagService.resolvePlatform.mockReturnValue(response);
+      component.onUrlChange('https://www.tiktok.com/video/1');
+      await vi.advanceTimersByTimeAsync(450);
+      component.selectPlatform('FACEBOOK');
+      response.next({ data: { platform: 'TIKTOK' } });
+      expect(component.platform()).toBe('FACEBOOK');
+      expect(component.platformResolvedLabel()).toContain('手動指定');
+    });
+
+    it('does not allow a same-name user to modify someone else’s tag', () => {
+      expect(component.canModifyTag({ ...sampleTags[1], taggedByName: '王小美' })).toBe(false);
+      mockCurrentUser.set({ id: '1', name: '王小美', roles: ['VIEWER'] });
+      expect(component.canWrite()).toBe(false);
+      expect(component.canModifyTag(sampleTags[0])).toBe(false);
+    });
+
+    it('clears the edit form and reloads tags when the logged-in account changes', () => {
+      vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
+      component.startEdit(sampleTags[0]);
+      mockHeatTagService.list1.mockReturnValue(of({ data: [sampleTags[1]] }));
+      mockCurrentUser.set({ id: '2', name: '陳大明', roles: ['DATA_ADMIN'] });
+      fixture.detectChanges();
+      expect(component.editingTagId()).toBeNull();
+      expect(component.sourceUrl()).toBe('');
+      expect(component.currentUser()?.name).toBe('陳大明');
+      expect(component.tags()).toEqual([sampleTags[1]]);
+    });
+
+    it('validates URLs, field limits and observation time before calling the API', () => {
+      component.selectTarget({ type: 'PRODUCT', id: 101, title: '品項' });
+      component.onUrlChange('javascript:alert(1)');
+      component.selectPlatform('OTHER');
+      expect(component.urlError()).toBeTruthy();
+      expect(component.isFormValid()).toBe(false);
+      component.onUrlChange('https://www.threads.net/p/1');
+      component.selectPlatform('THREADS');
+      component.note.set('字'.repeat(256));
+      expect(component.isFormValid()).toBe(false);
+      component.note.set('');
+      component.observedAt.set('invalid');
+      component.submitTag();
+      expect(mockHeatTagService.create1).not.toHaveBeenCalled();
+      expect(component.isSubmitting()).toBe(false);
+    });
+
+    it('sends the user-edited local observation time as UTC', () => {
+      component.onUrlChange('https://www.threads.net/p/1');
+      component.selectPlatform('THREADS');
+      component.selectTarget({ type: 'PRODUCT', id: 101, title: '品項' });
+      component.observedAt.set('2026-09-01T12:34:56');
+      component.submitTag();
+      expect(mockHeatTagService.create1).toHaveBeenCalledWith(expect.objectContaining({
+        manualHeatTagCreateRequest: expect.objectContaining({ observedAt: new Date('2026-09-01T12:34:56').toISOString() })
+      }), 'body', false, expect.anything());
+    });
+
+    it('distinguishes a list failure from an empty list and shows the backend message', () => {
+      mockHeatTagService.list1.mockReturnValue(throwError(() => ({ error: { error: { message: '服務暫時不可用' } } })));
+      component.loadTags();
+      fixture.detectChanges();
+      expect(component.listError()).toBe('服務暫時不可用');
+      expect(fixture.nativeElement.textContent).toContain('載入失敗：服務暫時不可用');
+      expect(fixture.nativeElement.textContent).not.toContain('此觀察視窗內沒有人工');
+    });
+
+    it('does not display the previous scope after switching while a request is pending', () => {
+      const oldResponse = new Subject<any>();
+      mockHeatTagService.list1.mockReturnValueOnce(oldResponse).mockReturnValueOnce(of({ data: [sampleTags[0]] }));
+      component.loadTags();
+      component.switchScope('MINE');
+      oldResponse.next({ data: sampleTags });
+      expect(component.tags()).toEqual([sampleTags[0]]);
+    });
+
+    it('searches products even when the keyword service fails', async () => {
+      vi.useFakeTimers();
+      mockReferenceService.getTrendKeywords.mockReturnValue(throwError(() => ({ status: 0 })));
+      component.onSearchInput('手套');
+      await vi.advanceTimersByTimeAsync(350);
+      expect(mockProductService.search).toHaveBeenCalled();
+      expect(component.searchResults().map(item => item.type)).toEqual(['PRODUCT']);
+      expect(component.searchError()).toContain('關鍵字搜尋失敗');
+    });
+
+    it('cancels stale searches immediately and allows retrying the same query', async () => {
+      vi.useFakeTimers();
+      const oldResponse = new Subject<any>();
+      mockProductService.search.mockReturnValueOnce(oldResponse);
+      component.onSearchInput('舊品項');
+      await vi.advanceTimersByTimeAsync(350);
+      component.onSearchInput('新品項');
+      oldResponse.next({ data: { content: [{ id: 99, name: '舊品項' }] } });
+      oldResponse.complete();
+      expect(component.searchResults()).toEqual([]);
+      await vi.advanceTimersByTimeAsync(350);
+      component.onSearchInput('新品項');
+      await vi.advanceTimersByTimeAsync(350);
+      expect(mockProductService.search).toHaveBeenCalledTimes(3);
+    });
+
+    it('loads the next product page without losing keyword results', async () => {
+      vi.useFakeTimers();
+      mockProductService.search.mockReturnValueOnce(of({ data: { content: [{ id: 101, name: '第一筆', trackType: 'B' }], totalPages: 2 } }))
+        .mockReturnValueOnce(of({ data: { content: [{ id: 102, name: '第二筆' }], totalPages: 2 } }));
+      component.onSearchInput('手套');
+      await vi.advanceTimersByTimeAsync(350);
+      expect(component.hasMoreProducts()).toBe(true);
+      component.loadMoreProducts();
+      expect(mockProductService.search).toHaveBeenLastCalledWith({ keyword: '手套', size: 20, page: 1 }, 'body', false, expect.anything());
+      expect(component.searchResults().map(item => item.id)).toEqual([201, 101, 102]);
+      expect(component.hasMoreProducts()).toBe(false);
+    });
   });
 
   it('should create and load initial tags list', () => {
@@ -234,7 +406,7 @@ describe('HeatTagsComponent', () => {
         expect.objectContaining({ httpHeaderAccept: 'application/json' })
       );
       expect(mockProductService.search).toHaveBeenCalledWith(
-        { keyword: '手套', size: 5 },
+        { keyword: '手套', size: 20, page: 0 },
         'body',
         false,
         expect.objectContaining({ httpHeaderAccept: 'application/json' })
@@ -308,6 +480,8 @@ describe('HeatTagsComponent', () => {
       expect(component.isFormValid()).toBe(false);
 
       component.selectTarget({ type: 'PRODUCT', id: 101, title: '石墨烯智能溫控眼罩' });
+      expect(component.isFormValid()).toBe(false);
+      component.selectPlatform('THREADS');
       expect(component.isFormValid()).toBe(true);
     });
 
@@ -373,6 +547,7 @@ describe('HeatTagsComponent', () => {
 
       component.onUrlChange('https://www.threads.net/@user/post/1');
       component.selectTarget({ type: 'PRODUCT', id: 101, title: '品項' });
+      component.selectPlatform('THREADS');
 
       component.submitTag();
 

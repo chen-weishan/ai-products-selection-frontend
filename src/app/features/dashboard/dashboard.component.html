@@ -15,7 +15,7 @@
       </button>
     </div>
     <button type="button" class="btn" (click)="reload()">重新整理</button>
-    <button type="button" class="btn pri" (click)="navigateToQuickMark()">＋ 我看到一個</button>
+    <button *appHasRole="['BUYER', 'BUYER_LEAD', 'DATA_ADMIN', 'SYS_ADMIN']" type="button" class="btn pri" (click)="navigateToQuickMark()">＋ 我看到一個</button>
   </div>
 </div>
 

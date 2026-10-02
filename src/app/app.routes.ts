@@ -83,6 +83,7 @@ export const routes: Routes = [
       },
       {
         path: 'heat-tags',
+        data: { roles: [...PRODUCT_EDIT_ROLES] },
         loadComponent: () =>
           import('./features/heat-tags/heat-tags.component').then(
             m => m.HeatTagsComponent

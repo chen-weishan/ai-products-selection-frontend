@@ -137,6 +137,35 @@
     color: var(--risk);
     border: 1px solid #fecaca;
   }
+
+  &.busy {
+    background: #f1f5f9;
+    color: var(--ink-2);
+    border: 1px solid var(--line);
+  }
+
+  &.warning {
+    margin: 0 0 12px;
+    background: #fffbeb;
+    color: #92400e;
+    border: 1px solid #fde68a;
+  }
+}
+
+.decision-source {
+  margin-top: 2px;
+}
+
+.empty-state {
+  padding: 72px 16px;
+  text-align: center;
+  color: var(--ink-3);
+}
+
+.snapshot-warning {
+  display: block;
+  margin-top: 20px;
+  line-height: 1.7;
 }
 
 // ── 內容卡片 (規範 .card) ──────────────────────────────

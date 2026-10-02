@@ -3,13 +3,17 @@ import { of } from 'rxjs';
 import { provideRouter } from '@angular/router';
 import { DashboardComponent } from './dashboard.component';
 import { DashboardControllerService } from '../../api/api/dashboardController.service';
+import { signal } from '@angular/core';
+import { AuthService } from '../../core/auth/auth.service';
 
 describe('DashboardComponent', () => {
   let component: DashboardComponent;
   let fixture: ComponentFixture<DashboardComponent>;
   let mockDashboardService: any;
+  const currentUser = signal<any>({ roles: ['BUYER'] });
 
   beforeEach(async () => {
+    currentUser.set({ roles: ['BUYER'] });
     mockDashboardService = {
       getSummary: vi.fn().mockReturnValue(of({
         kpi: {
@@ -59,6 +63,7 @@ describe('DashboardComponent', () => {
       imports: [DashboardComponent],
       providers: [
         provideRouter([]),
+        { provide: AuthService, useValue: { currentUser, hasRole: (roles: string[]) => currentUser().roles.some((role: string) => roles.includes(role)) } },
         { provide: DashboardControllerService, useValue: mockDashboardService }
       ]
     }).compileComponents();
@@ -66,6 +71,13 @@ describe('DashboardComponent', () => {
     fixture = TestBed.createComponent(DashboardComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
+  });
+
+  it('hides the quick heat-tag entry for a viewer', () => {
+    expect(fixture.nativeElement.textContent).toContain('我看到一個');
+    currentUser.set({ roles: ['VIEWER'] });
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).not.toContain('我看到一個');
   });
 
   it('should create and load initial dashboard data', () => {

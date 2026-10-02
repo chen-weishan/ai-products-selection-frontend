@@ -3,8 +3,9 @@ import { HeatSourcesComponent } from './heat-sources.component';
 import { HeatSourceControllerService, HeatSourceDetailResponse, ExcludedHeatSourceResponse } from '../../api';
 import { AuthService } from '../../core/auth/auth.service';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { of, throwError } from 'rxjs';
+import { of, Subject, throwError } from 'rxjs';
 import { signal } from '@angular/core';
+import { provideRouter } from '@angular/router';
 
 describe('HeatSourcesComponent', () => {
   let component: HeatSourcesComponent;
@@ -105,6 +106,7 @@ describe('HeatSourcesComponent', () => {
     await TestBed.configureTestingModule({
       imports: [HeatSourcesComponent],
       providers: [
+        provideRouter([]),
         { provide: HeatSourceControllerService, useValue: mockHeatSourceApi },
         { provide: AuthService, useValue: mockAuthService },
         { provide: MatSnackBar, useValue: mockSnackBar }
@@ -117,6 +119,8 @@ describe('HeatSourcesComponent', () => {
   });
 
   afterEach(() => {
+    fixture.destroy();
+    vi.useRealTimers();
     vi.unstubAllGlobals();
   });
 
@@ -143,9 +147,9 @@ describe('HeatSourcesComponent', () => {
       expect(formatted).toBe('$0.00 / $50.00 (0%)');
     });
 
-    it('should format MANUAL source with null quotaLimit as 無上限 without NaN', () => {
+    it('does not display a dollar quota for internal manual tags', () => {
       const formatted = component.formatQuota(sampleSources[3]); // 120 / null
-      expect(formatted).toBe('$1.20 / 無上限');
+      expect(formatted).toBe('不適用（內部標記）');
       expect(formatted).not.toContain('NaN');
     });
 
@@ -172,8 +176,8 @@ describe('HeatSourcesComponent', () => {
     });
 
     it('should generate helpful tooltip diagnostics', () => {
-      const normalTip = component.getStatusTooltip(sampleSources[0]);
-      expect(normalTip).toBe('服務正常，探測無異常');
+      const normalTip = component.getStatusTooltip({ ...sampleSources[0], lastFetchedAt: new Date().toISOString() });
+      expect(normalTip).toContain('最近回報狀態正常');
 
       const degradedTip = component.getStatusTooltip(sampleSources[2]);
       expect(degradedTip).toContain('連續探測失敗 1 次');
@@ -190,6 +194,136 @@ describe('HeatSourcesComponent', () => {
       expect(disabledTip).toContain('來源已被停用');
       expect(disabledTip).toContain('連續探測失敗 2 次');
       expect(disabledTip).toContain('額度已耗盡 (100%)');
+    });
+  });
+
+  describe('Regression checks', () => {
+    it('discounts category sources and keeps a stopped collector in the settings estimate', () => {
+      component.sources.set([
+        { ...sampleSources[0], compositeWeight: 0.4, enabled: false },
+        { ...sampleSources[2], compositeWeight: 0.2 }
+      ]);
+      const weights = component.recalculatedWeights();
+      expect(weights.map(w => w.newPct)).toEqual([80, 20]);
+      expect(weights[0].enabled).toBe(false);
+      expect(weights[1].categoryDiscount).toBe(true);
+      expect(component.availableCount()).toBe(0);
+    });
+
+    it('does not claim normal operation for empty, stopped or unknown sources', () => {
+      component.sources.set([]);
+      expect(component.summaryMessage()).toContain('沒有熱度來源');
+      component.sources.set([{ ...sampleSources[0], enabled: false }]);
+      expect(component.summaryMessage()).toContain('全部來源已停止採集');
+      component.sources.set([{ ...sampleSources[0], availability: 'UNKNOWN' }]);
+      expect(component.summaryMessage()).toContain('狀態未知');
+      expect(component.recalculatedWeights()).toEqual([]);
+    });
+
+    it('does not produce invalid percentages when the total effective weight is zero', () => {
+      component.sources.set(sampleSources.map(row => ({ ...row, compositeWeight: 0 })));
+      expect(component.recalculatedWeights()).toEqual([]);
+      fixture.detectChanges();
+      expect(fixture.nativeElement.textContent).toContain('無法推算比例');
+    });
+
+    it('labels absent limits as unknown instead of unlimited', () => {
+      expect(component.formatQuota({ ...sampleSources[0], quotaLimit: undefined })).toBe('$3.50 / 上限未提供');
+      expect(component.formatQuota({ ...sampleSources[0], quotaUsed: undefined })).toBe('用量未提供');
+    });
+
+    it('shows stale-data diagnostics using Taiwan calendar days', () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date('2026-10-02T04:00:00Z'));
+      expect(component.getStatusTooltip({ ...sampleSources[0], lastFetchedAt: '2026-09-28T16:00:00Z' })).toContain('落後 3 天');
+      expect(component.getStatusTooltip({ ...sampleSources[0], lastFetchedAt: undefined })).toContain('無法確認資料新鮮度');
+      expect(component.getStatusTooltip({ ...sampleSources[0], availability: 'DEGRADED', lastFetchedAt: new Date().toISOString() })).toContain('未提供完整原因');
+    });
+
+    it('displays loading and the nested backend failure without showing stale rows', () => {
+      const response = new Subject<any>();
+      mockHeatSourceApi.list4.mockReturnValue(response);
+      component.loadSources();
+      fixture.detectChanges();
+      expect(fixture.nativeElement.textContent).toContain('載入熱度來源中');
+      expect(component.sources()).toEqual([]);
+      response.error({ error: { error: { message: '資料庫暫時不可用' } } });
+      fixture.detectChanges();
+      expect(fixture.nativeElement.textContent).toContain('載入失敗：資料庫暫時不可用');
+      expect(component.summaryMessage()).toContain('無法判斷');
+    });
+
+    it('cancels old list requests so they cannot overwrite the latest response', () => {
+      const oldResponse = new Subject<any>();
+      mockHeatSourceApi.list4.mockReturnValueOnce(oldResponse).mockReturnValueOnce(of({ data: [sampleSources[1]] }));
+      component.loadSources();
+      component.loadSources();
+      oldResponse.next({ data: sampleSources });
+      expect(component.sources()).toEqual([sampleSources[1]]);
+    });
+
+    it('shows excluded-source failures and supports retry without a silent fallback', () => {
+      mockHeatSourceApi.excluded.mockReturnValueOnce(throwError(() => ({ status: 0 }))).mockReturnValueOnce(of({ data: [] }));
+      component.loadExcludedSources();
+      fixture.detectChanges();
+      expect(fixture.nativeElement.textContent).toContain('排除來源說明載入失敗');
+      expect(component.excludedSources()).toEqual([]);
+      component.loadExcludedSources();
+      fixture.detectChanges();
+      expect(component.excludedError()).toBe('');
+      expect(fixture.nativeElement.textContent).toContain('目前沒有排除來源說明');
+    });
+
+    it('locks operations while a connection test is pending', () => {
+      const response = new Subject<any>();
+      mockHeatSourceApi.test.mockReturnValue(response);
+      component.testConnection(sampleSources[0]);
+      component.testConnection(sampleSources[0]);
+      component.toggleEnabled(sampleSources[0]);
+      component.startEditWeight(sampleSources[1]);
+      expect(mockHeatSourceApi.test).toHaveBeenCalledTimes(1);
+      expect(mockHeatSourceApi.update2).not.toHaveBeenCalled();
+      expect(component.editingWeightId()).toBeNull();
+      response.error({ error: { error: { message: '探測失敗' } } });
+      expect(component.hasPendingOperation()).toBe(false);
+    });
+
+    it('prevents duplicate weight requests including repeated Enter submissions', () => {
+      const response = new Subject<any>();
+      mockHeatSourceApi.update2.mockReturnValue(response);
+      component.startEditWeight(sampleSources[0]);
+      component.editWeightInput.set(45);
+      component.saveWeight(sampleSources[0]);
+      component.saveWeight(sampleSources[0]);
+      expect(mockHeatSourceApi.update2).toHaveBeenCalledTimes(1);
+      response.next({ data: sampleSources[0] });
+      expect(component.recalculationNotice()).toContain('無法確認重算進度');
+    });
+
+    it('clears editing and cancels pending responses when the logged-in account changes', () => {
+      const response = new Subject<any>();
+      mockHeatSourceApi.update2.mockReturnValue(response);
+      component.startEditWeight(sampleSources[0]);
+      component.editWeightInput.set(45);
+      component.saveWeight(sampleSources[0]);
+      mockAuthService.currentUser.set({ id: 2, role: 'VIEWER', roles: ['VIEWER'], username: 'viewer' });
+      mockAuthService.hasRole.mockReturnValue(false);
+      fixture.detectChanges();
+      response.next({ data: sampleSources[0] });
+      expect(component.editingWeightId()).toBeNull();
+      expect(component.hasPendingOperation()).toBe(false);
+      expect(component.recalculationNotice()).toBe('');
+      expect(component.currentUser()?.id).toBe(2);
+    });
+
+    it('tears down pending requests when the component is destroyed', () => {
+      const response = new Subject<any>();
+      mockHeatSourceApi.test.mockReturnValue(response);
+      component.testConnection(sampleSources[0]);
+      fixture.destroy();
+      mockSnackBar.open.mockClear();
+      response.next({ data: { success: true, message: '探測成功' } });
+      expect(mockSnackBar.open).not.toHaveBeenCalled();
     });
   });
 
