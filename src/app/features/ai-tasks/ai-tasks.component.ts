@@ -131,7 +131,7 @@ export class AiTasksComponent implements OnInit, OnDestroy {
         : undefined;
 
     this.aiTasksService
-      .list1(
+      .list2(
         {
           status: statusParam,
           page: this.pageIndex(),
@@ -259,7 +259,7 @@ export class AiTasksComponent implements OnInit, OnDestroy {
       if (!result) return;
 
       this.aiTasksService
-        .create1({
+        .create2({
           createAiTaskRequest: {
             taskType: result.taskType,
             productIds: result.productIds,

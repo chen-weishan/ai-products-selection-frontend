@@ -20,11 +20,11 @@ describe('AiTasksComponent', () => {
 
   let mockAiTasksService: {
     summary1: ReturnType<typeof vi.fn>;
-    list1: ReturnType<typeof vi.fn>;
+    list2: ReturnType<typeof vi.fn>;
     items: ReturnType<typeof vi.fn>;
     cancel: ReturnType<typeof vi.fn>;
     retryFailed: ReturnType<typeof vi.fn>;
-    create1: ReturnType<typeof vi.fn>;
+    create2: ReturnType<typeof vi.fn>;
   };
 
   let mockAiBudgetService: {
@@ -95,11 +95,11 @@ describe('AiTasksComponent', () => {
   beforeEach(async () => {
     mockAiTasksService = {
       summary1: vi.fn().mockReturnValue(of({ success: true, data: sampleSummary })),
-      list1: vi.fn().mockReturnValue(of({ success: true, data: { content: sampleTasks, totalElements: 2 } })),
+      list2: vi.fn().mockReturnValue(of({ success: true, data: { content: sampleTasks, totalElements: 2 } })),
       items: vi.fn().mockReturnValue(of({ success: true, data: [{ itemId: 1, productId: 501, status: 'SUCCEEDED', durationMs: 120 }] })),
       cancel: vi.fn().mockReturnValue(of({ success: true, data: { ...sampleTasks[0], status: 'CANCELLED' } })),
       retryFailed: vi.fn().mockReturnValue(of({ success: true, data: { taskId: 102, status: 'PENDING' } })),
-      create1: vi.fn().mockReturnValue(of({ success: true, data: { taskId: 103, status: 'PENDING', taskType: 'FULL_ANALYSIS' } })),
+      create2: vi.fn().mockReturnValue(of({ success: true, data: { taskId: 103, status: 'PENDING', taskType: 'FULL_ANALYSIS' } })),
     };
 
     mockAiBudgetService = {
@@ -153,7 +153,7 @@ describe('AiTasksComponent', () => {
       false,
       expect.objectContaining({ httpHeaderAccept: 'application/json' })
     );
-    expect(mockAiTasksService.list1).toHaveBeenCalledWith(
+    expect(mockAiTasksService.list2).toHaveBeenCalledWith(
       expect.objectContaining({ page: 0, size: 10 }),
       'body',
       false,
@@ -175,7 +175,7 @@ describe('AiTasksComponent', () => {
     component.onStatusFilterChange('FAILED');
     expect(component.selectedStatus()).toBe('FAILED');
     expect(component.pageIndex()).toBe(0);
-    expect(mockAiTasksService.list1).toHaveBeenCalledWith(
+    expect(mockAiTasksService.list2).toHaveBeenCalledWith(
       expect.objectContaining({ status: 'FAILED', page: 0, size: 10 }),
       'body',
       false,
@@ -243,7 +243,7 @@ describe('AiTasksComponent', () => {
     component.openCreateDialog();
 
     expect(mockMatDialog.open).toHaveBeenCalled();
-    expect(mockAiTasksService.create1).toHaveBeenCalledWith(
+    expect(mockAiTasksService.create2).toHaveBeenCalledWith(
       {
         createAiTaskRequest: {
           taskType: 'FULL_ANALYSIS',
