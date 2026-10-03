@@ -25,6 +25,15 @@ export interface ScoreFactorBar {
   weight: number | null;
   dataAvailable: boolean;
   imputed: boolean;
+  /**
+   * 多對一取最大值時實際生效的標的（v3.0.1 E-01／E-02）：
+   * 只有 TREND 有生效關鍵字（§5.3.3），只有 FESTIVAL 有生效節慶（AC-17-6）。
+   * 其餘因子、或評分引擎未寫入時為 null。
+   */
+  drivingKeywordId: number | null;
+  drivingKeyword: string | null;
+  drivingFestivalId: number | null;
+  drivingFestivalName: string | null;
 }
 
 /**

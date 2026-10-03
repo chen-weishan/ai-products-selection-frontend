@@ -181,6 +181,13 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.loadDashboardData();
   }
 
+  /** 待回填結案「去回填」：S-12 以 ?id= 選中該決策並展開回填表單，免再查一次決策 */
+  public navigateToFillResult(decisionId: number | undefined): void {
+    if (decisionId) {
+      this.router.navigate(['/decisions'], { queryParams: { id: decisionId } });
+    }
+  }
+
   /** 點擊商品名稱導航至品項頁面 */
   public navigateToProduct(productId: number | undefined): void {
     if (productId) {

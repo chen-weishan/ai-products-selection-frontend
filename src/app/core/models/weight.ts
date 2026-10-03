@@ -83,6 +83,36 @@ export interface ApproveWeightVersionRequest {
   effectiveFrom: string;
 }
 
+/**
+ * GET /weight-versions/{id}/scene-stats（§8.2，v3.0 補入；S-09「AI 選組規則卡」）。
+ * 統計單位是品項：版本生效區間內每個品項只看最新一筆判定。
+ * 比率為 0–1，分母 0 時為 null。
+ */
+export interface SceneStats {
+  weightVersionId: number;
+  /** 生效區間起日（含）；草稿為 null。 */
+  windowFrom: string | null;
+  /** 生效區間終日（不含）＝下一版生效日；生效中版本為 null（至今）。 */
+  windowTo: string | null;
+  judgedCount: number;
+  overriddenCount: number;
+  overrideRate: number | null;
+  /** AI 判定失敗（ai_scene_type 為 NULL）者，不歸入任何情境。 */
+  aiFailedCount: number;
+  /** 固定四列，依 SCENE_TYPES 順序。 */
+  scenes: SceneStat[];
+}
+
+export interface SceneStat {
+  sceneType: SceneType;
+  /** AI 判為此情境的品項數。 */
+  aiJudgedCount: number;
+  overriddenCount: number;
+  overrideRate: number | null;
+  /** 最終採用此情境的品項數（每組品項數）。 */
+  finalCount: number;
+}
+
 /** 畫面顯示用的中文標籤。 */
 export const SCENE_TYPES: SceneType[] = ['VIRAL', 'FESTIVAL', 'REPLENISHMENT', 'SEASONAL'];
 
