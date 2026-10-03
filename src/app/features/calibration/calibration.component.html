@@ -1,0 +1,263 @@
+<!-- 頁首 ─────────────────────────────────────────────── -->
+<div class="mh">
+  <div>
+    <h3>權重校準審核</h3>
+    <div class="sub">統計決定數字，AI 負責解釋與提出假設，人負責核准。</div>
+  </div>
+  <div class="tools">
+    @if (reports().length > 1) {
+      <select class="txt sel" [ngModel]="selectedId()" (ngModelChange)="select($event)" aria-label="切換校準報告">
+        @for (r of reports(); track r.id) {
+          <option [ngValue]="r.id">{{ r.quarter }}（{{ statusLabels[r.status] }}）</option>
+        }
+      </select>
+    }
+    <input class="txt quarter" [ngModel]="generateQuarter()" (ngModelChange)="generateQuarter.set($event)"
+      placeholder="2026Q3" maxlength="6" aria-label="產生報告的季度" />
+    <button type="button" class="btn" [disabled]="acting()" (click)="generate()">產生／重算報告</button>
+  </div>
+</div>
+
+@if (errorMessage(); as msg) { <div class="alert error">{{ msg }}</div> }
+@if (successMessage(); as msg) { <div class="alert ok">{{ msg }}</div> }
+
+@if (loading()) {
+  <div class="card"><p class="empty">載入中…</p></div>
+} @else if (report(); as r) {
+  <!-- 報告標題列 ─────────────────────────────────────── -->
+  <div class="card head-card">
+    <div>
+      <div class="title">{{ r.quarter }} 校準建議</div>
+      <div class="meta">
+        樣本 <span class="mono">{{ r.sampleSize }}</span> 筆 · 產生於 <span class="mono">{{ (r.regression?.generatedAt ?? r.createdAt) | date: 'yyyy-MM-dd HH:mm' : TPE }}</span>
+        · 狀態：<span class="status-badge compact" [class]="'st-' + r.status">{{ statusLabels[r.status] }}</span>
+        @if (r.reviewedBy) { · 審核：{{ r.reviewedBy }} <span class="mono">{{ r.reviewedAt | date: 'yyyy-MM-dd' : TPE }}</span> }
+      </div>
+    </div>
+    @if (r.weightVersionNo) {
+      <a class="btn" routerLink="/weights">由本報告產生的版本：<span class="mono">{{ r.weightVersionNo }}</span> → S-09</a>
+    }
+  </div>
+
+  <!-- AC-15-1：樣本不足警示置頂、不可關閉，刻意不提供關閉鈕 -->
+  @if (r.belowMinSample) {
+    <div class="alert warn validity" role="alert">
+      <strong>樣本數不足</strong>　目前 <span class="mono">{{ r.sampleSize }}</span> 筆。{{ r.validityWarning }}
+    </div>
+  }
+
+  <!-- 標記 1：因子預測力 ─────────────────────────────── -->
+  <div class="card">
+    <h4><span class="mark">1</span>因子預測力<span class="auto">統計分析 · {{ r.regression?.method }}</span></h4>
+    <table class="tbl">
+      <thead>
+        <tr>
+          @if (partialMode()) { <th class="chk">採納</th> }
+          <th>因子</th>
+          <th class="num">與銷量相關性（{{ corrLabel() }}）</th>
+          <th>相關強度</th>
+          <th class="num">有效樣本</th>
+          <th class="num">現行權重</th>
+          <th class="num">建議權重</th>
+          <th class="num">差異</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (f of factorRows(); track f.code) {
+          <tr>
+            @if (partialMode()) {
+              <td class="chk">
+                <input type="checkbox" [disabled]="!changedFactors().has(f.code)"
+                  [checked]="accepted().has(f.code)" (change)="toggleAccepted(f.code, $any($event.target).checked)" />
+              </td>
+            }
+            <td>
+              {{ factorLabels[f.code] }}
+              @if (f.sceneType) { <span class="muted">（{{ sceneLabels[f.sceneType] }}）</span> }
+            </td>
+            <td class="num mono">{{ num(f.correlation) }}</td>
+            <td>
+              <div class="bar"><span [class.neg]="(f.correlation ?? 0) < 0" [style.width.%]="barWidth(f.correlation)"></span></div>
+            </td>
+            <td class="num mono">{{ f.n ?? '—' }}</td>
+            <td class="num mono">{{ weightPct(f.currentWeight) }}</td>
+            <td class="num mono">{{ weightPct(f.suggestedWeight) }}</td>
+            <td class="num mono">
+              @if (f.sufficient === false) {
+                <span class="muted">樣本不足</span>
+              } @else {
+                <span [class]="diffClass(f)">{{ diff(f) }}</span>
+              }
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+    @if (r.regression?.scenes) {
+      <p class="note">
+        因子列只顯示該因子現行權重最高的一榜。
+        <button type="button" class="link" (click)="showScenes.set(!showScenes())">
+          {{ showScenes() ? '收合' : '展開' }}四榜完整明細
+        </button>
+      </p>
+    }
+    @if (showScenes()) {
+      <div class="scene-grid">
+        @for (s of sceneTypes; track s) {
+          <div class="scene">
+            <h5>{{ sceneLabels[s] }}</h5>
+            <table class="tbl compact">
+              <tbody>
+                @for (w of sceneWeights(s); track w.code) {
+                  <tr>
+                    <td>{{ factorLabels[w.code] }}</td>
+                    <td class="num mono">{{ weightPct(w.currentWeight) }}</td>
+                    <td class="num mono">→ {{ weightPct(w.suggestedWeight) }}</td>
+                    <td class="num mono"><span [class]="diffClass(w)">{{ diff(w) }}</span></td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      </div>
+    }
+    @if (r.regression?.note) { <p class="note">{{ r.regression?.note }}</p> }
+  </div>
+
+  <!-- AI 解讀（Agent 7）─────────────────────────────── -->
+  <div class="card ai-card">
+    <h4>✦ AI 解讀<span class="auto">WeightCalibrationAgent · 只解讀統計結果，不產生權重數值（AC-15-2）</span></h4>
+    @if (r.aiInterpretation) {
+      <p class="ai-text">{{ r.aiInterpretation }}</p>
+      @if (adjustmentAdvice().length) {
+        <ul class="advice">
+          @for (a of adjustmentAdvice(); track $index) {
+            <li><strong>{{ factorName(a.factorCode) }}</strong>：{{ a.explanation }}</li>
+          }
+        </ul>
+      }
+      @if (attentionNotes().length) {
+        <div class="attention">
+          <h5>需要注意</h5>
+          <ul>
+            @for (n of attentionNotes(); track $index) { <li>⚠ {{ n }}</li> }
+          </ul>
+        </div>
+      }
+      @if (r.aiModel) {
+        <div class="muted small">模型 {{ r.aiModel }} · <span class="mono">{{ r.interpretedAt | date: 'yyyy-MM-dd HH:mm' : TPE }}</span></div>
+      }
+    } @else {
+      <p class="empty">AI 解讀尚未產生或執行失敗，請直接參考上方統計結果（§6.3 Agent 7 降級）。</p>
+    }
+  </div>
+
+  <!-- 標記 2：回測驗證 ───────────────────────────────── -->
+  <div class="card">
+    <h4><span class="mark">2</span>回測驗證<span class="auto">同一批歷史資料，比較不同權重的預測表現</span></h4>
+    <table class="tbl">
+      <thead>
+        <tr><th>權重設定</th><th class="num">相關係數（{{ corrLabel() }}）</th><th class="num">A 級達標率</th><th class="num">A 級（達標／總數）</th></tr>
+      </thead>
+      <tbody>
+        @for (b of backtestRows(); track $index) {
+          <tr>
+            <td>{{ schemeLabel(b) }}</td>
+            <td class="num mono">{{ num(b.correlation) }}</td>
+            <td class="num mono">{{ pct(b.gradeAHitRate) }}</td>
+            <td class="num mono">{{ b.gradeACount === undefined ? '—' : b.gradeAHitCount + ' / ' + b.gradeACount }}</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+    @if (r.backtest?.note) { <p class="note">{{ r.backtest?.note }}</p> }
+
+    <div class="compare">
+      <h5>比較任意兩個權重版本（AC-15-4）</h5>
+      <div class="compare-form">
+        <select class="txt sel" [ngModel]="versionA()" (ngModelChange)="versionA.set($event)" aria-label="版本 A">
+          @for (v of versions(); track v.id) {
+            <option [ngValue]="v.id">{{ v.versionNo }}（{{ versionStatusLabels[v.status] }}{{ v.isCurrent ? '・現行' : '' }}）</option>
+          }
+        </select>
+        <span class="muted">vs</span>
+        <select class="txt sel" [ngModel]="versionB()" (ngModelChange)="versionB.set($event)" aria-label="版本 B">
+          @for (v of versions(); track v.id) {
+            <option [ngValue]="v.id">{{ v.versionNo }}（{{ versionStatusLabels[v.status] }}{{ v.isCurrent ? '・現行' : '' }}）</option>
+          }
+        </select>
+        <button type="button" class="btn" [disabled]="comparing() || versionA() === null || versionB() === null" (click)="compare()">
+          {{ comparing() ? '回測中…' : '執行回測' }}
+        </button>
+      </div>
+      @if (comparison(); as c) {
+        <table class="tbl">
+          <thead>
+            <tr><th>權重版本</th><th class="num" title="重算分數與實際銷量的 Spearman 等級相關">相關係數（Spearman）</th><th class="num">A 級達標率</th><th class="num">A 級（達標／總數）</th></tr>
+          </thead>
+          <tbody>
+            @for (b of c.results; track $index) {
+              <tr>
+                <td>{{ schemeLabel(b) }}</td>
+                <td class="num mono">{{ num(b.correlation) }}</td>
+                <td class="num mono">{{ pct(b.gradeAHitRate) }}</td>
+                <td class="num mono">{{ b.gradeAHitCount }} / {{ b.gradeACount }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+        <p class="note">
+          樣本 <span class="mono">{{ c.sampleSize }}</span> 筆（截至 <span class="mono">{{ c.cutoff | date: 'yyyy-MM-dd HH:mm' : TPE }}</span>）。
+          @if (c.belowMinSample) { <span class="warn-text">{{ c.validityWarning }}</span> }
+        </p>
+      }
+    </div>
+  </div>
+
+  <!-- 審核操作（AC-15-3／15-5／15-6）──────────────────── -->
+  <div class="card review-card">
+    <h4>審核</h4>
+    @if (r.status === 'PENDING') {
+      @if (!reviewable()) {
+        <div class="alert warn">此報告為舊格式（缺四榜權重明細），無法據以建立版本。請按上方「產生／重算報告」重新產生 {{ r.quarter }} 報告，或直接駁回。</div>
+      }
+      <div class="fld">
+        <span class="lbl">審核說明（選填，寫入稽核紀錄與新版本變更說明）</span>
+        <input class="txt" maxlength="200" [ngModel]="comment()" (ngModelChange)="comment.set($event)" />
+      </div>
+      <div class="review-actions">
+        <button type="button" class="btn danger" [disabled]="acting()" (click)="submit('REJECT')">駁回</button>
+        @if (partialMode()) {
+          <button type="button" class="btn" (click)="partialMode.set(false)">取消部分採納</button>
+          <button type="button" class="btn pri" [disabled]="acting() || accepted().size === 0" (click)="submit('PARTIAL')">
+            送出部分採納（{{ accepted().size }} 項）
+          </button>
+        } @else {
+          <button type="button" class="btn" [disabled]="acting() || !reviewable() || changedFactors().size === 0" (click)="startPartial()">部分採納</button>
+          <button type="button" class="btn pri" [disabled]="acting() || !reviewable() || changedFactors().size === 0" (click)="submit('APPROVE')">核准並建立新版本</button>
+        }
+      </div>
+      @if (reviewable() && changedFactors().size === 0) {
+        <p class="note">本次建議與現行權重相同（樣本不足的因子不調整），無需建立新版本。</p>
+      }
+      <p class="note">核准後產生權重版本<strong>草稿</strong>，需再到 S-09 核准並指定生效日才會生效。</p>
+    } @else {
+      <p class="note">
+        已於 <span class="mono">{{ r.reviewedAt | date: 'yyyy-MM-dd' : TPE }}</span> {{ statusLabels[r.status] }}。
+        @if (r.acceptedFactors.length) {
+          採納：@for (c of r.acceptedFactors; track c; let last = $last) { {{ factorLabels[c] }}{{ last ? '' : '、' }} }
+        }
+      </p>
+    }
+  </div>
+} @else {
+  <div class="card">
+    <p class="empty">尚未產生任何校準報告。輸入季度（如 {{ generateQuarter() }}）後按「產生／重算報告」，系統會以至今已回填的開團結果做統計。</p>
+  </div>
+}
+
+<!-- 必要揭露（§FR-15）────────────────────────────────── -->
+<div class="disclosure">
+  專題期間可交付的是<strong>機制與回測驗證</strong>，不是已完成校準的模型——正式線上校準需累積約 200 筆帶結果標記的開團案例，依回填執行率約需 7 個月至逾一年。
+</div>
