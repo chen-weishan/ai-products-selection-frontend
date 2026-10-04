@@ -139,12 +139,15 @@
               <div
                 class="bar thin"
                 [class.nodata]="!f.dataAvailable"
-                [title]="factorLabels[f.factorCode]"
+                [title]="barTitle(f)"
               >
                 <i [style.width]="barWidth(f.normalizedValue)"></i>
               </div>
             }
           </div>
+          @if (drivingText(row); as text) {
+            <div class="mini driving">生效{{ text }}</div>
+          }
         </td>
       </tr>
     } @empty {

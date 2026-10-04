@@ -201,10 +201,15 @@
     <div class="op-body">
       @if (overdueCampaigns && overdueCampaigns.length > 0) {
       <div class="op-list">
-        @for (campaign of overdueCampaigns; track campaign.productName || $index) {
+        @for (campaign of overdueCampaigns; track campaign.decisionId || $index) {
         <div class="op-item">
           <span class="item-title">{{ campaign.productName }}</span>
-          <span class="status-badge status-warn compact mono">逾 {{ campaign.overdueDays }} 天</span>
+          <span class="item-actions">
+            <span class="status-badge status-warn compact mono">逾 {{ campaign.overdueDays }} 天</span>
+            @if (campaign.decisionId) {
+            <button type="button" class="btn small" (click)="navigateToFillResult(campaign.decisionId)">去回填</button>
+            }
+          </span>
         </div>
         }
       </div>

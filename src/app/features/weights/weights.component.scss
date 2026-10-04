@@ -201,6 +201,30 @@
   }
 }
 
+// ── AI 選組規則卡（scene-stats）─────────────────────────
+.rules {
+  margin-bottom: 14px;
+
+  .stat {
+    margin: 9px 0;
+    font-size: 12px;
+
+    b { font-family: var(--mono); color: var(--navy); }
+  }
+
+  .scene-stats {
+    display: grid;
+    grid-template-columns: 1.3fr repeat(3, 1fr);
+    gap: 4px 6px;
+    font-size: 11.5px;
+    max-width: 460px;
+    margin-bottom: 9px;
+
+    .h { font-size: 10.5px; color: var(--ink-3); }
+    .c { text-align: center; font-family: var(--mono); }
+  }
+}
+
 // ── 四榜門檻卡 ────────────────────────────────────────
 .thresholds {
   display: grid;
