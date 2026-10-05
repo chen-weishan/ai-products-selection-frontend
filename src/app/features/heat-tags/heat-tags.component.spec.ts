@@ -21,7 +21,7 @@ describe('HeatTagsComponent', () => {
   let mockHeatTagService: {
     list1: ReturnType<typeof vi.fn>;
     resolvePlatform: ReturnType<typeof vi.fn>;
-    create1: ReturnType<typeof vi.fn>;
+    create2: ReturnType<typeof vi.fn>;
     update1: ReturnType<typeof vi.fn>;
     delete1: ReturnType<typeof vi.fn>;
   };
@@ -92,7 +92,7 @@ describe('HeatTagsComponent', () => {
     mockHeatTagService = {
       list1: vi.fn().mockReturnValue(of({ success: true, data: sampleTags })),
       resolvePlatform: vi.fn().mockReturnValue(of({ success: true, data: { platform: 'THREADS' } })),
-      create1: vi.fn().mockReturnValue(of({ success: true, data: sampleTags[0] })),
+      create2: vi.fn().mockReturnValue(of({ success: true, data: sampleTags[0] })),
       update1: vi.fn().mockReturnValue(of({ success: true, data: sampleTags[0] })),
       delete1: vi.fn().mockReturnValue(of({ success: true })),
     };
@@ -170,7 +170,7 @@ describe('HeatTagsComponent', () => {
 
     it('does not apply a previous account’s pending submission response to the new account', () => {
       const response = new Subject<any>();
-      mockHeatTagService.create1.mockReturnValue(response);
+      mockHeatTagService.create2.mockReturnValue(response);
       component.onUrlChange('https://www.threads.net/p/1');
       component.selectPlatform('THREADS');
       component.selectTarget({ type: 'PRODUCT', id: 101, title: '品項' });
@@ -189,7 +189,7 @@ describe('HeatTagsComponent', () => {
       component.onUrlChange('https://www.tiktok.com/video/1');
       component.selectTarget({ type: 'KEYWORD', id: 201, title: '手套' });
       component.submitTag();
-      expect(mockHeatTagService.create1).not.toHaveBeenCalled();
+      expect(mockHeatTagService.create2).not.toHaveBeenCalled();
       await vi.advanceTimersByTimeAsync(450);
       expect(component.platformError()).toContain('手動');
       expect(component.isFormValid()).toBe(false);
@@ -254,7 +254,7 @@ describe('HeatTagsComponent', () => {
       component.note.set('');
       component.observedAt.set('invalid');
       component.submitTag();
-      expect(mockHeatTagService.create1).not.toHaveBeenCalled();
+      expect(mockHeatTagService.create2).not.toHaveBeenCalled();
       expect(component.isSubmitting()).toBe(false);
     });
 
@@ -264,7 +264,7 @@ describe('HeatTagsComponent', () => {
       component.selectTarget({ type: 'PRODUCT', id: 101, title: '品項' });
       component.observedAt.set('2026-09-01T12:34:56');
       component.submitTag();
-      expect(mockHeatTagService.create1).toHaveBeenCalledWith(expect.objectContaining({
+      expect(mockHeatTagService.create2).toHaveBeenCalledWith(expect.objectContaining({
         manualHeatTagCreateRequest: expect.objectContaining({ observedAt: new Date('2026-09-01T12:34:56').toISOString() })
       }), 'body', false, expect.anything());
     });
@@ -499,7 +499,7 @@ describe('HeatTagsComponent', () => {
 
       component.submitTag();
 
-      expect(mockHeatTagService.create1).toHaveBeenCalledWith(
+      expect(mockHeatTagService.create2).toHaveBeenCalledWith(
         expect.objectContaining({
           manualHeatTagCreateRequest: expect.objectContaining({
             sourceUrl: 'https://www.threads.net/@user/post/12345',
@@ -530,7 +530,7 @@ describe('HeatTagsComponent', () => {
 
       component.submitTag();
 
-      expect(mockHeatTagService.create1).toHaveBeenCalledWith(
+      expect(mockHeatTagService.create2).toHaveBeenCalledWith(
         expect.objectContaining({
           manualHeatTagCreateRequest: expect.objectContaining({
             keywordId: 201,
@@ -546,7 +546,7 @@ describe('HeatTagsComponent', () => {
     });
 
     it('should handle creation error and show snackbar error message', () => {
-      mockHeatTagService.create1.mockReturnValue(
+      mockHeatTagService.create2.mockReturnValue(
         throwError(() => ({ error: { message: '後端驗證失敗' } }))
       );
 

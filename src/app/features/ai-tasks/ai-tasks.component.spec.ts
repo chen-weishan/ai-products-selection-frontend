@@ -24,7 +24,7 @@ describe('AiTasksComponent', () => {
     items: ReturnType<typeof vi.fn>;
     cancel: ReturnType<typeof vi.fn>;
     retryFailed: ReturnType<typeof vi.fn>;
-    create2: ReturnType<typeof vi.fn>;
+    create3: ReturnType<typeof vi.fn>;
   };
 
   let mockAiBudgetService: {
@@ -99,7 +99,7 @@ describe('AiTasksComponent', () => {
       items: vi.fn().mockReturnValue(of({ success: true, data: [{ itemId: 1, productId: 501, status: 'SUCCEEDED', durationMs: 120 }] })),
       cancel: vi.fn().mockReturnValue(of({ success: true, data: { ...sampleTasks[0], status: 'CANCELLED' } })),
       retryFailed: vi.fn().mockReturnValue(of({ success: true, data: { taskId: 102, status: 'PENDING' } })),
-      create2: vi.fn().mockReturnValue(of({ success: true, data: { taskId: 103, status: 'PENDING', taskType: 'FULL_ANALYSIS' } })),
+      create3: vi.fn().mockReturnValue(of({ success: true, data: { taskId: 103, status: 'PENDING', taskType: 'FULL_ANALYSIS' } })),
     };
 
     mockAiBudgetService = {
@@ -218,7 +218,7 @@ describe('AiTasksComponent', () => {
     component.openCreateDialog();
 
     expect(mockMatDialog.open).toHaveBeenCalled();
-    expect(mockAiTasksService.create2).toHaveBeenCalledWith({
+    expect(mockAiTasksService.create3).toHaveBeenCalledWith({
       createAiTaskRequest: {
         taskType: 'FULL_ANALYSIS',
         productIds: [101, 102],
