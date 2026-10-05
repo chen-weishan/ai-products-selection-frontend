@@ -1,1 +1,415 @@
-<p>product-detail works!</p>
+<div class="top-nav-bar">
+  <button type="button" class="btn back-btn" (click)="goBack()">返回列表</button>
+</div>
+
+@if (loading()) {
+  <div class="card loading-card" aria-live="polite">正在載入品項評分與 AI 分析…</div>
+} @else {
+  @if (errorMessage()) {
+    <div class="alert error" role="alert">
+      <span>{{ errorMessage() }}</span>
+      @if (productId()) {
+        <button type="button" class="btn" (click)="loadDetail()">重新載入</button>
+      }
+    </div>
+  }
+
+  @if (successMessage()) {
+    <div class="alert success" role="status">{{ successMessage() }}</div>
+  }
+
+  @if (product(); as item) {
+    <div class="mh">
+      <div>
+        <div class="title-with-badge">
+          <h3>{{ item.name }}</h3>
+          <span class="status-badge status-normal">{{ item.trackType }} 軌</span>
+          <span class="status-badge override-badge">{{ productStatusLabel(item.status) }}</span>
+        </div>
+        <div class="sub">
+          {{ item.categoryName || '未分類' }}　·　建議售價
+          <span class="mono">{{
+            item.suggestedPrice == null ? '—' : 'NT$ ' + (item.suggestedPrice | number: '1.0-0')
+          }}</span>　·　毛利率
+          <span class="mono">{{
+            item.marginRate == null ? '—' : (item.marginRate * 100 | number: '1.0-1') + '%'
+          }}</span>　·　供應商：{{ item.supplierName || '未指定' }}
+        </div>
+      </div>
+      <div class="tools">
+        @if (canOperateDecision()) {
+          <button
+            type="button"
+            class="btn"
+            [disabled]="actionLoading() || item.status === 'WATCHING'"
+            (click)="markWatching()"
+          >
+            {{ item.status === 'WATCHING' ? '已在觀察' : '加入觀察' }}
+          </button>
+          <button
+            type="button"
+            class="btn pri"
+            disabled
+            title="後端尚未提供 POST /products/{id}/decisions"
+          >
+            建立開團決策（尚未開放）
+          </button>
+        }
+      </div>
+    </div>
+
+    @if (sectionWarnings().length) {
+      <div class="warning-strip">
+        <strong>部分資料暫不可用：</strong>{{ sectionWarnings().join('、') }}
+      </div>
+    }
+
+    <section
+      class="scene-banner"
+      [class.is-fallback]="confidenceState() === 'fallback'"
+      [class.is-low]="confidenceState() === 'low'"
+    >
+      <div class="scene-main">
+        <div class="scene-label">AI 情境判定（主情境）</div>
+        <div class="scene-name">
+          {{ effectivePrimaryScene() ? sceneLabels[effectivePrimaryScene()!] : '尚無判定' }}
+        </div>
+        @if (scene(); as sceneData) {
+          <span class="confidence-badge mono"
+            >信心 {{ formatConfidence(sceneData.confidence) }}</span
+          >
+        }
+      </div>
+
+      @if (scene(); as sceneData) {
+        @if (confidenceState() === 'fallback') {
+          <div class="confidence-notice danger">AI 判定失敗，使用「常態補貨型」預設權重。</div>
+        } @else if (confidenceState() === 'low') {
+          <div class="confidence-notice warning">
+            判定仍採用；因信心低於 0.7，分數信心度扣 10 分。
+          </div>
+        }
+        <p class="scene-reason">{{ sceneData.reasoning }}</p>
+        <div class="scene-actions">
+          @if (sceneData.alternativeScene; as alternative) {
+            <button
+              type="button"
+              class="btn"
+              [class.active-scene]="selectedScene() === alternative"
+              [disabled]="scoreLoading()"
+              (click)="selectScene(alternative)"
+            >
+              檢視次要情境：{{ sceneLabels[alternative] }}
+            </button>
+          }
+          @if (selectedScene() !== effectivePrimaryScene() && effectivePrimaryScene(); as primary) {
+            <button
+              type="button"
+              class="btn"
+              [disabled]="scoreLoading()"
+              (click)="selectScene(primary)"
+            >
+              返回主情境分數
+            </button>
+          }
+          @if (canOverride()) {
+            <button type="button" class="btn" (click)="openOverride()">改用其他權重組</button>
+          }
+        </div>
+      }
+    </section>
+
+    @if (overrideOpen()) {
+      <form class="card override-panel" [formGroup]="overrideForm" (ngSubmit)="submitOverride()">
+        <div class="panel-heading">
+          <div>
+            <h4>人工覆寫情境權重組</h4>
+            <p>只能從四組既定情境擇一；儲存後會留下稽核紀錄並立即重算。</p>
+          </div>
+        </div>
+        <div class="override-fields">
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>情境權重組</mat-label>
+            <mat-select formControlName="sceneType" panelClass="unified-mat-select-panel">
+              @for (option of sceneOptions; track option.value) {
+                <mat-option [value]="option.value">{{ option.label }}</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic" class="reason-field">
+            <mat-label>覆寫理由（必填）</mat-label>
+            <textarea matInput rows="2" maxlength="255" formControlName="reason"></textarea>
+            @if (overrideForm.controls.reason.touched && overrideForm.controls.reason.invalid) {
+              <mat-error>請填寫覆寫理由，最多 255 字。</mat-error>
+            }
+          </mat-form-field>
+        </div>
+        <div class="panel-actions">
+          <button type="button" class="btn" (click)="cancelOverride()">取消</button>
+          <button
+            type="submit"
+            class="btn pri"
+            [disabled]="overrideForm.invalid || actionLoading()"
+          >
+            {{ actionLoading() ? '重算中…' : '儲存並重算' }}
+          </button>
+        </div>
+      </form>
+    }
+
+    <section class="card basic-card">
+      <div class="section-heading">
+        <h4>品項基本資料</h4>
+        <span>{{ period() }} 評估週期</span>
+      </div>
+      <div class="basic-grid">
+        <div>
+          <span>成本</span
+          ><strong class="mono">{{
+            item.cost == null ? '—' : 'NT$ ' + (item.cost | number: '1.0-0')
+          }}</strong>
+        </div>
+        <div>
+          <span>最低訂購量</span
+          ><strong class="mono">{{ item.moq == null ? '—' : (item.moq | number) }}</strong>
+        </div>
+        <div>
+          <span>效期天數</span
+          ><strong class="mono">{{
+            item.shelfLifeDays == null ? '—' : item.shelfLifeDays + ' 天'
+          }}</strong>
+        </div>
+        <div>
+          <span>適溫區間</span
+          ><strong class="mono">{{
+            item.idealTempMin == null || item.idealTempMax == null
+              ? '—'
+              : item.idealTempMin + '–' + item.idealTempMax + '°C'
+          }}</strong>
+        </div>
+        <div>
+          <span>季節</span><strong>{{ item.season || '—' }}</strong>
+        </div>
+        <div>
+          <span>物流條件</span><strong>{{ formatLogistics(item.logisticsConditions) }}</strong>
+        </div>
+      </div>
+    </section>
+
+    <div class="detail-grid">
+      <div class="score-column">
+        <section class="card factor-card" [class.is-loading]="scoreLoading()">
+          <div class="section-heading">
+            <h4>加分因子</h4>
+            <span>原始值 · 同品類百分位 · 權重貢獻</span>
+          </div>
+          <div class="factor-list">
+            @for (row of factorRows(); track row.code) {
+              <div class="factor-row">
+                <div class="factor-top">
+                  <div>
+                    <strong>{{ row.label }}</strong>
+                    @if (row.detail?.note) {
+                      <small>{{ row.detail?.note }}</small>
+                    }
+                  </div>
+                  <div class="factor-values mono">
+                    <span>{{ formatFactorRaw(row) }}</span>
+                    <span>{{ formatPercentile(row.detail) }}</span>
+                    <span>權重 {{ (row.detail?.weight ?? 0) * 100 | number: '1.0-1' }}%</span>
+                    <b>＋{{ row.detail?.contribution ?? 0 | number: '1.1-2' }}</b>
+                  </div>
+                </div>
+                <div class="factor-bar"><i [style.width.%]="factorPercent(row.detail)"></i></div>
+              </div>
+            }
+          </div>
+        </section>
+
+        <section class="deduction-card" [class.is-loading]="scoreLoading()">
+          <div class="section-heading">
+            <h4>風險扣分</h4>
+            <span>零分項目亦完整列出</span>
+          </div>
+          @for (row of penaltyRows(); track row.code) {
+            <div class="deduction-row">
+              <div>
+                <strong>{{ row.label }}</strong
+                ><span>{{
+                  row.detail?.note ||
+                    (row.detail?.dataAvailable === false
+                      ? '無資料，未產生扣分'
+                      : '已檢查，未觸發門檻')
+                }}</span>
+              </div>
+              <b class="mono">−{{ formatPenalty(row.detail) }}</b>
+            </div>
+          }
+        </section>
+
+        <section class="score-formula" [class.is-loading]="scoreLoading()">
+          @if (score(); as scoreData) {
+            <div class="formula-main mono">
+              <span
+                >加分 <b>{{ scoreData.bonusSubtotal ?? 0 | number: '1.1-2' }}</b></span
+              >
+              <span class="operator">−</span>
+              <span
+                >扣分
+                <b class="risk-text">{{
+                  scoreData.penaltySubtotal ?? 0 | number: '1.1-2'
+                }}</b></span
+              >
+              <span class="operator">=</span>
+              <strong>{{ scoreData.finalScore ?? 0 | number: '1.1-2' }}</strong>
+              <span
+                class="grade-chip"
+                [class.grade-a]="scoreData.grade === 'A'"
+                [class.grade-b]="scoreData.grade === 'B'"
+                [class.grade-c]="scoreData.grade === 'C'"
+                >{{ scoreData.grade || '—' }}</span
+              >
+            </div>
+            <div class="formula-meta">
+              情境：{{
+                scoreData.sceneType ? sceneLabels[scoreData.sceneType] : '—'
+              }}　·　分數信心度
+              <span class="mono">{{ scoreData.confidence ?? '—' }}</span>
+              @if (scoreData.lowConfidence) {
+                <span class="status-badge compact status-quota">低信心</span>
+              }
+            </div>
+          } @else {
+            <div class="empty-message">本週期尚無正式評分快照。</div>
+          }
+        </section>
+      </div>
+
+      <div class="ai-column">
+        <section class="ai-panel">
+          <div class="ai-header">
+            <div>
+              <h4>AI 分析</h4>
+              <span>賣點、潛在風險與進貨建議</span>
+            </div>
+            @if (insight(); as insightData) {
+              <div class="ai-meta mono">
+                {{ insightData.modelAlias || insightData.model || 'AI 模型' }} ·
+                {{ formatDate(insightData.generatedAt) }}
+              </div>
+            }
+          </div>
+
+          <div class="ai-section">
+            <h5>賣點</h5>
+            @for (point of insight()?.sellingPoints || []; track point.text) {
+              <div class="ai-item selling-item">
+                <span class="ai-item-text"
+                  ><span class="item-icon" aria-hidden="true">✓</span>{{ point.text }}</span
+                ><em>{{ point.supportCount ?? 0 }} 則</em>
+              </div>
+            } @empty {
+              <div class="empty-message">尚無賣點分析。</div>
+            }
+          </div>
+
+          <div class="ai-section risk-section">
+            <h5>潛在風險</h5>
+            @for (risk of insight()?.risks || []; track risk.text) {
+              <div class="ai-item risk-item">
+                <span class="ai-item-text"
+                  ><span class="item-icon" aria-hidden="true">⚠</span>{{ risk.text }}</span
+                >
+                <em>{{
+                  risk.countedInPenalty ? '已計入扣分' : (risk.supportCount ?? 0) + ' 則'
+                }}</em>
+              </div>
+            } @empty {
+              <div class="empty-message">尚無風險文字分析。</div>
+            }
+          </div>
+
+          <div class="recommendation-box">
+            <b>AI 進貨建議</b>
+            @if (recommendation()?.action; as action) {
+              <strong>{{ recommendationActionLabel(action) }}</strong>
+            }
+            <p>{{ recommendation()?.reasoning || '尚無進貨建議。' }}</p>
+            @if (recommendation()?.quantityText || recommendation()?.qtyMin != null) {
+              <span class="mono"
+                >建議首批：{{
+                  recommendation()?.quantityText ||
+                    (recommendation()?.qtyMin ?? 0) + '–' + (recommendation()?.qtyMax ?? 0)
+                }}</span
+              >
+            }
+          </div>
+
+          <div class="ai-footer">
+            <span>AI 產出僅供參考，最終決策由採購人員負責</span>
+            <button type="button" class="btn" disabled title="後端尚未提供依類型重新生成 API">
+              重新生成（尚未開放）
+            </button>
+          </div>
+        </section>
+
+        <section class="card sentiment-card">
+          <div class="section-heading">
+            <h4>評論情緒分佈</h4>
+            <span class="mono">分析 {{ reviewRisk()?.analyzedCount ?? 0 }} 則</span>
+          </div>
+          <div class="sentiment-bar" aria-label="評論情緒分佈">
+            <i class="positive" [style.width.%]="sentiment().positive"></i>
+            <i class="neutral" [style.width.%]="sentiment().neutral"></i>
+            <i class="negative" [style.width.%]="sentiment().negative"></i>
+          </div>
+          <div class="sentiment-legend mono">
+            <span>正面 {{ sentiment().positive }}%</span>
+            <span>中立 {{ sentiment().neutral }}%</span>
+            <span>負面 {{ sentiment().negative }}%</span>
+          </div>
+          <div class="topic-list">
+            @for (topic of reviewRisk()?.topicStatistics || []; track topic.topic) {
+              <span
+                >{{ topicLabel(topic.topic) }}
+                <b class="mono">{{ (topic.ratio ?? 0) * 100 | number: '1.0-1' }}%</b></span
+              >
+            } @empty {
+              <span class="empty-message">尚無負評主題統計。</span>
+            }
+          </div>
+          <p class="threshold-result">
+            {{
+              reviewPenalty() > 0
+                ? '已達評論風險門檻並計入扣分。'
+                : '未達評論風險門檻，評論不扣分。'
+            }}
+          </p>
+        </section>
+      </div>
+    </div>
+
+    <div class="info-section">
+      <div class="info-header">
+        <div class="info-title"><h4>情境信心與 AI 決策規則說明</h4></div>
+      </div>
+      <div class="info-grid">
+        <div class="info-card">
+          <div class="card-head"><h5>兩個信心門檻</h5></div>
+          <p>
+            <strong>低於 0.5：</strong>不採用 AI 判定，改用常態補貨型。<br /><strong
+              >0.5～0.7：</strong
+            >情境仍採用，但分數信心度扣 10 分。兩項規則用途不同。
+          </p>
+        </div>
+        <div class="info-card">
+          <div class="card-head"><h5>人工覆寫與責任邊界</h5></div>
+          <p>
+            覆寫只能選擇既定權重組，理由必填並保留稽核紀錄。AI
+            提供建議，正式分數由評分引擎計算，最終採購決策仍由人員負責。
+          </p>
+        </div>
+      </div>
+    </div>
+  }
+}

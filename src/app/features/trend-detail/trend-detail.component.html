@@ -14,7 +14,8 @@
           <h3>{{ data.keyword }}</h3>
           @if (data.stage) {
             <span class="status-badge stage-badge">
-              {{ stageMap[data.stage] }} (第 {{ data.stageWeeks }} 週)
+              {{ stageMap[data.stage] || data.stage }}
+              @if (data.stageWeeks != null) {（第 {{ data.stageWeeks }} 週）}
             </span>
           }
           @if (data.divergenceFlag) {
@@ -23,7 +24,15 @@
         </div>
         <div class="sub">
           趨勢熱度：<strong>{{ data.heatToday }}</strong>　·　最後更新日期：{{ latesDate() }}
+          @if (data.estimatedLifespanDays != null) {
+           　·　預估剩餘壽命：<strong>{{ data.estimatedLifespanDays }} 天</strong>
+          }
         </div>
+        @if (getDecisionSource('stageSource') || getDecisionSource('lifespanSource')) {
+          <div class="sub decision-source">
+            階段來源：{{ getDecisionSource('stageSource') || '未提供' }}　·　壽命來源：{{ getDecisionSource('lifespanSource') || '未提供' }}
+          </div>
+        }
       } @else {
         <h3>趨勢詳情分析</h3>
       }
@@ -46,6 +55,10 @@
       重新載入
     </button>
   </div>
+}
+
+@if (isLoading()) {
+  <div class="alert busy" role="status">趨勢資料載入中…</div>
 }
 
 @else if (trendData(); as data) {
@@ -73,17 +86,32 @@
     </div>
 
     <!-- Canvas 繪圖區 -->
-    <div class="canvas-wrapper">
-      <canvas #chartCanvas></canvas>
-    </div>
+    @if (data.points && data.points.length > 0) {
+      @if (hasInsufficientHistory()) {
+        <div class="alert warning">目前歷史資料少於 30 天，30 日斜率與階段判讀僅供參考。</div>
+      }
+      <div class="canvas-wrapper">
+        <canvas #chartCanvas aria-label="關鍵字歷史熱度趨勢圖"></canvas>
+      </div>
+    } @else {
+      <div class="empty-state">選取區間內尚無趨勢資料</div>
+    }
   </div>
 
   <!-- 核心卡片 2：資料來源明細表格 ───────────────────────── -->
   @if (data.sourceDetails && data.sourceDetails.length > 0) {
+    @if (hasSnapshotStatusMismatch()) {
+      <div class="alert warning snapshot-warning" role="status">
+        @for (source of getSnapshotStatusMismatchSources(); track source.sourceName) {
+          <strong>{{ formatSourceName(source.sourceName) }}</strong> 目前為異常狀態，但最近一次合成快照仍記錄 {{ formatWeight(source.appliedWeight) }} 權重。
+        }
+        權重與目前狀態的時間點不同；下次成功重算前，請勿將此權重解讀為目前仍在參與合成。
+      </div>
+    }
     <div class="card table-card" style="margin-top: 20px;">
       <div class="table-header-title">
         <h4>資料來源明細</h4>
-        <span class="sub-hint">各平台訊號加權與百分位統計</span>
+        <span class="sub-hint">權重日期：{{ latesDate() }}；來源狀態為目前狀態</span>
       </div>
 
       <table mat-table [dataSource]="data.sourceDetails" class="sources-table">
@@ -147,7 +175,7 @@
             <div class="percentile-cell-content">
               <div class="percentile-bar-track">
                 <div class="percentile-bar-fill" [class.bar-muted]="element.isMuted || element.status === 'NO_DATA'"
-                  [style.width.%]="element.percentile || 0">
+                  [style.width.%]="getPercentileWidth(element.percentile)">
                 </div>
               </div>
               <span class="percentile-num">{{ formatPercentile(element.percentile) }}</span>
@@ -157,7 +185,7 @@
 
         <!-- 合成權重 Column -->
         <ng-container matColumnDef="appliedWeight">
-          <th mat-header-cell *matHeaderCellDef> 合成權重 </th>
+          <th mat-header-cell *matHeaderCellDef> 最近一次合成權重 </th>
           <td mat-cell *matCellDef="let element" class="weight-cell">
             <span class="weight-number-text">{{ formatWeight(element.appliedWeight, element.status) }}</span>
           </td>
@@ -165,7 +193,7 @@
 
         <!-- 狀態 Column -->
         <ng-container matColumnDef="status">
-          <th mat-header-cell *matHeaderCellDef> 狀態 </th>
+          <th mat-header-cell *matHeaderCellDef> 目前來源狀態 </th>
           <td mat-cell *matCellDef="let element" class="status-cell">
             <span class="status-badge" [ngClass]="getSourceStatusBadgeClass(element.status)">
               {{ statusMap[element.status] || element.status }}
@@ -198,15 +226,14 @@
           <h5>多源百分位正規化合成</h5>
         </div>
         <p>
-          各來源量級不可比（如 Threads 的 200 則 vs Google Trends 指數 78），因此先在各來源內做百分位正規化，再依合成權重加總。
-          @for (source of getAbnormalSources(); track source.sourceName) {
+          各來源量級不可比（如 Threads 的 200 則 vs Google Trends 指數 78），因此先在各來源內做百分位正規化，再依合成權重加總。下列權重取自最近一次成功寫入的合成快照，來源狀態則是目前狀態。
+          @for (source of getRedistributedSources(); track source.sourceName) {
             <br />
             <strong>{{ formatSourceName(source.sourceName) }}</strong>
             本期狀態為「{{ statusMap[source.status || ''] || source.status }}」，其權重已按比例分攤給其餘正常來源。
           }
         </p>
         <div class="weights-summary">
-          {{ getDefaultWeightsSummary() }}<br>
           {{ getAppliedWeightsSummary() }}
         </div>
       </div>

@@ -2,7 +2,6 @@ import { Component, OnInit, OnDestroy } from '@angular/core';
 import {
   AITasksService,
   AiBudgetControllerService,
-  AiTaskControllerService,
   ProductReferenceControllerService,
   CategoryTreeResponse,
   ProductControllerService,
@@ -31,9 +30,8 @@ export class SourcingComponent implements OnInit, OnDestroy {
   private readonly router = inject(Router);
   private readonly categoryService = inject(ProductReferenceControllerService);
   private readonly productService = inject(ProductControllerService);
-  private soucingService = inject(SourcingScoutControllerService);
+  private sourcingService = inject(SourcingScoutControllerService);
   private aiTasksService = inject(AITasksService);
-  private aiTaskService = inject(AiTaskControllerService);
   private aiBudgetService = inject(AiBudgetControllerService);
   private readonly dialogService = inject(DialogService);
 
@@ -46,7 +44,7 @@ export class SourcingComponent implements OnInit, OnDestroy {
   public keyword = signal<string>('');
   public scoutReport = signal<any | null>(null);
   public scoutError = signal<string | null>(null);
-  public frequency = signal<string>('0/50');
+  public frequency = signal<string>('0/200');
   public isQuotaExhausted = signal<boolean>(false);
 
   goToQueue() {
@@ -142,9 +140,9 @@ export class SourcingComponent implements OnInit, OnDestroy {
         const trackBPool = pools.find((p: any) => p.pool === 'TRACK_B');
         if (trackBPool) {
           const used = trackBPool.used ?? 0;
-          const limit = trackBPool.limit ?? 50;
+          const limit = trackBPool.limit ?? 200;
           this.frequency.set(`${used}/${limit}`);
-          this.isQuotaExhausted.set(trackBPool.status === 'EXHAUSTED');
+          this.isQuotaExhausted.set(used >= limit || trackBPool.status === 'EXHAUSTED');
         }
       },
       error: (err) => {
@@ -173,7 +171,7 @@ export class SourcingComponent implements OnInit, OnDestroy {
     this.isScouting.set(true);
     this.scoutStartTime = Date.now();
 
-    this.soucingService.scout({
+    this.sourcingService.scout({
       sourcingScoutRequest: {
         keyword: keyword,
         categoryId: categoryId,
@@ -204,7 +202,7 @@ export class SourcingComponent implements OnInit, OnDestroy {
           keyword,
           categoryId,
           startTime: this.scoutStartTime
-        }))
+        }));
 
         this.pollAiTask(taskId, productId);
       },
@@ -231,13 +229,12 @@ export class SourcingComponent implements OnInit, OnDestroy {
     }
 
     this.pollTimer = setInterval(() => {
-      this.aiTaskService.getAiTaskById(
-        { id: taskId },
+      this.aiTasksService.get5({ taskId },
         'body',
         false,
         { context: new HttpContext().set(SKIP_LOADING, true) }
       ).subscribe({
-        next: async (res) => {
+        next: async (res: any) => {
           const responseData = await this.unpack(res);
           const task = responseData?.data ?? responseData;
           console.log('輪詢進度：', task);
@@ -245,15 +242,15 @@ export class SourcingComponent implements OnInit, OnDestroy {
           if (task?.status === 'SUCCEEDED' || task?.status === 'COMPLETED') {
             if (this.pollTimer) {
               clearInterval(this.pollTimer);
-              sessionStorage.removeItem(this.STORAGE_KEY);
             }
+            sessionStorage.removeItem(this.STORAGE_KEY);
 
             if (productId) {
               this.fetchReport(productId);
             } else {
               // 若 response 沒帶 productId，從任務品項 (items) 取得
               this.aiTasksService.items({ taskId }).subscribe({
-                next: async (itemsRes) => {
+                next: async (itemsRes: any) => {
                   const itemsData = await this.unpack(itemsRes);
                   const items = itemsData?.data ?? itemsData ?? [];
                   const pId = items?.[0]?.productId;
@@ -261,10 +258,26 @@ export class SourcingComponent implements OnInit, OnDestroy {
                     this.fetchReport(pId);
                   } else {
                     console.error('無法在任務項目中找到 productId', itemsData);
+                    this.isScouting.set(false);
+                    this.scoutError.set('查詢失敗：無法在任務項目中找到關聯商品。');
+                    this.dialogService.Confirm({
+                      title: '查詢失敗',
+                      message: '無法在任務項目中找到關聯商品，請稍後再試！',
+                      confirmText: '確定',
+                      isDanger: true
+                    });
                   }
                 },
-                error: (err) => {
+                error: (err: any) => {
                   console.error('查詢任務品項失敗', err);
+                  this.isScouting.set(false);
+                  this.scoutError.set('查詢失敗：無法查詢任務品項。');
+                  this.dialogService.Confirm({
+                    title: '查詢失敗',
+                    message: '查詢任務品項失敗，請稍後再試！',
+                    confirmText: '確定',
+                    isDanger: true
+                  });
                 }
               });
             }
@@ -273,8 +286,8 @@ export class SourcingComponent implements OnInit, OnDestroy {
             this.isScouting.set(false);
             if (this.pollTimer) {
               clearInterval(this.pollTimer);
-              sessionStorage.removeItem(this.STORAGE_KEY);
             }
+            sessionStorage.removeItem(this.STORAGE_KEY);
             this.scoutError.set('查詢失敗：AI 尋源探索任務執行失敗。');
             this.dialogService.Confirm({
               title: '查詢失敗',
@@ -284,13 +297,13 @@ export class SourcingComponent implements OnInit, OnDestroy {
             });
           }
         },
-        error: (err) => {
+        error: (err: any) => {
           console.error('查詢進度失敗', err);
           this.isScouting.set(false);
           if (this.pollTimer) {
             clearInterval(this.pollTimer);
-            sessionStorage.removeItem(this.STORAGE_KEY);
           }
+          sessionStorage.removeItem(this.STORAGE_KEY);
           this.scoutError.set('查詢失敗：無法查詢探索任務進度。');
           this.dialogService.Confirm({
             title: '查詢失敗',
@@ -304,7 +317,7 @@ export class SourcingComponent implements OnInit, OnDestroy {
   }
 
   private fetchReport(productId: number) {
-    this.soucingService.latest1({ productId }).subscribe({
+    this.sourcingService.latest1({ productId }).subscribe({
       next: async (res) => {
         const responseData = await this.unpack(res);
         this.scoutReport.set(responseData?.data ?? responseData);
@@ -404,7 +417,7 @@ export class SourcingComponent implements OnInit, OnDestroy {
         categoryId: catId,
         trackType: 'B',
         sourcingStatus: 'PENDING',
-        keywordIds: report?.keywordId ? new Set([report.keywordId]) : undefined
+        keywordIds: report?.keywordId ? [report.keywordId] : undefined
       } as any
     }).subscribe({
       next: async (res: any) => {
@@ -452,7 +465,7 @@ export class SourcingComponent implements OnInit, OnDestroy {
         categoryId: catId,
         trackType: 'B',
         sourcingStatus: targetStatus,
-        keywordIds: report.keywordId ? new Set([report.keywordId]) : undefined
+        keywordIds: report.keywordId ? [report.keywordId] : undefined
       } as any
     }).subscribe({
       next: async (res: any) => {

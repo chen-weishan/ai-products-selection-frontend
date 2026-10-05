@@ -1,5 +1,5 @@
 import { Component, DestroyRef, inject, signal, computed, OnInit } from '@angular/core';
-import { TrendControllerService, TrendSignalRow } from '../../api';
+import { ProductReferenceControllerService, TrendControllerService, TrendSignalRow, TrendKeywordResponse } from '../../api';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router } from '@angular/router';
 import { MatTableModule } from '@angular/material/table';
@@ -8,7 +8,12 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatSelectModule } from '@angular/material/select';
 import { MatInputModule } from '@angular/material/input';
 import { FormsModule } from '@angular/forms';
-import { MOCK_TREND_LIST } from '../../core/mock/trend-mock';
+import { finalize, forkJoin, of, Subscription, switchMap } from 'rxjs';
+import { AuthService } from '../../core/auth/auth.service';
+import { DialogService } from '../../services/dialog-service';
+import { TrendKeywordAdminService } from './trend-keyword-admin.service';
+
+type TrendListRow = TrendSignalRow & { enabled: boolean };
 
 /**
  * 繁體中文語系設定 - Material 分頁器
@@ -49,13 +54,22 @@ export function getZhPaginatorIntl(): MatPaginatorIntl {
 })
 export class TrendsComponent implements OnInit {
   private readonly trendService = inject(TrendControllerService);
+  private readonly keywordService = inject(ProductReferenceControllerService);
+  private readonly keywordAdminService = inject(TrendKeywordAdminService);
+  private readonly authService = inject(AuthService);
+  private readonly dialogService = inject(DialogService);
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
+  private loadSubscription?: Subscription;
   isLoading = signal(false);
   errorMessage = signal<string | null>(null);
-  trendList = signal<TrendSignalRow[]>([]);
+  trendList = signal<TrendListRow[]>([]);
   searchQuery = signal<string>('');
   aiFilter = signal<'ALL' | 'NORMAL' | 'WARN'>('ALL');
+  enabledFilter = signal<'ALL' | 'ENABLED' | 'DISABLED'>('ALL');
+  readonly canManageKeywords = this.authService.canManageImports;
+  readonly pendingKeywordIds = signal<ReadonlySet<number>>(new Set());
+  readonly enabledKeywordCount = computed(() => this.trendList().filter((item) => item.enabled).length);
 
   // 分頁控制 Signals
   pageIndex = signal<number>(0);
@@ -65,6 +79,7 @@ export class TrendsComponent implements OnInit {
   filteredTrends = computed(() => {
     const q = this.searchQuery().trim().toLowerCase();
     const filter = this.aiFilter();
+    const enabledFilter = this.enabledFilter();
     let list = this.trendList();
 
     if (q) {
@@ -75,6 +90,12 @@ export class TrendsComponent implements OnInit {
       list = list.filter((item) => !item.divergenceFlag);
     } else if (filter === 'WARN') {
       list = list.filter((item) => !!item.divergenceFlag);
+    }
+
+    if (enabledFilter === 'ENABLED') {
+      list = list.filter((item) => item.enabled);
+    } else if (enabledFilter === 'DISABLED') {
+      list = list.filter((item) => !item.enabled);
     }
 
     return list;
@@ -103,9 +124,15 @@ export class TrendsComponent implements OnInit {
     this.pageIndex.set(0);
   }
 
+  onEnabledFilterChange(filter: 'ALL' | 'ENABLED' | 'DISABLED'): void {
+    this.enabledFilter.set(filter);
+    this.pageIndex.set(0);
+  }
+
   resetFilters(): void {
     this.searchQuery.set('');
     this.aiFilter.set('ALL');
+    this.enabledFilter.set('ALL');
     this.pageIndex.set(0);
   }
 
@@ -115,19 +142,24 @@ export class TrendsComponent implements OnInit {
   }
 
   loadTrends() {
+    this.loadSubscription?.unsubscribe();
     this.isLoading.set(true);
     this.errorMessage.set(null);
-    this.trendService.getTrends()
+    this.loadSubscription = forkJoin({
+      trends: this.trendService.getTrends(),
+      keywords: this.keywordService.getTrendKeywords({}),
+    })
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
-        next: (res) => {
-          this.trendList.set(res && res.length > 0 ? res : MOCK_TREND_LIST);
+        next: ({ trends, keywords }) => {
+          this.trendList.set(this.mergeTrendRows(trends ?? [], keywords.data ?? []));
           this.isLoading.set(false);
           this.pageIndex.set(0);
         },
         error: (err) => {
-          console.warn('[TrendsComponent] 後端 API 請求失敗，自動使用 Mock 假資料回退:', err);
-          this.trendList.set(MOCK_TREND_LIST);
+          console.error('[TrendsComponent] 後端 API 請求失敗:', err);
+          this.trendList.set([]);
+          this.errorMessage.set('趨勢資料載入失敗，請稍後再試。');
           this.isLoading.set(false);
           this.pageIndex.set(0);
         }
@@ -139,16 +171,98 @@ export class TrendsComponent implements OnInit {
     'heatToday',
     'slope7d',
     'slope30d',
-    'aiSignal'
+    'stage',
+    'aiSignal',
+    'keywordEnabled'
   ];
 
+  isKeywordPending(keywordId: number | undefined): boolean {
+    return keywordId !== undefined && this.pendingKeywordIds().has(keywordId);
+  }
+
+  onKeywordToggle(event: MouseEvent, row: TrendListRow): void {
+    event.stopPropagation();
+    const keywordId = row.keywordId;
+    if (!this.canManageKeywords() || keywordId === undefined || this.isKeywordPending(keywordId)) return;
+
+    const enabled = !row.enabled;
+    this.setKeywordPending(keywordId, true);
+    const confirmation$ = enabled
+      ? of(true)
+      : this.keywordAdminService.getUsage(keywordId).pipe(
+          switchMap((response) => {
+            const products = response.data?.products ?? [];
+            if (products.length === 0) return of(true);
+            const names = products.map((product) => `「${product.name ?? `品項 #${product.id}`}」`).join('、');
+            return this.dialogService.Confirm({
+              title: '停用關鍵字',
+              message: `關鍵字「${row.keyword ?? ''}」目前綁定以下品項：${names}。停用後將影響這些品項的每日熱度合成，確定要停用嗎？`,
+              confirmText: '確認停用',
+              cancelText: '取消',
+              isDanger: true,
+            });
+          }),
+        );
+
+    confirmation$.pipe(
+      switchMap((confirmed) => confirmed
+        ? this.keywordAdminService.updateEnabled(keywordId, enabled)
+        : of(null)),
+      finalize(() => this.setKeywordPending(keywordId, false)),
+      takeUntilDestroyed(this.destroyRef),
+    ).subscribe({
+      next: (response) => {
+        if (response === null) return;
+        const savedEnabled = response.data?.enabled ?? enabled;
+        this.trendList.update((rows) => rows.map((item) =>
+          item.keywordId === keywordId ? { ...item, enabled: savedEnabled } : item,
+        ));
+      },
+      error: () => this.errorMessage.set('關鍵字啟用狀態更新失敗；目前後端可能尚未提供管理端點。'),
+    });
+  }
+
+  private mergeTrendRows(trends: TrendSignalRow[], keywords: TrendKeywordResponse[]): TrendListRow[] {
+    const trendsById = new Map(trends.map((row) => [row.keywordId, row]));
+    const rows = keywords
+      .filter((keyword): keyword is TrendKeywordResponse & { id: number } => keyword.id !== undefined)
+      .map((keyword) => ({
+        ...(trendsById.get(keyword.id) ?? { keywordId: keyword.id, keyword: keyword.keyword }),
+        keywordId: keyword.id,
+        keyword: keyword.keyword,
+        enabled: keyword.enabled !== false,
+      } as TrendListRow));
+    const knownIds = new Set(rows.map((row) => row.keywordId));
+    rows.push(...trends.filter((row) => !knownIds.has(row.keywordId)).map((row) => ({ ...row, enabled: true })));
+    return rows;
+  }
+
+  private setKeywordPending(keywordId: number, pending: boolean): void {
+    this.pendingKeywordIds.update((current) => {
+      const next = new Set(current);
+      pending ? next.add(keywordId) : next.delete(keywordId);
+      return next;
+    });
+  }
+
   goToDetail(keywordId: number | string): void {
-    if (keywordId === null || keywordId === undefined) { console.warn('沒有對應資料'); return; };
-    this.router.navigate(['/trends', keywordId]);
+    const id = Number(keywordId);
+    if (!Number.isInteger(id) || id <= 0) return;
+    this.router.navigate(['/trends', id]);
+  }
+
+  onRowKeydown(event: KeyboardEvent, keywordId: number | string): void {
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+    event.preventDefault();
+    this.goToDetail(keywordId);
+  }
+
+  formatStage(stage: string | null | undefined): string {
+    return ({ RISING: '上升期', PLATEAU: '高原期', DECLINING: '衰退期' } as Record<string, string>)[stage ?? ''] ?? '-';
   }
 
   formatSlope(value: number | null | undefined): string {
-    if (value === null || value === undefined) return '';
+    if (value === null || value === undefined) return '-';
     const percentage = Math.round(value * 100);
     const sign = percentage > 0 ? '+' : '';
     return `${sign}${percentage}%`;

@@ -15,6 +15,7 @@ import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Chart } from 'chart.js/auto';
 import { MatTableModule } from '@angular/material/table';
+import { Subscription } from 'rxjs';
 
 import {
   Point,
@@ -22,8 +23,6 @@ import {
   TrendControllerService,
   TrendKeywordDetailResponse,
 } from '../../api';
-import { getMockTrendDetail } from '../../core/mock/trend-mock';
-
 type DateRange = '90d' | '60d' | '30d';
 
 @Component({
@@ -40,16 +39,22 @@ export class TrendDetailComponent implements OnInit, OnDestroy {
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
   private chart: Chart | null = null;
+  private loadSubscription?: Subscription;
+  private loadVersion = 0;
+  private chartTimer?: ReturnType<typeof setTimeout>;
 
   constructor() {
-    effect(() => {
+    effect((onCleanup) => {
       const canvas = this.chartCanvas();
       const data = this.trendData();
       if (canvas?.nativeElement && data?.points && data.points.length > 0) {
         // Wait for the browser to paint so that Chart.js can read the container dimensions correctly
-        setTimeout(() => {
+        this.chartTimer = setTimeout(() => {
           this.renderChart(data.points!);
         }, 0);
+        onCleanup(() => {
+          if (this.chartTimer) clearTimeout(this.chartTimer);
+        });
       }
     });
   }
@@ -129,11 +134,36 @@ export class TrendDetailComponent implements OnInit, OnDestroy {
     }
   }
 
-  getAbnormalSources() {
+  getRedistributedSources() {
     const sources = this.trendData()?.sourceDetails || [];
     return sources.filter(
-      s => s.status && s.status !== 'AVAILABLE' && s.status !== 'NO_DATA'
+      s => s.status === 'UNAVAILABLE' && (s.appliedWeight ?? 0) === 0
     );
+  }
+
+  getSnapshotStatusMismatchSources(): SourceDetail[] {
+    return (this.trendData()?.sourceDetails || []).filter(
+      source => source.status === 'UNAVAILABLE' && (source.appliedWeight ?? 0) > 0
+    );
+  }
+
+  hasSnapshotStatusMismatch(): boolean {
+    return this.getSnapshotStatusMismatchSources().length > 0;
+  }
+
+  hasInsufficientHistory(): boolean {
+    return (this.trendData()?.points?.length ?? 0) < 30;
+  }
+
+  getPercentileWidth(value: number | null | undefined): number {
+    return Math.max(0, Math.min(100, value ?? 0));
+  }
+
+  getDecisionSource(field: 'stageSource' | 'lifespanSource'): string | null {
+    const value = (this.trendData() as (TrendKeywordDetailResponse & Record<string, unknown>) | null)?.[field];
+    if (value === 'RULE') return '規則式';
+    if (value === 'AGENT') return 'AI 解讀';
+    return typeof value === 'string' && value ? value : null;
   }
 
   formatSourceName(name: string | undefined): string {
@@ -151,17 +181,13 @@ export class TrendDetailComponent implements OnInit, OnDestroy {
     const activeSources = sources.filter(
       s => s.appliedWeight && s.appliedWeight > 0
     );
-    if (activeSources.length === 0) return '本次合成：尚無有效權重';
+    if (activeSources.length === 0) return '最近一次合成：尚無有效權重';
 
     const parts = activeSources.map(s => {
       const weightPercent = Math.round((s.appliedWeight ?? 0) * 1000) / 10;
       return `${this.formatSourceName(s.sourceName)} ${weightPercent}%`;
     });
-    return `本次合成：${parts.join(' ・ ')}`;
-  }
-
-  getDefaultWeightsSummary(): string {
-    return '預設合成：Threads 35% ・ Google Trends 30% ・ 人工標記 20% ・ Instagram 15%';
+    return `最近一次合成：${parts.join(' ・ ')}`;
   }
 
   normalizeSourceDetails(sources: SourceDetail[] | undefined): SourceDetail[] {
@@ -224,8 +250,8 @@ export class TrendDetailComponent implements OnInit, OnDestroy {
           subName: (found as any).subName || cfg.subName,
           categoryLevel: found.categoryLevel ?? cfg.categoryLevel,
           isManual: cfg.isManual || (found as any).isManual,
-          status: found.status || 'AVAILABLE',
-          appliedWeight: found.appliedWeight ?? 0,
+          status: found.status || undefined,
+          appliedWeight: found.appliedWeight,
         };
       }
 
@@ -253,17 +279,25 @@ export class TrendDetailComponent implements OnInit, OnDestroy {
 
 
   ngOnInit(): void {
-    const rawid = this.route.snapshot.paramMap.get('keywordId');
-    const keywordId = Number(rawid);
-    if (!rawid || isNaN(keywordId)) {
-      this.errorMessage.set('無效關鍵字ID');
-      return;
-    }
-    this.currentkeywordId.set(keywordId);
-    this.loadTrendDetail();
+    this.route.paramMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((params) => {
+      const rawId = params.get('keywordId');
+      const keywordId = Number(rawId);
+      if (!rawId || !Number.isInteger(keywordId) || keywordId <= 0) {
+        this.loadSubscription?.unsubscribe();
+        this.currentkeywordId.set(null);
+        this.trendData.set(null);
+        this.errorMessage.set('無效的關鍵字 ID。');
+        this.isLoading.set(false);
+        return;
+      }
+      this.currentkeywordId.set(keywordId);
+      this.loadTrendDetail();
+    });
   }
 
   ngOnDestroy(): void {
+    this.loadSubscription?.unsubscribe();
+    if (this.chartTimer) clearTimeout(this.chartTimer);
     if (this.chart) {
       this.chart.destroy();
       this.chart = null;
@@ -272,12 +306,14 @@ export class TrendDetailComponent implements OnInit, OnDestroy {
 
   loadTrendDetail(): void {
     const keywordId = this.currentkeywordId();
-    if (!keywordId) return;
+    if (keywordId === null) return;
 
+    this.loadSubscription?.unsubscribe();
+    const version = ++this.loadVersion;
     this.isLoading.set(true);
     this.errorMessage.set(null);
 
-    this.trendService
+    this.loadSubscription = this.trendService
       .getKeywordDetail(
         {
           keywordId,
@@ -297,8 +333,14 @@ export class TrendDetailComponent implements OnInit, OnDestroy {
               data = JSON.parse(text);
             } catch (e) {
               console.error('[TrendDetailComponent] 解析 Blob 失敗:', e);
+              if (version !== this.loadVersion) return;
+              this.trendData.set(null);
+              this.errorMessage.set('趨勢資料格式錯誤，請稍後再試。');
+              this.isLoading.set(false);
+              return;
             }
           }
+          if (version !== this.loadVersion) return;
           if (data) {
             data.sourceDetails = this.normalizeSourceDetails(data.sourceDetails);
           }
@@ -306,12 +348,10 @@ export class TrendDetailComponent implements OnInit, OnDestroy {
           this.isLoading.set(false);
         },
         error: (err) => {
-          console.warn('[TrendDetailComponent] 後端 API 請求失敗，自動使用 Mock 假資料回退:', err);
-          const mockData = getMockTrendDetail(keywordId, this.selectedRange());
-          if (mockData) {
-            mockData.sourceDetails = this.normalizeSourceDetails(mockData.sourceDetails);
-          }
-          this.trendData.set(mockData);
+          if (version !== this.loadVersion) return;
+          console.error('[TrendDetailComponent] 後端 API 請求失敗:', err);
+          this.trendData.set(null);
+          this.errorMessage.set('趨勢詳情載入失敗，請稍後再試。');
           this.isLoading.set(false);
         },
       });
@@ -338,7 +378,7 @@ export class TrendDetailComponent implements OnInit, OnDestroy {
     }
 
     const labels = points.map((p) => p.date ?? '');
-    const dataValues = points.map((p) => p.compositeValue ?? 0);
+    const dataValues = points.map((p) => p.compositeValue ?? null);
 
     const gradient = ctx.createLinearGradient(0, 0, 0, 300);
     gradient.addColorStop(0, 'rgba(59, 130, 246, 0.35)');
