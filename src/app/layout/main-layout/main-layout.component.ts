@@ -36,7 +36,7 @@ export class MainLayoutComponent {
     { label: 'S-03 品項清單', path: '/products', icon: 'inventory_2' },
     { label: 'S-05 選品排行', path: '/ranking', icon: 'leaderboard' },
     { label: 'S-07 趨勢分析', path: '/trends', icon: 'trending_up' },
-    { label: 'S-15 熱度標記', path: '/heat-tags', icon: 'local_fire_department' },
+    { label: 'S-15 熱度標記', path: '/heat-tags', icon: 'local_fire_department', roles: ['BUYER', 'BUYER_LEAD', 'DATA_ADMIN', 'SYS_ADMIN'] },
     { label: 'S-17 尋源探索', path: '/sourcing', icon: 'travel_explore', roles: ['BUYER', 'BUYER_LEAD', 'DATA_ADMIN', 'SYS_ADMIN'] },
     { label: 'S-08 AI任務', path: '/ai-tasks', icon: 'smart_toy', roles: ['BUYER', 'BUYER_LEAD', 'DATA_ADMIN', 'SYS_ADMIN'] },
     { label: 'S-09 權重設定', path: '/weights', icon: 'tune', roles: ['BUYER', 'BUYER_LEAD', 'DATA_ADMIN', 'SYS_ADMIN'], exact: true },

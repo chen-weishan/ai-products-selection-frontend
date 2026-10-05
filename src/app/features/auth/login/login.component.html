@@ -1,43 +1,223 @@
-<div class="login-wrapper">
-  <div class="login-main">
-    <h1 class="title">系統登入</h1>
-
-    <div class="input-field">
-      <label for="email">電子郵件</label>
-      <input id="email" type="text" [(ngModel)]="email" placeholder="user@company.com" (keydown.enter)="onLogin()" />
-    </div>
-
-    <div class="input-field">
-      <label for="password">密碼</label>
-      <div class="password-input-wrapper">
-        <input id="password" [type]="showPassword ? 'text' : 'password'" [(ngModel)]="password" placeholder="請輸入密碼"
-          (keydown.enter)="onLogin()" />
-        <button type="button" class="toggle-password-btn" (click)="togglePasswordVisibility()"
-          [attr.aria-label]="showPassword ? '隱藏密碼' : '顯示密碼'" [title]="showPassword ? '隱藏密碼' : '顯示密碼'" tabindex="-1">
-          <mat-icon>{{ showPassword ? 'visibility_off' : 'visibility' }}</mat-icon>
-        </button>
+<div class="login-page">
+  <div class="concept-page">
+    <header class="concept-header">
+      <div class="concept-brand">
+        <span class="concept-logo"><mat-icon aria-hidden="true">document_scanner</mat-icon></span
+        ><strong>SSDS</strong><span class="brand-divider"></span
+        ><span class="brand-name">AI 選品決策平台</span>
       </div>
-    </div>
+      <span class="header-caption">PRODUCT INTELLIGENCE</span>
+    </header>
+    <main class="concept-main">
+      <section class="concept-hero" aria-label="AI 選品產品介紹">
+        <div class="trend-art" aria-hidden="true">
+          <svg viewBox="0 0 560 510" preserveAspectRatio="xMidYMid slice">
+            <defs>
+              <linearGradient id="emerging-stroke" x1="0" y1="1" x2="1" y2="0">
+                <stop stop-color="#9bbac9" stop-opacity="0" />
+                <stop offset=".48" stop-color="#5b99b2" stop-opacity=".4" />
+                <stop offset="1" stop-color="#1e7a9e" />
+              </linearGradient>
+              <linearGradient id="emerging-area" x1="0" y1="0" x2="0" y2="1">
+                <stop stop-color="#8fc5da" stop-opacity=".14" />
+                <stop offset="1" stop-color="#8fc5da" stop-opacity="0" />
+              </linearGradient>
+              <radialGradient id="emerging-fade">
+                <stop stop-color="white" />
+                <stop offset="1" stop-color="white" stop-opacity="0" />
+              </radialGradient>
+              <pattern id="emerging-dots" width="20" height="20" patternUnits="userSpaceOnUse">
+                <circle cx="2" cy="2" r=".8" fill="#87aabe" />
+              </pattern>
+              <mask id="emerging-mask">
+                <ellipse cx="355" cy="279" rx="295" ry="228" fill="url(#emerging-fade)" />
+              </mask>
+            </defs>
+            <rect
+              x="0"
+              y="65"
+              width="560"
+              height="420"
+              fill="url(#emerging-dots)"
+              mask="url(#emerging-mask)"
+              opacity=".52"
+            />
+            <g fill="none" stroke="#8eafc0" stroke-width=".8" opacity=".26">
+              <path
+                d="M-25 357 C60 385 93 269 168 292 S270 338 323 277 S425 288 480 214 S540 230 590 179"
+              />
+              <path
+                d="M-20 391 C68 420 91 332 171 351 S268 290 322 317 S417 235 477 261 S553 171 590 204"
+              />
+              <path
+                d="M-35 327 C43 284 87 344 166 312 S263 265 321 284 S416 317 480 286 S545 252 590 271"
+              />
+              <path
+                d="M-25 431 C50 409 105 437 172 400 S266 403 326 356 S417 377 480 326 S550 350 590 303"
+              />
+              <path
+                d="M-25 374 C53 350 103 378 178 339 S267 374 325 338 S414 339 482 308 S540 325 590 282"
+              />
+            </g>
+            <path
+              d="M-20 388 C67 388 76 339 148 354 S242 348 288 304 S363 322 402 274 S450 259 480 217 S515 214 542 165 L560 510 H-20Z"
+              fill="url(#emerging-area)"
+            />
+            <path
+              d="M-20 388 C67 388 76 339 148 354 S242 348 288 304 S363 322 402 274 S450 259 480 217 S515 214 542 165"
+              fill="none"
+              stroke="url(#emerging-stroke)"
+              stroke-width="2.4"
+              stroke-linecap="round"
+            />
+            <circle cx="402" cy="274" r="3" fill="#81b5c9" />
+            <circle cx="480" cy="217" r="3" fill="#5a9cb5" />
+            <circle cx="542" cy="165" r="14" fill="#1e7a9e" opacity=".06" />
+            <circle cx="542" cy="165" r="7" fill="#1e7a9e" opacity=".12" />
+            <circle cx="542" cy="165" r="3.5" fill="#1e7a9e" />
+            <g stroke="#8dafc1" stroke-width="1" opacity=".38">
+              <path
+                d="M368 217h5m-2.5-2.5v5 M451 353h5m-2.5-2.5v5 M255 407h5m-2.5-2.5v5 M504 120h5m-2.5-2.5v5"
+              />
+            </g>
+          </svg>
+        </div>
+        <div class="hero-eyebrow">AI 即時洞察 <small>DISCOVER WHAT'S NEXT</small></div>
+        <h1>
+          <span class="rotating-words" aria-hidden="true">
+            @for (slogan of slogans; track slogan; let idx = $index) {
+              <span [class.slogan-active]="idx === currentSloganIdx">{{ slogan }}</span>
+            }</span
+          ><span class="accessible-copy">洞察社群爆款、節慶商機、熱銷潛力與長銷經典</span>
+        </h1>
+        <p class="hero-tagline">讓市場訊號，成為你的選品優勢。</p>
+        <p class="hero-body">
+          從社群趨勢到供應線索，串起分散的資訊。<br />讓每一次選品，都有更清晰的判斷依據。
+        </p>
+        <div class="feature-heading">
+          <span>為決策，多想一步</span><span>EXPLORE THE CAPABILITIES</span>
+        </div>
+        <div class="feature-stage" #featureContainer>
+          <div class="concept-features" [hidden]="activeFeatureIdx !== null">
+            @for (item of featureData; track item.id) {
+              <button
+                type="button"
+                class="feature-entry"
+                [attr.data-feature-id]="item.id"
+                [attr.aria-expanded]="activeFeatureIdx === item.id"
+                aria-controls="feature-details"
+                (click)="selectFeature(item.id, $event)"
+              >
+                <mat-icon aria-hidden="true">{{ item.icon }}</mat-icon
+                ><span>{{ item.title }}</span
+                ><mat-icon aria-hidden="true">north_east</mat-icon>
+              </button>
+            }
+          </div>
+          <div class="expanded-feature" id="feature-details" [hidden]="activeFeatureIdx === null">
+            @if (activeFeature; as active) {
+              <div class="feature-sheet" role="region" aria-labelledby="feature-tab-title">
+                <div class="feature-tab" id="feature-tab-title">{{ active.title }}</div>
+                <button
+                  type="button"
+                  class="feature-close"
+                  (click)="selectFeature(null, $event)"
+                  aria-label="收合能力說明"
+                >
+                  <mat-icon aria-hidden="true">close</mat-icon>
+                </button>
+                <h3 class="feature-hook">{{ active.hook }}</h3>
+                <p class="feature-copy">{{ active.detail }}</p>
+              </div>
+              <div class="feature-switches" aria-label="其他能力">
+                @for (item of otherFeatures; track item.id) {
+                  <button
+                    type="button"
+                    class="feature-switch"
+                    aria-controls="feature-details"
+                    (click)="selectFeature(item.id, $event)"
+                  >
+                    <mat-icon aria-hidden="true">{{ item.icon }}</mat-icon
+                    ><span>{{ item.title }}</span>
+                  </button>
+                }
+              </div>
+            }
+          </div>
+        </div>
+      </section>
+      <section class="concept-login" aria-label="工作空間登入">
+        <div class="concept-form-area">
+          <div class="login-eyebrow">YOUR DECISION WORKSPACE</div>
+          <h2>歡迎回來</h2>
+          <p class="login-caption">登入，繼續探索下一個機會。</p>
+          <form
+            class="concept-form"
+            (ngSubmit)="onLogin()"
+            [attr.aria-busy]="isLoading"
+            aria-describedby="login-error"
+          >
+            <label for="email">電子郵件</label>
+            <input
+              id="email"
+              type="email"
+              name="email"
+              [(ngModel)]="email"
+              autocomplete="email"
+              placeholder="you@company.com"
+              required
+            />
+            <label for="password">密碼</label>
+            <div class="concept-password">
+              <input
+                id="password"
+                [type]="showPassword ? 'text' : 'password'"
+                name="password"
+                [(ngModel)]="password"
+                autocomplete="current-password"
+                placeholder="請輸入密碼"
+                required
+              />
+              <button
+                class="password-eye"
+                type="button"
+                (click)="togglePasswordVisibility()"
+                [attr.aria-label]="showPassword ? '隱藏密碼' : '顯示密碼'"
+                [attr.aria-pressed]="showPassword"
+              >
+                <mat-icon aria-hidden="true">{{
+                  showPassword ? 'visibility_off' : 'visibility'
+                }}</mat-icon>
+              </button>
+            </div>
+            <label class="concept-remember"
+              ><input type="checkbox" name="rememberMe" [(ngModel)]="rememberMe" /><span
+                >記住電子郵件</span
+              ></label
+            >
+            <button
+              type="submit"
+              class="concept-submit"
+              [disabled]="!email.trim() || !password.trim() || isLoading"
+            >
+              <span>{{ isLoading ? '驗證登入中...' : '進入工作空間' }}</span
+              ><mat-icon aria-hidden="true">arrow_forward</mat-icon>
+            </button>
+            <div class="concept-status" id="login-error" aria-live="polite" aria-atomic="true">
+              {{ errorMessage }}
+            </div>
+          </form>
+          <div class="workspace-signature">
+            <mat-icon aria-hidden="true">fingerprint</mat-icon>
+            <div>
+              <span>從洞察，到更有把握的決策。</span><small>SSDS PRODUCT INTELLIGENCE</small>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+    <footer class="concept-footer">
+      <span>SSDS / AI 選品決策平台</span><span>洞察 · 尋源 · 驗證</span>
+    </footer>
   </div>
-
-  <div class="password-group">
-    <div class="checkbox-group">
-      <input type="checkbox" name="remember-me" id="remember-me" [(ngModel)]="rememberMe">
-      <label for="remember-me">記住我</label>
-    </div>
-  </div>
-
-  <div class="sign-btn">
-    <button [disabled]="!email.trim() || !password.trim() || isLoading" (click)="onLogin()">
-      {{ isLoading ? '驗證登入中...' : '登入' }}
-    </button>
-  </div>
-
-  <div class="error-group">
-    @if (errorMessage) {
-    <mat-icon class="error-icon">error_outline</mat-icon>
-    <span class="error">{{ errorMessage }}</span>
-    }
-  </div>
-
 </div>

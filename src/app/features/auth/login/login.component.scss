@@ -1,261 +1,680 @@
-.login-wrapper {
+:host {
+  --concept-accent: #1e7a9e;
+  --concept-ink: #123a56;
+  --concept-visual-opacity: 1;
+  font-family: 'Noto Sans TC', 'PingFang TC', 'Microsoft JhengHei', sans-serif;
+  color: #162f43;
+}
+:host * {
+  box-sizing: border-box;
+}
+:host .concept-page {
+  background: #f8fafc;
+  min-height: 760px;
+  padding: 30px 44px 20px;
+  position: relative;
+  isolation: isolate;
+}
+:host .concept-page:before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background:
+    radial-gradient(ellipse at 9% 8%, #e2edf880, transparent 48%),
+    radial-gradient(ellipse at 91% 90%, #eaf0f680, transparent 42%);
+}
+:host h1,
+:host h2,
+:host p {
+  margin: 0;
+}
+:host .concept-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 24px;
+  border-bottom: 1px solid #e1e8ee;
+}
+:host .concept-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+:host .concept-logo {
+  width: 32px;
+  height: 32px;
+  background: var(--concept-ink);
+  color: #fff;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+}
+:host .concept-logo mat-icon {
+  width: 21px;
+  height: 21px;
+}
+:host .concept-brand strong {
+  font-size: 21px;
+  font-weight: 750;
+  letter-spacing: 1px;
+}
+:host .brand-divider {
+  height: 16px;
+  width: 1px;
+  background: #cfd9e1;
+  margin: 0 4px;
+}
+:host .brand-name {
+  font-size: 11px;
+  letter-spacing: 0.6px;
+  color: #526c7e;
+}
+:host .header-caption {
+  font-size: 10px;
+  letter-spacing: 1.9px;
+  color: #677e8e;
+  margin-right: 54px;
+}
+:host .concept-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+  gap: 48px;
+  padding: 46px 0 22px;
+}
+:host .concept-hero {
+  min-width: 0;
+}
+:host .hero-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--concept-ink);
+}
+:host .hero-eyebrow small {
+  margin-left: 8px;
+  font-size: 9px;
+  letter-spacing: 1px;
+  color: #667e90;
+  font-weight: 400;
+}
+:host h1 {
+  font-size: 54px;
+  letter-spacing: -2px;
+  font-weight: 850;
+  line-height: 1.25;
+  margin-top: 15px;
+  color: #142b3f;
+}
+:host .rotating-words {
+  display: grid;
+  min-height: 1.25em;
+  perspective: 500px;
+}
+:host .accessible-copy {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+:host .hero-tagline {
+  font-size: 18px;
+  letter-spacing: 0.1px;
+  color: #314f64;
+  margin-top: 16px;
+}
+:host .hero-body {
+  font-size: 12px;
+  line-height: 1.9;
+  color: #647b8c;
+  margin-top: 14px;
+}
+:host .feature-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 20px;
+  padding-bottom: 12px;
+  font-size: 11px;
+  color: #657c8b;
+}
+:host .feature-heading span:last-child {
+  font-size: 8px;
+  letter-spacing: 1.1px;
+}
+:host .concept-features {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+:host .feature-entry {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid #dce5ec;
+  background: #fff;
+  border-radius: 7px;
+  padding: 13px 12px;
+  color: #294b60;
+  font: inherit;
+  font-size: 11px;
+  text-align: left;
+  transition:
+    border-color 0.2s,
+    background 0.2s;
+}
+:host .feature-entry mat-icon {
+  width: 15px;
+  height: 15px;
+  color: var(--concept-accent);
+  flex-shrink: 0;
+}
+:host .feature-entry mat-icon:last-child {
+  margin-left: auto;
+  width: 12px;
+  height: 12px;
+  color: #78909f;
+}
+:host .feature-entry:hover,
+:host .feature-entry[aria-expanded='true'] {
+  background: #eff6f9;
+  border-color: #9dbfce;
+}
+:host .concept-login {
+  border-left: 1px solid #dfe7ed;
+  padding-left: 44px;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+:host .concept-form-area {
+  width: 100%;
+  max-width: 310px;
+  margin: auto;
+}
+:host .login-eyebrow {
+  font-size: 9px;
+  letter-spacing: 1.5px;
+  color: #5c8297;
+  margin-bottom: 14px;
+}
+:host h2 {
+  font-size: 31px;
+  letter-spacing: -1px;
+  font-weight: 650;
+  color: #19394d;
+  line-height: 1.4;
+}
+:host h2 span {
+  color: var(--concept-accent);
+}
+:host .login-caption {
+  font-size: 12px;
+  line-height: 1.7;
+  color: #697f8d;
+  margin-top: 10px;
+  margin-bottom: 31px;
+}
+:host .concept-form > label:not(.concept-remember) {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  color: #3d596c;
+  margin: 21px 0 8px;
+}
+:host input[type='email'],
+:host input[type='password'],
+:host input[type='text'] {
+  display: block;
+  width: 100%;
+  height: 46px;
+  border: 1px solid #cfdae3;
+  border-radius: 7px;
+  background: #fff;
+  padding: 0 13px;
+  font: inherit;
+  font-size: 12px;
+  color: #253f51;
+  transition: border-color 0.2s;
+}
+:host input::placeholder {
+  color: #7a8e9c;
+}
+:host input:focus-visible {
+  outline: 2px solid var(--concept-accent);
+  outline-offset: 2px;
+}
+:host .concept-password {
+  position: relative;
+}
+:host .concept-password input {
+  padding-right: 43px;
+}
+:host .password-eye {
+  position: absolute;
+  right: 3px;
+  top: 3px;
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: #6e8898;
+  display: grid;
+  place-items: center;
+}
+:host .password-eye mat-icon {
+  width: 17px;
+  height: 17px;
+}
+:host .concept-remember {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 18px 0 25px;
+  color: #5b7382;
+  font-size: 11px;
+}
+:host .concept-remember input {
+  accent-color: var(--concept-accent);
+  width: 14px;
+  height: 14px;
+  margin: 0;
+}
+:host .concept-submit {
+  width: 100%;
+  height: 46px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 7px;
+  color: #fff;
+  background: var(--concept-ink);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  transition: background 0.2s;
+}
+:host .concept-submit:hover {
+  background: var(--concept-accent);
+}
+:host .concept-submit mat-icon {
+  width: 17px;
+  height: 17px;
+}
+:host .concept-status {
+  min-height: 31px;
+  padding-top: 10px;
+  font-size: 11px;
+  color: #657e8d;
+  line-height: 1.7;
+}
+:host .workspace-signature {
+  margin-top: 19px;
+  padding-top: 19px;
+  border-top: 1px solid #dfe7ed;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  color: #688291;
+}
+:host .workspace-signature > mat-icon {
+  width: 25px;
+  height: 25px;
+  font-size: 25px;
+  color: #96afbc;
+}
+:host .workspace-signature span {
+  font-size: 10px;
+  display: block;
+}
+:host .workspace-signature small {
+  display: block;
+  margin-top: 5px;
+  font-size: 8px;
+  letter-spacing: 1.2px;
+}
+:host .concept-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 10px;
+  color: #6a8191;
+  border-top: 1px solid #e1e8ee;
+  padding-top: 18px;
+}
+@media (max-width: 720px) {
+  :host .concept-page {
+    padding: 24px;
+  }
+  :host .concept-main {
+    grid-template-columns: 1fr;
+    gap: 24px;
+    padding-top: 32px;
+  }
+  :host .concept-login {
+    border-left: 0;
+    border-top: 1px solid #dfe7ed;
+    padding: 30px 0;
+  }
+  :host .concept-form-area {
+    max-width: none;
+  }
+  :host .header-caption {
+    display: none;
+  }
+  :host h1 {
+    font-size: 46px;
+  }
+  :host .hero-eyebrow small {
+    font-size: 8px;
+  }
+}
+
+:host {
+  --trend-strength: 0.85;
+}
+:host .concept-page {
+  min-height: 800px;
+}
+:host .concept-main {
+  gap: 48px;
+  padding-top: 54px;
+}
+:host .concept-hero {
+  position: relative;
+  isolation: isolate;
+}
+:host .trend-art {
+  position: absolute;
+  z-index: -1;
+  top: -15px;
+  left: -28px;
+  width: calc(100% + 42px);
+  height: 510px;
+  pointer-events: none;
+  opacity: var(--trend-strength);
+}
+:host .trend-art svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+:host .hero-body {
+  max-width: 85%;
+}
+:host .feature-heading {
+  margin-top: 213px;
+}
+:host .concept-features {
+  gap: 0 18px;
+}
+:host .feature-entry {
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid #dbe4eb;
+  border-radius: 0;
+  padding: 17px 0;
+  gap: 9px;
+}
+:host .feature-entry:hover,
+:host .feature-entry[aria-expanded='true'] {
+  background: #e8f1f680;
+  border-color: #9dbfce;
+}
+:host .concept-login {
+  border-left-color: #e3e9ee;
+}
+:host .feature-stage {
+  min-height: 224px;
+  padding-top: 10px;
+}
+:host .feature-stage [hidden] {
+  display: none !important;
+}
+:host .feature-sheet {
+  position: relative;
+  min-height: 160px;
+  border: 0;
+  border-top: 1px solid #dbe5ec;
+  border-radius: 0;
+  background: #f1f6fa;
+  padding: 17px 18px 16px;
+  box-shadow: none;
+}
+:host .feature-tab {
+  position: static;
+  display: block;
+  height: auto;
+  padding: 0;
+  margin-bottom: 9px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--concept-accent);
+  font-size: 11px;
+  font-weight: 550;
+  letter-spacing: 0.4px;
+}
+:host .feature-close {
+  position: absolute;
+  right: 9px;
+  top: 9px;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #728b9c;
+}
+:host .feature-close:hover {
+  background: #edf4f8;
+  color: #123a56;
+}
+:host .feature-close mat-icon {
+  width: 15px;
+  height: 15px;
+}
+:host .feature-hook {
+  margin: 0 0 7px;
+  font-size: 13px;
+  line-height: 1.65;
+  color: #213c50;
+  font-weight: 600;
+}
+:host .feature-copy {
+  font-size: 12px;
+  line-height: 1.85;
+  color: #617d90;
+  margin: 0;
+}
+:host .feature-switches {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+:host .feature-switch {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 6px;
+  min-height: 43px;
+  padding: 10px 0;
+  border: 0;
+  border-bottom: 1px solid #dbe4eb;
+  border-radius: 0;
+  background: transparent;
+  color: #38576a;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1.5;
+  text-align: left;
+}
+:host .feature-switch mat-icon {
+  width: 14px;
+  height: 14px;
+  color: var(--concept-accent);
+  flex-shrink: 0;
+}
+:host .feature-switch:hover {
+  background: #edf4f880;
+  border-color: #9dbfce;
+  color: var(--concept-accent);
+}
+@media (max-width: 400px) {
+  :host .feature-switches {
+    grid-template-columns: 1fr;
+  }
+  :host .feature-sheet {
+    padding: 17px 15px 16px;
+  }
+}
+@media (max-width: 720px) {
+  :host .concept-main {
+    padding-top: 32px;
+  }
+  :host .trend-art {
+    left: 0;
+    width: 100%;
+    height: 490px;
+  }
+  :host .feature-heading {
+    margin-top: 195px;
+  }
+}
+
+:host {
+  display: block;
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: #f8fafc;
+  --trend-strength: 0.85;
+}
+:host .concept-page {
+  min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 440px;
-  min-height: 520px;
-  padding: 32px 24px;
-  box-sizing: border-box;
-  background-color: #f8fafc;
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
-  border: 1px solid #e2e8f0;
-  border-radius: 16px;
-
-  .login-main {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-direction: column;
-    gap: 16px;
-    width: 100%;
-    max-width: 320px;
-
-    .title {
-      font-size: 24px;
-      font-weight: 700;
-      color: #1e293b;
-      margin: 0 0 12px 0;
-    }
-
-    .input-field {
-      display: flex;
-      flex-direction: column;
-      width: 100%;
-      gap: 6px;
-
-      label {
-        font-size: 14px;
-        font-weight: 600;
-        color: #475569;
-      }
-
-      .password-input-wrapper {
-        position: relative;
-        display: flex;
-        align-items: center;
-        width: 100%;
-
-        input {
-          padding-right: 40px;
-        }
-
-        .toggle-password-btn {
-          position: absolute;
-          right: 8px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          background: transparent;
-          border: none;
-          outline: none;
-          cursor: pointer;
-          padding: 4px;
-          border-radius: 6px;
-          color: #94a3b8;
-          transition: color 0.2s ease, background-color 0.2s ease;
-
-          &:hover {
-            color: #475569;
-            background-color: #f1f5f9;
-          }
-
-          mat-icon {
-            font-size: 20px;
-            width: 20px;
-            height: 20px;
-            line-height: 20px;
-          }
-        }
-      }
-
-      input[type="text"],
-      input[type="password"] {
-        width: 100%;
-        box-sizing: border-box;
-        height: 40px;
-        border-radius: 8px;
-        border: 1px solid #cbd5e1;
-        background-color: #ffffff;
-        padding: 0 12px;
-        font-size: 14px;
-        color: #1e293b;
-        outline: none;
-        transition: border-color 0.2s, box-shadow 0.2s;
-
-        &:focus {
-          border-color: #3b82f6;
-          box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
-        }
-
-        &::placeholder {
-          color: #94a3b8;
-        }
-      }
-    }
+  padding: 30px clamp(32px, 5vw, 88px) 20px;
+  overflow: clip;
+}
+:host .concept-header,
+:host .concept-main,
+:host .concept-footer {
+  width: 100%;
+  max-width: 1280px;
+  margin-left: auto;
+  margin-right: auto;
+}
+:host .concept-main {
+  margin-top: auto;
+  margin-bottom: auto;
+  padding-top: 44px;
+}
+:host .concept-form-area {
+  max-width: 360px;
+}
+:host .header-caption {
+  margin-right: 0;
+}
+:host .rotating-words > span {
+  grid-area: 1 / 1;
+  opacity: 0;
+  transform: translateY(6px) rotateX(-4deg);
+  transform-origin: center bottom;
+  transition:
+    opacity 0.65s ease-in-out,
+    transform 0.65s cubic-bezier(0.22, 1, 0.36, 1);
+}
+:host .rotating-words > .slogan-active {
+  opacity: 1;
+  transform: translateY(0) rotateX(0);
+}
+:host mat-icon {
+  display: inline-block;
+  font-weight: 400;
+}
+:host .concept-logo mat-icon {
+  font-size: 21px;
+}
+:host .feature-entry mat-icon,
+:host .feature-close mat-icon {
+  font-size: 15px;
+}
+:host .feature-entry mat-icon:last-child {
+  font-size: 12px;
+}
+:host .feature-switch mat-icon {
+  font-size: 14px;
+}
+:host .password-eye mat-icon,
+:host .concept-submit mat-icon {
+  font-size: 17px;
+}
+:host button {
+  cursor: pointer;
+}
+:host button:focus-visible {
+  outline: 2px solid var(--concept-accent);
+  outline-offset: 3px;
+}
+:host [hidden] {
+  display: none !important;
+}
+:host .concept-submit:disabled {
+  background: #94a3b8;
+  cursor: not-allowed;
+}
+:host .concept-status {
+  color: #b91c1c;
+  min-height: 42px;
+}
+:host .feature-stage {
+  min-height: 230px;
+}
+:host .feature-sheet {
+  min-height: 164px;
+}
+:host .feature-heading {
+  margin-top: clamp(130px, 20vh, 213px);
+}
+@media (min-width: 1200px) {
+  :host h1 {
+    font-size: 64px;
   }
-
-  .password-group {
-    display: flex;
-    flex-direction: row;
-    justify-content: space-between;
-    align-items: center;
-    width: 100%;
-    max-width: 320px;
-    margin-top: 12px;
-
-    .checkbox-group {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      color: #475569;
-      font-size: 13px;
-      font-weight: 500;
-
-      input[type="checkbox"] {
-        cursor: pointer;
-        accent-color: #2563eb;
-      }
-
-      label {
-        cursor: pointer;
-        margin: 0;
-      }
-    }
-
-    .forget-password {
-      font-size: 13px;
-      font-weight: 500;
-      color: #2563eb;
-      text-decoration: none;
-
-      &:hover {
-        text-decoration: underline;
-      }
-    }
+  :host .hero-tagline {
+    font-size: 21px;
   }
-
-  .sign-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 100%;
-    max-width: 320px;
-    margin-top: 16px;
-
-    button {
-      width: 100%;
-      height: 42px;
-      border-radius: 8px;
-      border: none;
-      cursor: pointer;
-      outline: none;
-      background-color: #2563eb;
-      color: #ffffff;
-      font-size: 15px;
-      font-weight: 600;
-      transition: background-color 0.2s, transform 0.1s;
-
-      &:hover:not(:disabled) {
-        background-color: #1d4ed8;
-      }
-
-      &:active:not(:disabled) {
-        transform: scale(0.98);
-      }
-
-      &:disabled {
-        background-color: #94a3b8;
-        cursor: not-allowed;
-      }
-    }
+  :host .hero-body {
+    font-size: 14px;
   }
-
-  .error-group {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    width: 100%;
-    max-width: 320px;
-    min-height: 24px;
-    margin-top: 10px;
-
-    .error-icon {
-      font-size: 18px;
-      width: 18px;
-      height: 18px;
-      color: #ef4444;
-      line-height: 18px;
-      flex-shrink: 0;
-    }
-
-    .error {
-      color: #ef4444;
-      font-size: 13px;
-      font-weight: 500;
-      text-align: left;
-      line-height: 1.4;
-    }
+  :host .concept-main {
+    gap: 80px;
   }
-
-  /* 快速測試帳號選擇區塊 */
-  .mock-accounts-section {
-    width: 100%;
-    max-width: 320px;
-    margin-top: 12px;
-    padding-top: 14px;
-    border-top: 1px dashed #cbd5e1;
-
-    .mock-title {
-      font-size: 12px;
-      font-weight: 600;
-      color: #64748b;
-      margin-bottom: 8px;
-      text-align: center;
-    }
-
-    .mock-badges {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
-      justify-content: center;
-
-      .mock-badge-btn {
-        background-color: #e2e8f0;
-        color: #334155;
-        border: 1px solid #cbd5e1;
-        border-radius: 6px;
-        padding: 4px 8px;
-        font-size: 12px;
-        font-weight: 500;
-        cursor: pointer;
-        transition: all 0.15s ease-in-out;
-
-        &:hover {
-          background-color: #dbeafe;
-          color: #1d4ed8;
-          border-color: #bfdbfe;
-        }
-
-        &:active {
-          transform: scale(0.95);
-        }
-      }
-    }
+  :host .concept-login {
+    padding-left: 64px;
+  }
+}
+@media (max-width: 720px) {
+  :host .concept-page {
+    padding: 24px;
+  }
+  :host .concept-main {
+    padding-top: 32px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  :host .rotating-words > span {
+    transition: opacity 0.3s ease;
+    transform: none;
   }
 }

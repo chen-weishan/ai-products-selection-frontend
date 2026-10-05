@@ -1,19 +1,21 @@
-import { Injectable, computed, inject, signal } from '@angular/core';
+import { DestroyRef, Injectable, computed, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { LoginRequest, LoginResponse, UserInfo, UserRole } from '../models/auth-model';
 import { Observable, delay, of, tap, throwError } from 'rxjs';
 import { MOCK_ACCOUNTS, MockAccount, createMockLoginResponse, findMockAccount } from './mock-users';
 import { map } from 'rxjs';
+import { environment } from '../../../environments/environment';
+
 @Injectable({
-  providedIn: 'root'
+  providedIn: 'root',
 })
 export class AuthService {
-  private http = inject(HttpClient);
-  private router = inject(Router);
+  private readonly http = inject(HttpClient);
+  private readonly router = inject(Router);
 
-  private readonly ACCESS_TOKEN_KEY = 'ssds_access_Token';
-  private readonly REFRESH_TOKEN_KEY = 'ssds_refresh_Token';
+  private readonly ACCESS_TOKEN_KEY = 'ssds_access_token';
+  private readonly REFRESH_TOKEN_KEY = 'ssds_refresh_token';
   private readonly USER_KEY = 'ssds_user_info';
 
   /** 是否使用前端假資料模式（若後端尚未連接則為 true） */
@@ -24,10 +26,20 @@ export class AuthService {
 
   readonly currentUser = signal<UserInfo | null>(this.getStoredUser());
 
+  constructor() {
+    const onStorage = (event: StorageEvent) => {
+      if (event.key === null || event.key === this.USER_KEY || event.key === 'ssds_user_info') {
+        this.currentUser.set(this.getStoredUser());
+      }
+    };
+    window.addEventListener('storage', onStorage);
+    inject(DestroyRef).onDestroy(() => window.removeEventListener('storage', onStorage));
+  }
+
   readonly isLoggedIn = computed(() => !!this.currentUser() && !!this.getAccessToken());
 
   /** 是否為唯讀觀察者 (VIEWER) */
-  readonly isViewer = computed(() => this.currentUser()?.role === 'VIEWER');
+  readonly isViewer = computed(() => this.hasRole('VIEWER'));
 
   /** 是否具備權重發布與編輯權限 (BUYER_LEAD 或 SYS_ADMIN) */
   readonly canManageWeights = computed(() => this.hasRole(['BUYER_LEAD', 'SYS_ADMIN']));
@@ -43,11 +55,8 @@ export class AuthService {
     return this.mockAccounts;
   }
 
-  /**
-   * 登入驗證
-   * 假資料模式下會比對 mock-users 帳密，並給予 400ms 網路延遲模擬
-   */
   login(credentials: LoginRequest): Observable<LoginResponse> {
+    this.clearStoredAuth();
     if (this.useMock) {
       const account = findMockAccount(credentials.email, credentials.password);
       if (!account) {
@@ -57,7 +66,7 @@ export class AuthService {
       }
 
       const mockResponse = createMockLoginResponse(account);
-      return of(mockResponse).pipe(
+      return of(mockResponse as any).pipe(
         delay(400),
         tap(res => {
           this.saveAuthData(res);
@@ -65,17 +74,10 @@ export class AuthService {
       );
     }
 
-    return this.http.post<unknown>('/api/v1/auth/login', credentials).pipe(
-      tap(res => console.log('[AuthService] /auth/login response:', res)),
+    const loginUrl = environment?.apiBaseUrl ? `${environment.apiBaseUrl}/auth/login` : '/api/v1/auth/login';
+    return this.http.post<unknown>(loginUrl, credentials).pipe(
       map(res => {
         const anyRes = res as any;
-
-        // 兼容多種後端回傳結構：
-        // 結構 1: { data: { tokens: { accessToken: "..." } } }
-        // 結構 2: { data: { accessToken: "..." } }
-        // 結構 3: { tokens: { accessToken: "..." } }
-        // 結構 4: { accessToken: "...", roles: [...] } (扁平結構)
-        // 結構 5: { access_token: "..." } (標準 OAuth2 / snake_case)
         const tokens = anyRes?.data?.tokens || anyRes?.tokens;
         const accessToken =
           tokens?.accessToken ||
@@ -94,21 +96,32 @@ export class AuthService {
           anyRes?.refresh_token;
 
         const backendUser = anyRes?.data?.user || anyRes?.user;
-        const roles = backendUser?.roles || anyRes?.data?.roles || anyRes?.roles || [];
+        const rawRoles = backendUser?.roles || anyRes?.data?.roles || anyRes?.roles || (anyRes?.role ? [anyRes.role] : []);
+        const roles: UserRole[] = Array.isArray(rawRoles) ? rawRoles : [rawRoles];
+        const primaryRole: UserRole = roles[0] || 'BUYER';
 
         if (!accessToken) {
           console.error('[AuthService] 無法在後端回應中解析出 accessToken:', res);
           throw new Error(anyRes?.error?.message || anyRes?.message || '登入失敗，未取得驗證 token');
         }
 
+        const email = backendUser?.email ?? anyRes?.email ?? anyRes?.username ?? credentials.email;
+        const displayName = backendUser?.displayName ?? backendUser?.name ?? anyRes?.displayName ?? anyRes?.name ?? email;
+
         const loginResponse: LoginResponse = {
           accessToken: accessToken,
           refreshToken: refreshToken,
+          email: email,
+          displayName: displayName,
+          roles: roles,
           user: {
             id: backendUser?.id ?? anyRes?.id ?? 0,
-            username: backendUser?.email ?? backendUser?.username ?? anyRes?.email ?? credentials.email,
-            name: backendUser?.displayName ?? backendUser?.name ?? backendUser?.email ?? '使用者',
-            role: (roles[0] as any) || 'BUYER',
+            username: email,
+            name: displayName,
+            email: email,
+            displayName: displayName,
+            role: primaryRole,
+            roles: roles,
           }
         };
         this.saveAuthData(loginResponse);
@@ -117,68 +130,177 @@ export class AuthService {
     );
   }
 
-  /** 快速以指定角色模擬登入 */
+  /** 以指定測試帳號登入，身分及 Token 一律由後端核發。 */
   loginAsMock(roleOrEmail: UserRole | string): Observable<LoginResponse> {
     const account = this.mockAccounts.find(
       a => a.role === roleOrEmail || a.email.toLowerCase() === roleOrEmail.toLowerCase()
-    ) || this.mockAccounts[0];
-
-    const mockResponse = createMockLoginResponse(account);
-    return of(mockResponse).pipe(
-      delay(200),
-      tap(res => {
-        this.saveAuthData(res);
-      })
     );
+    if (!account) return throwError(() => new Error('找不到指定的測試帳號'));
+    return this.login({ email: account.email, password: account.password });
   }
 
-  logout(): void {
+  isTokenExpired(token: string | null): boolean {
+    if (!token) return true;
+    try {
+      const parts = token.split('.');
+      if (parts.length !== 3) {
+        // 非 3 段式標準 JWT（如測試中模擬字串），不視為過期
+        return false;
+      }
+      const payloadBase64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+      const payloadJson = atob(payloadBase64);
+      const payload = JSON.parse(payloadJson);
+      if (payload.exp && typeof payload.exp === 'number') {
+        return payload.exp * 1000 <= Date.now();
+      }
+      return false;
+    } catch {
+      return false;
+    }
+  }
+
+  clearStoredAuth(): void {
     localStorage.removeItem(this.ACCESS_TOKEN_KEY);
     localStorage.removeItem(this.REFRESH_TOKEN_KEY);
     localStorage.removeItem(this.USER_KEY);
+    localStorage.removeItem('ssds_access_Token');
+    localStorage.removeItem('ssds_refresh_Token');
+    localStorage.removeItem('ssds_access_token');
+    localStorage.removeItem('ssds_refresh_token');
+    localStorage.removeItem('ssds_user_info');
     this.currentUser.set(null);
-    this.router.navigate(['/login']);
+  }
+
+  logout(): void {
+    this.clearStoredAuth();
+    void this.router.navigate(['/login']);
   }
 
   getAccessToken(): string | null {
-    return localStorage.getItem(this.ACCESS_TOKEN_KEY);
+    const token = this.selectStoredAccessToken();
+    if (!token) return null;
+    if (this.isTokenExpired(token)) {
+      this.clearStoredAuth();
+      return null;
+    }
+    return token;
   }
 
   getRefreshToken(): string | null {
-    return localStorage.getItem(this.REFRESH_TOKEN_KEY);
+    return localStorage.getItem(this.REFRESH_TOKEN_KEY) || localStorage.getItem('ssds_refresh_Token');
   }
 
-  /** 保留舊名稱以防相容性問題 */
   gatRefreshToken(): string | null {
     return this.getRefreshToken();
   }
 
-  hasRole(roles: UserRole | UserRole[]): boolean {
+  hasRole(roles: UserRole | readonly UserRole[]): boolean {
     const user = this.currentUser();
     if (!user) return false;
 
-    if (Array.isArray(roles)) {
-      return roles.includes(user.role);
-    }
-    return user.role === roles;
+    const acceptedRoles = Array.isArray(roles) ? roles : [roles];
+    const userRoles = user.roles && user.roles.length > 0 ? user.roles : (user.role ? [user.role] : []);
+    return userRoles.some(role => (acceptedRoles as any).includes(role));
   }
 
-  private saveAuthData(response: LoginResponse) {
-    localStorage.setItem(this.ACCESS_TOKEN_KEY, response.accessToken);
+  private saveAuthData(response: any): void {
+    const token = response.accessToken || response.data?.accessToken;
+    const tokenIdentity = this.decodeTokenIdentity(token);
+    const email = tokenIdentity?.email || response.email || response.user?.email || response.user?.username || '';
+    const displayName = response.displayName || response.user?.displayName || response.user?.name || email;
+    const rawRoles = tokenIdentity?.roles?.length
+      ? tokenIdentity.roles
+      : response.roles || response.user?.roles || (response.user?.role ? [response.user.role] : ['BUYER']);
+    const roles: UserRole[] = Array.isArray(rawRoles) ? rawRoles : [rawRoles];
+    const primaryRole: UserRole = roles[0] || 'BUYER';
+
+    const user: UserInfo = {
+      id: response.id || response.user?.id || 0,
+      username: email,
+      name: displayName,
+      email: email,
+      displayName: displayName,
+      role: primaryRole,
+      roles: roles,
+    };
+
+    localStorage.setItem(this.ACCESS_TOKEN_KEY, token);
+    localStorage.removeItem('ssds_access_Token');
 
     if (response.refreshToken) {
       localStorage.setItem(this.REFRESH_TOKEN_KEY, response.refreshToken);
+      localStorage.removeItem('ssds_refresh_Token');
+    } else {
+      localStorage.removeItem(this.REFRESH_TOKEN_KEY);
+      localStorage.removeItem('ssds_refresh_Token');
     }
 
-    localStorage.setItem(this.USER_KEY, JSON.stringify(response.user));
-    this.currentUser.set(response.user);
+    localStorage.setItem(this.USER_KEY, JSON.stringify(user));
+    localStorage.setItem('ssds_user_info', JSON.stringify(user));
+    this.currentUser.set(user);
   }
 
   private getStoredUser(): UserInfo | null {
-    const data = localStorage.getItem(this.USER_KEY);
+    const token = this.selectStoredAccessToken();
+    if (!token || this.isTokenExpired(token)) {
+      return null;
+    }
+    const data = localStorage.getItem(this.USER_KEY) || localStorage.getItem('ssds_user_info');
     if (!data) return null;
     try {
-      return JSON.parse(data) as UserInfo;
+      const parsed = JSON.parse(data);
+      if (!parsed) return null;
+      const tokenIdentity = this.decodeTokenIdentity(token);
+      const roles: UserRole[] = tokenIdentity?.roles?.length
+        ? tokenIdentity.roles
+        : Array.isArray(parsed.roles) ? parsed.roles : (parsed.role ? [parsed.role] : ['BUYER']);
+      const email = tokenIdentity?.email ?? parsed.email ?? parsed.username ?? '';
+      return {
+        id: parsed.id ?? 0,
+        username: email,
+        name: parsed.name ?? parsed.displayName ?? '使用者',
+        email,
+        displayName: parsed.displayName ?? parsed.name ?? '使用者',
+        role: roles[0] ?? parsed.role ?? 'BUYER',
+        roles: roles,
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  private selectStoredAccessToken(): string | null {
+    const canonical = localStorage.getItem(this.ACCESS_TOKEN_KEY);
+    const legacy = localStorage.getItem('ssds_access_Token');
+    if (!canonical || !legacy || canonical === legacy) return canonical || legacy;
+
+    const storedUser = localStorage.getItem(this.USER_KEY);
+    let expectedEmail = '';
+    try {
+      const parsed = storedUser ? JSON.parse(storedUser) : null;
+      expectedEmail = String(parsed?.email ?? parsed?.username ?? '').toLowerCase();
+    } catch {
+      // 使用標準鍵作為無法解析舊資料時的安全預設。
+    }
+    if (expectedEmail) {
+      const canonicalEmail = this.decodeTokenIdentity(canonical)?.email?.toLowerCase();
+      const legacyEmail = this.decodeTokenIdentity(legacy)?.email?.toLowerCase();
+      if (canonicalEmail === expectedEmail) return canonical;
+      if (legacyEmail === expectedEmail) return legacy;
+    }
+    return canonical;
+  }
+
+  private decodeTokenIdentity(token: string | null | undefined): { email?: string; roles: UserRole[] } | null {
+    if (!token) return null;
+    try {
+      const parts = token.split('.');
+      if (parts.length !== 3) return null;
+      const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+      const padded = base64.padEnd(Math.ceil(base64.length / 4) * 4, '=');
+      const payload = JSON.parse(atob(padded));
+      const roles = Array.isArray(payload.roles) ? payload.roles : [];
+      return { email: typeof payload.sub === 'string' ? payload.sub : undefined, roles };
     } catch {
       return null;
     }

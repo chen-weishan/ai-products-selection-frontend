@@ -445,4 +445,41 @@ mat-paginator {
     }
   }
 }
-
+
+.keyword-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 0;
+  background: transparent;
+  color: var(--ink-2);
+  font: inherit;
+  cursor: pointer;
+
+  .toggle-track {
+    position: relative;
+    width: 34px;
+    height: 18px;
+    flex: 0 0 34px;
+    border-radius: 999px;
+    background: #cbd5e1;
+  }
+
+  .toggle-thumb {
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #fff;
+    transition: transform 120ms ease;
+  }
+
+  .toggle-label { font-size: 12px; }
+  &.is-on { color: var(--a); }
+  &.is-on .toggle-track { background: var(--a); }
+  &.is-on .toggle-thumb { transform: translateX(16px); }
+  &:focus-visible { outline: 2px solid var(--a); outline-offset: 3px; border-radius: 4px; }
+  &:disabled { cursor: not-allowed; opacity: 0.5; }
+}
