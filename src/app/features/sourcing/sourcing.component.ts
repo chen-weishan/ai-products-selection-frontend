@@ -44,7 +44,7 @@ export class SourcingComponent implements OnInit, OnDestroy {
   public keyword = signal<string>('');
   public scoutReport = signal<any | null>(null);
   public scoutError = signal<string | null>(null);
-  public frequency = signal<string>('0/100');
+  public frequency = signal<string>('0/200');
   public isQuotaExhausted = signal<boolean>(false);
 
   goToQueue() {
@@ -140,7 +140,7 @@ export class SourcingComponent implements OnInit, OnDestroy {
         const trackBPool = pools.find((p: any) => p.pool === 'TRACK_B');
         if (trackBPool) {
           const used = trackBPool.used ?? 0;
-          const limit = 100;
+          const limit = trackBPool.limit ?? 200;
           this.frequency.set(`${used}/${limit}`);
           this.isQuotaExhausted.set(used >= limit || trackBPool.status === 'EXHAUSTED');
         }
