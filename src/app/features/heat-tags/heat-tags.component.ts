@@ -473,7 +473,7 @@ export class HeatTagsComponent implements OnInit {
         note: this.note().trim() || undefined
       };
 
-      this.heatTagApi.create1(
+      this.heatTagApi.create2(
         { manualHeatTagCreateRequest: createPayload as any },
         'body',
         false,

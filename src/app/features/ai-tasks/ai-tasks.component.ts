@@ -244,7 +244,7 @@ export class AiTasksComponent implements OnInit, OnDestroy {
       if (!result) return;
 
       this.aiTasksService
-        .create2({
+        .create3({
           createAiTaskRequest: {
             taskType: result.taskType,
             productIds: result.productIds,
