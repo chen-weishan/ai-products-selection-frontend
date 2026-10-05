@@ -251,9 +251,14 @@
   }
 }
 
+.table-scroll {
+  overflow-x: auto;
+}
+
 // ── Material 表格客製化 ───────────────────────────────
 .trend-table {
   width: 100%;
+  min-width: 900px;
   border-collapse: collapse;
   background: transparent;
 
@@ -287,6 +292,64 @@
     padding: 32px 16px;
     color: var(--ink-3);
     font-size: 13px;
+  }
+}
+
+.keyword-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 0;
+  background: transparent;
+  color: var(--ink-2);
+  font: inherit;
+  cursor: pointer;
+
+  .toggle-track {
+    position: relative;
+    width: 34px;
+    height: 18px;
+    flex: 0 0 34px;
+    border-radius: 999px;
+    background: #cbd5e1;
+  }
+
+  .toggle-thumb {
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #ffffff;
+    transition: transform 0.15s ease;
+  }
+
+  .toggle-label {
+    font-size: 12px;
+  }
+
+  &.is-on {
+    color: var(--a);
+
+    .toggle-track {
+      background: var(--a);
+    }
+
+    .toggle-thumb {
+      transform: translateX(16px);
+    }
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--a);
+    outline-offset: 3px;
+    border-radius: 4px;
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
   }
 }
 

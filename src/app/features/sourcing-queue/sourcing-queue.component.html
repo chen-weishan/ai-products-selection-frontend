@@ -31,6 +31,9 @@
 
 <!-- 主清單表格卡片 (遵循規範 .card.table-card) ────────── -->
 <div class="card table-card">
+  @if (loadError()) {
+  <div class="queue-error" role="alert">{{ loadError() }}</div>
+  }
   <table mat-table [dataSource]="paginatedItems()" class="sourcing-table">
     <!-- 序號 Column -->
     <ng-container matColumnDef="index">
@@ -117,7 +120,7 @@
     <!-- 空資料提示列 -->
     <tr class="mat-row no-data-row" *matNoDataRow>
       <td class="mat-cell empty-cell" [attr.colspan]="displayedColumns.length">
-        目前無符合條件的尋源品項，請點擊上方「+ 新增探索」開始進行 AI 尋源評估！
+        {{ loadError() || '目前無符合條件的尋源品項，請點擊上方「+ 新增探索」開始進行 AI 尋源評估！' }}
       </td>
     </tr>
   </table>
