@@ -251,9 +251,14 @@
   }
 }
 
+.table-scroll {
+  overflow-x: auto;
+}
+
 // ── Material 表格客製化 ───────────────────────────────
 .trend-table {
   width: 100%;
+  min-width: 900px;
   border-collapse: collapse;
   background: transparent;
 

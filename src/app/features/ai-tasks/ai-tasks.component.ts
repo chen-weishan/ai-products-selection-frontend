@@ -50,6 +50,7 @@ export class AiTasksComponent implements OnInit, OnDestroy {
   readonly pageIndex = signal<number>(0);
   readonly pageSize = signal<number>(10);
   readonly selectedStatus = signal<string>('ALL');
+  readonly currentTime = signal<number>(Date.now());
 
   readonly isLoading = signal<boolean>(false);
   readonly expandedTaskId = signal<number | null>(null);
@@ -167,6 +168,7 @@ export class AiTasksComponent implements OnInit, OnDestroy {
   private startPolling(): void {
     if (this.pollTimer) return;
     this.pollTimer = setInterval(() => {
+      this.currentTime.set(Date.now());
       this.loadSummary(true);
       this.loadBudget(true);
       this.loadTasks(true);
@@ -344,7 +346,7 @@ export class AiTasksComponent implements OnInit, OnDestroy {
     if (!startedAt) return '-';
     const start = new Date(startedAt).getTime();
     if (isNaN(start)) return '-';
-    const end = finishedAt ? new Date(finishedAt).getTime() : Date.now();
+    const end = finishedAt ? new Date(finishedAt).getTime() : this.currentTime();
     const diffSec = Math.max(0, Math.floor((end - start) / 1000));
     if (diffSec < 60) return `${diffSec} 秒`;
     const min = Math.floor(diffSec / 60);
