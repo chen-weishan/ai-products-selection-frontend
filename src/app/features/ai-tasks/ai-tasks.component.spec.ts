@@ -234,5 +234,8 @@ describe('AiTasksComponent', () => {
 
     const duration = component.calculateDuration('2026-09-26T10:00:00Z', '2026-09-26T10:02:15Z');
     expect(duration).toBe('2 分 15 秒');
+
+    component.currentTime.set(new Date('2026-09-26T10:05:00Z').getTime());
+    expect(component.calculateDuration('2026-09-26T10:00:00Z')).toBe('5 分 0 秒');
   });
 });

@@ -11,7 +11,6 @@ import { FormsModule } from '@angular/forms';
 import { finalize, forkJoin, of, Subscription, switchMap } from 'rxjs';
 import { AuthService } from '../../core/auth/auth.service';
 import { DialogService } from '../../services/dialog-service';
-import { TrendKeywordAdminService } from './trend-keyword-admin.service';
 
 type TrendListRow = TrendSignalRow & { enabled: boolean };
 
@@ -55,7 +54,6 @@ export function getZhPaginatorIntl(): MatPaginatorIntl {
 export class TrendsComponent implements OnInit {
   private readonly trendService = inject(TrendControllerService);
   private readonly keywordService = inject(ProductReferenceControllerService);
-  private readonly keywordAdminService = inject(TrendKeywordAdminService);
   private readonly authService = inject(AuthService);
   private readonly dialogService = inject(DialogService);
   private readonly router = inject(Router);
@@ -69,7 +67,9 @@ export class TrendsComponent implements OnInit {
   enabledFilter = signal<'ALL' | 'ENABLED' | 'DISABLED'>('ALL');
   readonly canManageKeywords = this.authService.canManageImports;
   readonly pendingKeywordIds = signal<ReadonlySet<number>>(new Set());
-  readonly enabledKeywordCount = computed(() => this.trendList().filter((item) => item.enabled).length);
+  readonly enabledKeywordCount = computed(() =>
+    this.trendList().filter((item) => this.isKeywordEnabled(item)).length
+  );
 
   // 分頁控制 Signals
   pageIndex = signal<number>(0);
@@ -93,9 +93,9 @@ export class TrendsComponent implements OnInit {
     }
 
     if (enabledFilter === 'ENABLED') {
-      list = list.filter((item) => item.enabled);
+      list = list.filter((item) => this.isKeywordEnabled(item));
     } else if (enabledFilter === 'DISABLED') {
-      list = list.filter((item) => !item.enabled);
+      list = list.filter((item) => !this.isKeywordEnabled(item));
     }
 
     return list;
@@ -176,20 +176,26 @@ export class TrendsComponent implements OnInit {
     'keywordEnabled'
   ];
 
+  isKeywordEnabled(row: TrendSignalRow): boolean {
+    return row.enabled !== false;
+  }
+
   isKeywordPending(keywordId: number | undefined): boolean {
     return keywordId !== undefined && this.pendingKeywordIds().has(keywordId);
   }
 
-  onKeywordToggle(event: MouseEvent, row: TrendListRow): void {
+  onKeywordToggle(event: MouseEvent, row: TrendSignalRow): void {
     event.stopPropagation();
     const keywordId = row.keywordId;
-    if (!this.canManageKeywords() || keywordId === undefined || this.isKeywordPending(keywordId)) return;
+    if (!this.canManageKeywords() || keywordId === undefined || this.isKeywordPending(keywordId)) {
+      return;
+    }
 
-    const enabled = !row.enabled;
+    const enabled = !this.isKeywordEnabled(row);
     this.setKeywordPending(keywordId, true);
     const confirmation$ = enabled
       ? of(true)
-      : this.keywordAdminService.getUsage(keywordId).pipe(
+      : this.keywordService.getTrendKeywordUsage({ id: keywordId }).pipe(
           switchMap((response) => {
             const products = response.data?.products ?? [];
             if (products.length === 0) return of(true);
@@ -201,24 +207,27 @@ export class TrendsComponent implements OnInit {
               cancelText: '取消',
               isDanger: true,
             });
-          }),
+          })
         );
 
     confirmation$.pipe(
       switchMap((confirmed) => confirmed
-        ? this.keywordAdminService.updateEnabled(keywordId, enabled)
+        ? this.keywordService.updateTrendKeywordEnabled({
+            id: keywordId,
+            trendKeywordEnabledUpdateRequest: { enabled },
+          })
         : of(null)),
       finalize(() => this.setKeywordPending(keywordId, false)),
-      takeUntilDestroyed(this.destroyRef),
+      takeUntilDestroyed(this.destroyRef)
     ).subscribe({
       next: (response) => {
         if (response === null) return;
         const savedEnabled = response.data?.enabled ?? enabled;
         this.trendList.update((rows) => rows.map((item) =>
-          item.keywordId === keywordId ? { ...item, enabled: savedEnabled } : item,
+          item.keywordId === keywordId ? { ...item, enabled: savedEnabled } : item
         ));
       },
-      error: () => this.errorMessage.set('關鍵字啟用狀態更新失敗；目前後端可能尚未提供管理端點。'),
+      error: () => this.errorMessage.set('關鍵字啟用狀態更新失敗，請稍後再試。'),
     });
   }
 
@@ -233,7 +242,11 @@ export class TrendsComponent implements OnInit {
         enabled: keyword.enabled !== false,
       } as TrendListRow));
     const knownIds = new Set(rows.map((row) => row.keywordId));
-    rows.push(...trends.filter((row) => !knownIds.has(row.keywordId)).map((row) => ({ ...row, enabled: true })));
+    rows.push(
+      ...trends
+        .filter((row) => !knownIds.has(row.keywordId))
+        .map((row) => ({ ...row, enabled: row.enabled !== false })),
+    );
     return rows;
   }
 

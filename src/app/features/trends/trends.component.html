@@ -22,21 +22,21 @@
     </mat-form-field>
 
     <mat-form-field appearance="outline" class="filter-field select-field" subscriptSizing="dynamic">
+        <mat-label>背離訊號</mat-label>
+        <mat-select [ngModel]="aiFilter()" (ngModelChange)="onFilterChange($event)" panelClass="unified-mat-select-panel">
+            <mat-option value="ALL">全部狀態</mat-option>
+            <mat-option value="NORMAL">常態</mat-option>
+            <mat-option value="WARN">背離警示</mat-option>
+        </mat-select>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" class="filter-field select-field" subscriptSizing="dynamic">
         <mat-label>啟用狀態</mat-label>
         <mat-select [ngModel]="enabledFilter()" (ngModelChange)="onEnabledFilterChange($event)"
             panelClass="unified-mat-select-panel">
             <mat-option value="ALL">全部狀態</mat-option>
             <mat-option value="ENABLED">啟用</mat-option>
             <mat-option value="DISABLED">停用</mat-option>
-        </mat-select>
-    </mat-form-field>
-
-    <mat-form-field appearance="outline" class="filter-field select-field" subscriptSizing="dynamic">
-        <mat-label>背離訊號</mat-label>
-        <mat-select [ngModel]="aiFilter()" (ngModelChange)="onFilterChange($event)" panelClass="unified-mat-select-panel">
-            <mat-option value="ALL">全部狀態</mat-option>
-            <mat-option value="NORMAL">常態</mat-option>
-            <mat-option value="WARN">背離警示</mat-option>
         </mat-select>
     </mat-form-field>
 
@@ -57,6 +57,7 @@
 
 <!-- 主內容卡片 ───────────────────────────────────────── -->
 <div class="card table-card">
+    <div class="table-scroll">
     <table mat-table [dataSource]="paginatedTrends()" class="trend-table">
 
         <!-- 關鍵字 Column -->
@@ -64,21 +65,6 @@
             <th mat-header-cell *matHeaderCellDef> 關鍵字 </th>
             <td mat-cell *matCellDef="let element">
                 <span class="kw-text">{{element.keyword}}</span>
-            </td>
-        </ng-container>
-
-        <ng-container matColumnDef="keywordEnabled">
-            <th mat-header-cell *matHeaderCellDef> 關鍵字啟用 </th>
-            <td mat-cell *matCellDef="let element" class="toggle-cell">
-                <button type="button" class="keyword-toggle" role="switch"
-                    [class.is-on]="element.enabled" [attr.aria-checked]="element.enabled"
-                    [attr.aria-label]="(element.enabled ? '停用' : '啟用') + '關鍵字 ' + element.keyword"
-                    [attr.title]="canManageKeywords() ? '切換關鍵字啟用狀態' : '僅資料管理員與系統管理員可操作'"
-                    [disabled]="!canManageKeywords() || isKeywordPending(element.keywordId)"
-                    (click)="onKeywordToggle($event, element)">
-                    <span class="toggle-track" aria-hidden="true"><span class="toggle-thumb"></span></span>
-                    <span class="toggle-label">{{ element.enabled ? '啟用' : '停用' }}</span>
-                </button>
             </td>
         </ng-container>
 
@@ -129,6 +115,23 @@
             </td>
         </ng-container>
 
+        <!-- 關鍵字啟用狀態 Column -->
+        <ng-container matColumnDef="keywordEnabled">
+            <th mat-header-cell *matHeaderCellDef> 關鍵字啟用 </th>
+            <td mat-cell *matCellDef="let element" class="toggle-cell">
+                <button type="button" class="keyword-toggle" role="switch"
+                    [class.is-on]="isKeywordEnabled(element)"
+                    [attr.aria-checked]="isKeywordEnabled(element)"
+                    [attr.aria-label]="(isKeywordEnabled(element) ? '停用' : '啟用') + '關鍵字 ' + element.keyword"
+                    [attr.title]="canManageKeywords() ? '切換關鍵字啟用狀態' : '僅資料管理員與系統管理員可操作'"
+                    [disabled]="!canManageKeywords() || isKeywordPending(element.keywordId)"
+                    (click)="onKeywordToggle($event, element)">
+                    <span class="toggle-track" aria-hidden="true"><span class="toggle-thumb"></span></span>
+                    <span class="toggle-label">{{ isKeywordEnabled(element) ? '啟用' : '停用' }}</span>
+                </button>
+            </td>
+        </ng-container>
+
         <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
         <tr mat-row *matRowDef="let row; columns: displayedColumns;" class="clickable-row"
             tabindex="0" [attr.aria-label]="'查看 ' + row.keyword + ' 趨勢詳情'"
@@ -141,6 +144,7 @@
             </td>
         </tr>
     </table>
+    </div>
 
     <!-- 分頁器 (MatPaginator) ────────────────────────── -->
     <mat-paginator

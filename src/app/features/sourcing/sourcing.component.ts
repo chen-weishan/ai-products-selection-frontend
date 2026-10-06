@@ -4,8 +4,8 @@ import {
   AiBudgetControllerService,
   ProductReferenceControllerService,
   CategoryTreeResponse,
-  ProductControllerService,
-  SourcingScoutControllerService
+  SourcingScoutControllerService,
+  SourcingScoutResponse
 } from '../../api';
 import { inject } from '@angular/core';
 import { signal } from '@angular/core';
@@ -29,7 +29,6 @@ export class SourcingComponent implements OnInit, OnDestroy {
   private pollTimer: any = null;
   private readonly router = inject(Router);
   private readonly categoryService = inject(ProductReferenceControllerService);
-  private readonly productService = inject(ProductControllerService);
   private sourcingService = inject(SourcingScoutControllerService);
   private aiTasksService = inject(AITasksService);
   private aiBudgetService = inject(AiBudgetControllerService);
@@ -46,6 +45,7 @@ export class SourcingComponent implements OnInit, OnDestroy {
   public scoutError = signal<string | null>(null);
   public frequency = signal<string>('0/200');
   public isQuotaExhausted = signal<boolean>(false);
+  public isActionPending = signal<boolean>(false);
 
   goToQueue() {
     console.log('🚀 [SourcingComponent] 點擊「尋源優先序」，正在跳轉至 /sourcing-queue ...');
@@ -168,6 +168,7 @@ export class SourcingComponent implements OnInit, OnDestroy {
 
     this.scoutReport.set(null);
     this.scoutError.set(null);
+    this.isActionPending.set(false);
     this.isScouting.set(true);
     this.scoutStartTime = Date.now();
 
@@ -253,8 +254,11 @@ export class SourcingComponent implements OnInit, OnDestroy {
                 next: async (itemsRes: any) => {
                   const itemsData = await this.unpack(itemsRes);
                   const items = itemsData?.data ?? itemsData ?? [];
+                  const itemId = items?.[0]?.itemId;
                   const pId = items?.[0]?.productId;
-                  if (pId) {
+                  if (itemId) {
+                    this.fetchScoutResult(itemId);
+                  } else if (pId) {
                     this.fetchReport(pId);
                   } else {
                     console.error('無法在任務項目中找到 productId', itemsData);
@@ -341,6 +345,24 @@ export class SourcingComponent implements OnInit, OnDestroy {
     });
   }
 
+  private fetchScoutResult(itemId: number) {
+    this.sourcingService.latestResult({ itemId }).subscribe({
+      next: async (res: any) => {
+        const responseData = await this.unpack(res);
+        this.scoutReport.set(responseData?.data ?? responseData);
+        const elapsed = Math.max(1, Math.round((Date.now() - this.scoutStartTime) / 1000));
+        this.executionSeconds.set(elapsed);
+        this.fetchBudget();
+        this.isScouting.set(false);
+      },
+      error: (err: any) => {
+        console.error('取得尋源探索結果失敗', err);
+        this.isScouting.set(false);
+        this.scoutError.set('查詢失敗：無法取得 AI 尋源分析報告。');
+      }
+    });
+  }
+
   /** 通用 Blob 與 JSON 解包輔助函數 */
   private async unpack(res: any): Promise<any> {
     if (res instanceof Blob) {
@@ -358,7 +380,9 @@ export class SourcingComponent implements OnInit, OnDestroy {
   getHeatStageText(stage?: string): string {
     const map: Record<string, string> = {
       PEAK: '高原期',
+      PLATEAU: '高原期',
       GROWING: '成長期',
+      RISING: '上升期',
       STABLE: '穩定期',
       DECLINING: '衰退期',
       EMERGING: '萌芽期'
@@ -369,7 +393,9 @@ export class SourcingComponent implements OnInit, OnDestroy {
   getHeatStageBadgeClass(stage?: string): string {
     switch (stage) {
       case 'PEAK':
+      case 'PLATEAU':
       case 'GROWING':
+      case 'RISING':
         return 'status-normal';
       case 'DECLINING':
         return 'status-warn';
@@ -379,11 +405,11 @@ export class SourcingComponent implements OnInit, OnDestroy {
   }
 
   /** 計算前置期天數（壽命 - 落差） */
-  getLeadTimeDays(report: any): number {
+  getLeadTimeDays(report: SourcingScoutResponse): number | null {
     if (report.estimatedLifespanDays != null && report.timeGapDays != null) {
       return report.estimatedLifespanDays - report.timeGapDays;
     }
-    return 21; // 預設
+    return null;
   }
 
   /** 取得時效落差的結論文字 */
@@ -395,33 +421,24 @@ export class SourcingComponent implements OnInit, OnDestroy {
   }
 
   /** 點擊「存為觀察」 */
-  saveAsWatching(productId: number) {
-    const report = this.scoutReport();
-    const catId = this.selectedCategoryId() ?? report?.categoryId;
-    const kw = this.keyword() || report?.productName || report?.keyword;
+  saveAsWatching(report: SourcingScoutResponse) {
+    if (!report?.canWatch || this.isActionPending()) return;
 
-    if (!catId) {
-      this.dialogService.Confirm({
-        title: '提示',
-        message: '缺少品類資料，無法儲存！',
-        confirmText: '確定',
-        isDanger: true
-      });
-      return;
-    }
+    this.isActionPending.set(true);
+    const request = report.itemId != null && report.productId == null
+      ? this.sourcingService.watchResult({ itemId: report.itemId })
+      : this.sourcingService.watch({ productId: report.productId! });
 
-    this.productService.updateProduct({
-      id: productId,
-      productUpdateRequest: {
-        name: kw,
-        categoryId: catId,
-        trackType: 'B',
-        sourcingStatus: 'PENDING',
-        keywordIds: report?.keywordId ? [report.keywordId] : undefined
-      } as any
-    }).subscribe({
+    request.subscribe({
       next: async (res: any) => {
-        await this.unpack(res);
+        const response = await this.unpack(res);
+        const data = response?.data ?? response;
+        this.isActionPending.set(false);
+        if (report.itemId != null && report.productId == null) {
+          this.scoutReport.set(data);
+        } else if (report.productId != null) {
+          this.fetchReport(report.productId);
+        }
         this.dialogService.Confirm({
           title: '操作成功',
           message: '已成功將此品項標記並儲存為「觀察中」！',
@@ -429,11 +446,12 @@ export class SourcingComponent implements OnInit, OnDestroy {
           isDanger: false
         });
       },
-      error: (err: any) => {
+      error: async (err: any) => {
+        this.isActionPending.set(false);
         console.error('儲存為觀察失敗', err);
         this.dialogService.Confirm({
           title: '儲存失敗',
-          message: '更新品項狀態失敗，請稍後再試！',
+          message: await this.getApiErrorMessage(err, '更新品項狀態失敗，請稍後再試！'),
           confirmText: '確定',
           isDanger: true
         });
@@ -442,35 +460,48 @@ export class SourcingComponent implements OnInit, OnDestroy {
   }
 
   /** 點擊「加入尋源優先序」 */
-  addToSourcingQueue(report: any) {
-    if (report.timeGapDays !== null && report.timeGapDays < 0) {
+  canSaveAsWatching(report: SourcingScoutResponse | null): boolean {
+    return Boolean(report?.canWatch) && !this.isActionPending();
+  }
+
+  canAddToSourcingQueue(report: SourcingScoutResponse | null): boolean {
+    return Boolean(report?.canPrioritize)
+      && report?.timeGapDays != null
+      && report.timeGapDays >= 0
+      && !this.isActionPending();
+  }
+
+  addToSourcingQueue(report: SourcingScoutResponse) {
+    if (!this.canAddToSourcingQueue(report)) {
       this.dialogService.Confirm({
         title: '無法加入尋源',
-        message: '此商品時效落差為負（來不及上架），依否決規則不可加入尋源優先序！',
+        message: report?.prioritizeDisabledReason
+          ?? '目前資料不符合加入尋源優先序的條件。',
         confirmText: '我知道了',
         isDanger: true
       });
       return;
     }
 
-    const productId = report.productId;
-    const catId = this.selectedCategoryId() ?? report.categoryId;
-    const kw = this.keyword() || report.productName || report.keyword;
-    const targetStatus: 'SOURCING' | 'URGENT' = (report.timeGapDays !== null && report.timeGapDays <= 14) ? 'URGENT' : 'SOURCING';
+    this.isActionPending.set(true);
+    const request = report.itemId != null && report.productId == null
+      ? this.sourcingService.prioritizeResult({ itemId: report.itemId })
+      : this.sourcingService.prioritize({ productId: report.productId! });
 
-    this.productService.updateProduct({
-      id: productId,
-      productUpdateRequest: {
-        name: kw,
-        categoryId: catId,
-        trackType: 'B',
-        sourcingStatus: targetStatus,
-        keywordIds: report.keywordId ? [report.keywordId] : undefined
-      } as any
-    }).subscribe({
+    request.subscribe({
       next: async (res: any) => {
-        await this.unpack(res);
-        const statusText = targetStatus === 'URGENT' ? '需加速尋源' : '尋源中';
+        const response = await this.unpack(res);
+        const data = response?.data ?? response;
+        const targetStatus = data?.sourcingStatus;
+        this.isActionPending.set(false);
+        if (report.itemId != null && report.productId == null) {
+          this.scoutReport.set(data);
+        } else if (report.productId != null) {
+          this.fetchReport(report.productId);
+        }
+        const statusText = targetStatus === 'REJECTED'
+          ? '已淘汰'
+          : targetStatus === 'URGENT' ? '需加速尋源' : '尋源中';
         this.dialogService.Confirm({
           title: '尋源成功',
           message: `已成功將品項加入「尋源優先序清單」（狀態：${statusText}）！`,
@@ -478,16 +509,33 @@ export class SourcingComponent implements OnInit, OnDestroy {
           isDanger: false
         });
       },
-      error: (err: any) => {
+      error: async (err: any) => {
+        this.isActionPending.set(false);
         console.error('加入尋源優先序失敗', err);
         this.dialogService.Confirm({
           title: '操作失敗',
-          message: '加入尋源優先序失敗，請稍後再試！',
+          message: await this.getApiErrorMessage(err, '加入尋源優先序失敗，請稍後再試！'),
           confirmText: '確定',
           isDanger: true
         });
       }
     });
+  }
+
+  getPrioritizeDisabledReason(report: SourcingScoutResponse): string {
+    if (this.isActionPending()) return '操作處理中，請稍候。';
+    if (report.timeGapDays != null && report.timeGapDays < 0) {
+      return '時效落差為負值，不可加入尋源清單。';
+    }
+    return report.prioritizeDisabledReason ?? '';
+  }
+
+  private async getApiErrorMessage(err: any, fallback: string): Promise<string> {
+    const body = err?.error instanceof Blob ? await this.unpack(err.error) : err?.error;
+    return body?.error?.message
+      ?? body?.message
+      ?? err?.message
+      ?? fallback;
   }
 
 
