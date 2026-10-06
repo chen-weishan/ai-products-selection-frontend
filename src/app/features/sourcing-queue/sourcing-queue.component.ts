@@ -1,14 +1,16 @@
-import { Component, OnInit, signal, computed, inject } from '@angular/core';
+import { Component, OnInit, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { HttpContext } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { MatTableModule } from '@angular/material/table';
 import { MatPaginatorModule, PageEvent, MatPaginatorIntl } from '@angular/material/paginator';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatSelectModule } from '@angular/material/select';
-import { ProductControllerService, SourcingScoutControllerService } from '../../api';
-import { firstValueFrom, of } from 'rxjs';
-import { catchError } from 'rxjs/operators';
+import { SourcingScoutControllerService } from '../../api';
+import { firstValueFrom } from 'rxjs';
+import { SKIP_GLOBAL_LOADING } from '../../core/http/loading-interceptor';
+import { SourcingQueueFilter, SourcingQueueService } from './sourcing-queue.service';
 
 export interface SourcingQueueItem {
   productId: number;
@@ -61,7 +63,7 @@ export function getZhPaginatorIntl(): MatPaginatorIntl {
 })
 export class SourcingQueueComponent implements OnInit {
   private readonly router = inject(Router);
-  private readonly productService = inject(ProductControllerService);
+  private readonly queueService = inject(SourcingQueueService);
   private readonly sourcingService = inject(SourcingScoutControllerService);
 
   readonly displayedColumns: string[] = [
@@ -72,89 +74,24 @@ export class SourcingQueueComponent implements OnInit {
     'leadTime',
     'timeGap',
     'status',
+    'action',
   ];
 
   // 狀態訊號 (Signals)
   items = signal<SourcingQueueItem[]>([]);
-  selectedStatus = signal<string>('ALL');
+  selectedStatus = signal<SourcingQueueFilter>('ALL');
+  loadError = signal<string | null>(null);
+  actionError = signal<string | null>(null);
+  pendingProductId = signal<number | null>(null);
+  totalElements = signal<number>(0);
+  activeCount = signal<number>(0);
+  rejectedCount = signal<number>(0);
+  promotedCount = signal<number>(0);
 
   // 分頁控制 Signals
   pageIndex = signal<number>(0);
   pageSize = signal<number>(10);
   readonly pageSizeOptions: number[] = [5, 10, 20, 50];
-
-  private static readonly MOCK_QUEUE_ITEMS: SourcingQueueItem[] = [
-    {
-      productId: 101,
-      keyword: '杜拜巧克力 (開心果夾心)',
-      heatStage: 'PLATEAU',
-      stageWeeks: 2,
-      estimatedLifespanDays: 45,
-      leadTimeDays: 21,
-      timeGapDays: 24,
-      sourcingStatus: 'SOURCING',
-    },
-    {
-      productId: 102,
-      keyword: '燕麥奶生乳酪蛋糕',
-      heatStage: 'RISING',
-      stageWeeks: 1,
-      estimatedLifespanDays: 60,
-      leadTimeDays: 14,
-      timeGapDays: 46,
-      sourcingStatus: 'SOURCING',
-    },
-    {
-      productId: 103,
-      keyword: '泰式酸辣烘烤洋芋片',
-      heatStage: 'PLATEAU',
-      stageWeeks: 4,
-      estimatedLifespanDays: 28,
-      leadTimeDays: 21,
-      timeGapDays: 7,
-      sourcingStatus: 'URGENT',
-    },
-    {
-      productId: 104,
-      keyword: '抹茶厚蛋捲禮盒',
-      heatStage: 'RISING',
-      stageWeeks: 2,
-      estimatedLifespanDays: 50,
-      leadTimeDays: 28,
-      timeGapDays: 22,
-      sourcingStatus: 'PENDING',
-    },
-    {
-      productId: 105,
-      keyword: '氣泡冷萃咖啡濃縮液',
-      heatStage: 'DECLINING',
-      stageWeeks: 5,
-      estimatedLifespanDays: 15,
-      leadTimeDays: 30,
-      timeGapDays: -15,
-      sourcingStatus: 'REJECTED',
-    },
-    {
-      productId: 106,
-      keyword: '黑松露風味肉乾條',
-      heatStage: 'PLATEAU',
-      stageWeeks: 3,
-      estimatedLifespanDays: 35,
-      leadTimeDays: 18,
-      timeGapDays: 17,
-      sourcingStatus: 'PROMOTED',
-    },
-    {
-      productId: 107,
-      keyword: '低卡高蛋白燕麥脆穀棒',
-      heatStage: 'RISING',
-      stageWeeks: 3,
-      estimatedLifespanDays: 55,
-      leadTimeDays: 25,
-      timeGapDays: 30,
-      sourcingStatus: 'SOURCING',
-    }
-  ];
 
   goToSourcing() {
     console.log('🚀 [SourcingQueueComponent] 點擊「+ 新增探索」按鈕，跳轉至 /sourcing');
@@ -163,65 +100,6 @@ export class SourcingQueueComponent implements OnInit {
     });
   }
 
-  // 頂部統計指標
-  activeCount = computed(() => {
-    return this.items().filter((i) =>
-      ['SOURCING', 'URGENT', 'EXPEDITE', 'PENDING', 'EVALUATING'].includes(i.sourcingStatus)
-    ).length;
-  });
-
-  rejectedCount = computed(() => {
-    return this.items().filter((i) => ['REJECTED', 'ELIMINATED'].includes(i.sourcingStatus)).length;
-  });
-
-  promotedCount = computed(() => {
-    return this.items().filter((i) => ['PROMOTED', 'CONVERTED'].includes(i.sourcingStatus)).length;
-  });
-
-  // 篩選與排序後的總清單（未淘汰依時效落差升冪，已淘汰置底）
-  filteredItems = computed(() => {
-    const list = this.items();
-    const filter = this.selectedStatus();
-
-    let filtered = list;
-    if (filter === 'ACTIVE') {
-      filtered = list.filter((i) =>
-        ['SOURCING', 'URGENT', 'EXPEDITE', 'PENDING', 'EVALUATING'].includes(i.sourcingStatus)
-      );
-    } else if (filter === 'URGENT') {
-      filtered = list.filter((i) => ['URGENT', 'EXPEDITE'].includes(i.sourcingStatus));
-    } else if (filter === 'PENDING') {
-      filtered = list.filter((i) => ['PENDING', 'EVALUATING'].includes(i.sourcingStatus));
-    } else if (filter === 'PROMOTED') {
-      filtered = list.filter((i) => ['PROMOTED', 'CONVERTED'].includes(i.sourcingStatus));
-    } else if (filter === 'REJECTED') {
-      filtered = list.filter((i) => ['REJECTED', 'ELIMINATED'].includes(i.sourcingStatus));
-    } else if (filter !== 'ALL') {
-      filtered = list.filter((i) => i.sourcingStatus === filter);
-    }
-
-    return [...filtered].sort((a, b) => {
-      const aRejected = a.sourcingStatus === 'REJECTED' || a.sourcingStatus === 'ELIMINATED';
-      const bRejected = b.sourcingStatus === 'REJECTED' || b.sourcingStatus === 'ELIMINATED';
-      if (aRejected !== bRejected) return aRejected ? 1 : -1;
-
-      if (a.timeGapDays == null && b.timeGapDays == null) return 0;
-      if (a.timeGapDays == null) return 1;
-      if (b.timeGapDays == null) return -1;
-      return a.timeGapDays - b.timeGapDays;
-    });
-  });
-
-  // 分頁後當前頁顯示項目
-  paginatedItems = computed(() => {
-    const list = this.filteredItems();
-    const size = this.pageSize();
-    const maxPage = Math.max(0, Math.ceil(list.length / size) - 1);
-    const current = Math.min(this.pageIndex(), maxPage);
-    const start = current * size;
-    return list.slice(start, start + size);
-  });
-
   ngOnInit() {
     this.loadQueue();
   }
@@ -229,11 +107,13 @@ export class SourcingQueueComponent implements OnInit {
   onPageChange(event: PageEvent) {
     this.pageIndex.set(event.pageIndex);
     this.pageSize.set(event.pageSize);
+    void this.loadQueue();
   }
 
-  onStatusChange(val: string) {
+  onStatusChange(val: SourcingQueueFilter) {
     this.selectedStatus.set(val);
     this.pageIndex.set(0);
+    void this.loadQueue();
   }
 
   async unpack(raw: any): Promise<any> {
@@ -244,63 +124,104 @@ export class SourcingQueueComponent implements OnInit {
     return raw;
   }
 
-  async loadQueue() {
+  async loadQueue(skipGlobalLoading = false) {
+    this.loadError.set(null);
     try {
-      const res = await firstValueFrom(
-        this.productService.search({ trackType: 'B', size: 100 } as any)
-      );
-      const responseData = await this.unpack(res);
-      const products =
-        responseData?.data?.content ?? responseData?.content ?? [];
-
-      if (products.length === 0) {
-        console.warn('⚠️ [SourcingQueue] B 軌商品搜尋結果為空，使用 Mock 資料作為安全氣囊回退');
-        this.items.set(SourcingQueueComponent.MOCK_QUEUE_ITEMS);
-        return;
-      }
-
-      const queueItems: SourcingQueueItem[] = [];
-      for (const p of products) {
-        let reportData: any = null;
-        if (p.timeGapDays != null) {
-          try {
-            const rawReport = await firstValueFrom(
-              this.sourcingService
-                .latest1({ productId: p.id })
-                .pipe(catchError(() => of(null)))
-            );
-            if (rawReport) {
-              const report = await this.unpack(rawReport);
-              reportData = report?.data ?? report;
-            }
-          } catch {
-            // ignore error
-          }
-        }
-
-        const estimatedLifespan = reportData?.estimatedLifespanDays ?? null;
-        const timeGap = reportData?.timeGapDays ?? p.timeGapDays ?? null;
-        let leadTime: number | null = null;
-        if (estimatedLifespan != null && timeGap != null) {
-          leadTime = estimatedLifespan - timeGap;
-        }
-
-        queueItems.push({
-          productId: p.id,
-          keyword: p.name,
-          heatStage: reportData?.heatStage ?? null,
-          stageWeeks: reportData?.stageWeeks ?? null,
-          estimatedLifespanDays: estimatedLifespan,
-          leadTimeDays: leadTime,
-          timeGapDays: timeGap,
-          sourcingStatus: p.sourcingStatus ?? 'PENDING',
-        });
-      }
-
-      this.items.set(queueItems.length > 0 ? queueItems : SourcingQueueComponent.MOCK_QUEUE_ITEMS);
+      const pageRequest = skipGlobalLoading
+        ? this.queueService.getQueue(
+            this.selectedStatus(),
+            this.pageIndex(),
+            this.pageSize(),
+            true,
+          )
+        : this.queueService.getQueue(
+            this.selectedStatus(),
+            this.pageIndex(),
+            this.pageSize(),
+          );
+      const page = await firstValueFrom(pageRequest);
+      this.items.set(page.content);
+      this.totalElements.set(page.totalElements);
+      this.activeCount.set(page.summary.activeCount);
+      this.rejectedCount.set(page.summary.rejectedCount);
+      this.promotedCount.set(page.summary.promotedCount);
     } catch (err) {
-      console.warn('⚠️ [SourcingQueue] 取得尋源佇列 API 失敗，使用 Mock 預設資料回退:', err);
-      this.items.set(SourcingQueueComponent.MOCK_QUEUE_ITEMS);
+      console.warn('⚠️ [SourcingQueue] 取得尋源佇列 API 失敗:', err);
+      this.items.set([]);
+      this.totalElements.set(0);
+      this.loadError.set('尋源優先序載入失敗，請稍後重新整理。');
+    }
+  }
+
+  isPending(item: SourcingQueueItem): boolean {
+    return ['PENDING', 'EVALUATING'].includes(item.sourcingStatus);
+  }
+
+  canSaveAsWatching(item: SourcingQueueItem): boolean {
+    return ['URGENT', 'EXPEDITE', 'SOURCING', 'REJECTED', 'ELIMINATED'].includes(item.sourcingStatus)
+      && this.pendingProductId() !== item.productId;
+  }
+
+  canAddToSourcingQueue(item: SourcingQueueItem): boolean {
+    return this.isPending(item)
+      && item.timeGapDays != null
+      && item.timeGapDays >= 0
+      && this.pendingProductId() !== item.productId;
+  }
+
+  getPrioritizeDisabledReason(item: SourcingQueueItem): string {
+    if (this.pendingProductId() === item.productId) return '操作處理中，請稍候。';
+    if (item.timeGapDays == null) return '目前無法顯示時效落差，不可加入尋源優先序。';
+    if (item.timeGapDays < 0) return '時效落差小於 0，不可加入尋源優先序。';
+    return '';
+  }
+
+  async saveAsWatching(item: SourcingQueueItem): Promise<void> {
+    if (!this.canSaveAsWatching(item)) return;
+    await this.runAction(
+      item,
+      firstValueFrom(this.sourcingService.watch(
+        { productId: item.productId },
+        'body',
+        false,
+        { context: new HttpContext().set(SKIP_GLOBAL_LOADING, true) },
+      )),
+      '存為觀察失敗，請稍後再試。',
+    );
+  }
+
+  async addToSourcingQueue(item: SourcingQueueItem): Promise<void> {
+    if (!this.canAddToSourcingQueue(item)) return;
+    await this.runAction(
+      item,
+      firstValueFrom(this.sourcingService.prioritize(
+        { productId: item.productId },
+        'body',
+        false,
+        { context: new HttpContext().set(SKIP_GLOBAL_LOADING, true) },
+      )),
+      '加入尋源優先序失敗，請稍後再試。',
+    );
+  }
+
+  private async runAction(
+    item: SourcingQueueItem,
+    request: Promise<unknown>,
+    fallbackMessage: string,
+  ): Promise<void> {
+    this.pendingProductId.set(item.productId);
+    this.actionError.set(null);
+    try {
+      await request;
+      this.queueService.invalidateCache();
+      await this.loadQueue(true);
+    } catch (error: any) {
+      const body = error?.error instanceof Blob
+        ? await this.unpack(error.error).catch(() => null)
+        : error?.error;
+      this.actionError.set(body?.error?.message ?? body?.message ?? fallbackMessage);
+    } finally {
+      this.pendingProductId.set(null);
     }
   }
 

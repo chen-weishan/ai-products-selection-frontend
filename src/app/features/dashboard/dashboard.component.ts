@@ -1,12 +1,13 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnDestroy, OnInit } from '@angular/core';
+import { ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
 import { Router, RouterModule } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { DashboardControllerService } from '../../api/api/dashboardController.service';
+import { HasRoleDirective } from '../../shared/directives/has-role.directive';
 
 @Component({
   selector: 'app-dashboard',
-  imports: [CommonModule, RouterModule],
+  imports: [CommonModule, RouterModule, HasRoleDirective],
   templateUrl: './dashboard.component.html',
   styleUrl: './dashboard.component.scss'
 })
@@ -38,7 +39,11 @@ export class DashboardComponent implements OnInit, OnDestroy {
     SEASONAL: '季節導向'
   };
 
-  constructor(private dashboardService: DashboardControllerService, private router: Router) {}
+  constructor(
+    private dashboardService: DashboardControllerService,
+    private router: Router,
+    private cdr: ChangeDetectorRef
+  ) {}
 
   get currentPeriodDisplay(): string {
     const period = this.getIsoWeekStringForPeriod(this.activePeriod);
@@ -47,7 +52,29 @@ export class DashboardComponent implements OnInit, OnDestroy {
     return `${year} / ${week}`;
   }
 
-  /** 解析可能為 Blob 的 API 回應 */
+  /** 解析可能為 Blob 或已為 Object 的 API 回應並觸發變更檢測 */
+  private resolveResponse(raw: any, callback: (data: any) => void): void {
+    if (raw instanceof Blob) {
+      raw.text().then(text => {
+        try {
+          const parsed = JSON.parse(text);
+          callback(parsed);
+        } catch {
+          callback(raw);
+        }
+        this.cdr.markForCheck();
+      }).catch(err => {
+        console.error('[DashboardComponent] 解析 Blob 失敗:', err);
+        callback(raw);
+        this.cdr.markForCheck();
+      });
+    } else {
+      callback(raw);
+      this.cdr.markForCheck();
+    }
+  }
+
+  /** 解析可能為 Blob 的 API 回應（向後相容輔助） */
   private async unpack<T = any>(raw: any): Promise<T> {
     if (raw instanceof Blob) {
       try {
@@ -158,6 +185,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
         this.customIsoWeek = this.getIsoWeekString(d);
         this.clearRankings();
         this.loadDashboardData();
+        this.cdr.markForCheck();
       }
     }
   }
@@ -179,6 +207,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.customIsoWeek = this.getIsoWeekString(date);
     this.clearRankings();
     this.loadDashboardData();
+    this.cdr.markForCheck();
   }
 
   /** 待回填結案「去回填」：S-12 以 ?id= 選中該決策並展開回填表單，免再查一次決策 */
@@ -199,6 +228,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   public reload(): void {
     this.clearRankings();
     this.loadDashboardData();
+    this.cdr.markForCheck();
   }
 
   ngOnInit(): void {
@@ -225,114 +255,152 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   loadDashboardData(): void {
     const periodParam = this.getIsoWeekStringForPeriod(this.activePeriod);
-    console.log('Loading dashboard data for period:', periodParam, 'track:', this.activeTrack);
+    const trackParam = this.activeTrack === 'A' ? 'A' : 'B';
+    console.log('Loading dashboard data for period:', periodParam, 'track:', trackParam);
 
     // 取消前次未完成的訂閱，避免非同步競態覆蓋
     this.summarySubscription?.unsubscribe();
     this.rankingsSubscription?.unsubscribe();
 
-    // 1. KPI 彙總（固定查 A 軌）
-    this.summarySubscription = this.dashboardService.getSummary({ track: 'A', period: periodParam }).subscribe({
-      next: async (raw: any) => {
-        const response = await this.unpack(raw);
-        console.log('Dashboard summary response:', response);
-        const data = response?.data || response;
-        if (data && (data.kpi || data.totalCandidates !== undefined)) {
-          this.dashboardSummary = data.kpi || data;
-          this.weeklyNewCount = data.weeklyNewCount ?? 9;
-          this.scoringExecuted = data.scoringExecuted !== undefined ? data.scoringExecuted : true;
-        } else {
-          this.loadMockSummary();
-        }
+    const jsonOptions = { httpHeaderAccept: 'application/json' as any };
+
+    // 1. KPI 彙總（依當前選中之軌道查詢）
+    this.summarySubscription = this.dashboardService.getSummary(
+      { track: trackParam, period: periodParam },
+      'body',
+      false,
+      jsonOptions
+    ).subscribe({
+      next: (raw: any) => {
+        this.resolveResponse(raw, (response) => {
+          console.log('Dashboard summary response:', response);
+          const data = response?.data || response;
+          if (data && (data.kpi || data.totalCandidates !== undefined)) {
+            this.dashboardSummary = data.kpi || data;
+            this.weeklyNewCount = data.weeklyNewCount ?? 9;
+            this.scoringExecuted = data.scoringExecuted !== undefined ? data.scoringExecuted : true;
+          } else {
+            this.loadMockSummary();
+          }
+        });
       },
       error: (error: any) => {
         console.error('Failed to load dashboard summary:', error);
         this.loadMockSummary();
+        this.cdr.markForCheck();
       }
     });
 
     // 2. 四榜排行（後端一支 API 回傳四大情境榜單）
     this.isLoadingRankings = true;
     this.clearRankings();
+    this.cdr.markForCheck();
 
-    const trackParam = this.activeTrack === 'A' ? 'A' : 'B';
-    this.rankingsSubscription = this.dashboardService.getRankings({ track: trackParam, limit: 5, period: periodParam } as any).subscribe({
-      next: async (raw: any) => {
-        this.isLoadingRankings = false;
-        const response = await this.unpack(raw);
-        console.log('Rankings response:', response);
-        const data = response?.data || response;
-        if (data) {
-          this.viralRankings = data.viral || [];
-          this.festivalRankings = data.festival || [];
-          this.replenishmentRankings = data.replenishment || [];
-          this.seasonalRankings = data.seasonal || [];
-        } else {
-          this.clearRankings();
-        }
+    this.rankingsSubscription = this.dashboardService.getRankings(
+      { track: trackParam, limit: 5, period: periodParam } as any,
+      'body',
+      false,
+      jsonOptions
+    ).subscribe({
+      next: (raw: any) => {
+        this.resolveResponse(raw, (response) => {
+          console.log('Rankings response:', response);
+          const data = response?.data || response;
+          if (data) {
+            this.viralRankings = data.viral || [];
+            this.festivalRankings = data.festival || [];
+            this.replenishmentRankings = data.replenishment || [];
+            this.seasonalRankings = data.seasonal || [];
+          } else {
+            this.clearRankings();
+          }
+          this.isLoadingRankings = false;
+        });
       },
       error: (error: any) => {
         this.isLoadingRankings = false;
         console.error('Failed to load rankings:', error);
         this.clearRankings();
+        this.cdr.markForCheck();
       }
     });
 
     // 3. B 軌尋源中摘要
     if (this.activeTrack === 'B') {
-      this.dashboardService.getSourcingSummary({ limit: 5 }).subscribe({
-        next: async (raw: any) => {
-          const response = await this.unpack(raw);
-          console.log('Sourcing summary response:', response);
-          const data = response?.data || response;
-          if (data && data.items) {
-            this.sourcingSummary = data;
-          } else {
-            this.loadMockSourcingSummary();
-          }
+      this.dashboardService.getSourcingSummary(
+        { limit: 5 },
+        'body',
+        false,
+        jsonOptions
+      ).subscribe({
+        next: (raw: any) => {
+          this.resolveResponse(raw, (response) => {
+            console.log('Sourcing summary response:', response);
+            const data = response?.data || response;
+            if (data && data.items) {
+              this.sourcingSummary = data;
+            } else {
+              this.loadMockSourcingSummary();
+            }
+          });
         },
         error: (error: any) => {
           console.error('Failed to load sourcing summary:', error);
           this.loadMockSourcingSummary();
+          this.cdr.markForCheck();
         }
       });
     } else {
       this.sourcingSummary = { items: [] };
+      this.cdr.markForCheck();
     }
 
     // 4. 待回填結案
-    this.dashboardService.getTodos().subscribe({
-      next: async (raw: any) => {
-        const response = await this.unpack(raw);
-        console.log('Overdue campaigns response:', response);
-        const data = response?.data || response;
-        if (data && data.overdueCampaigns) {
-          this.overdueCampaigns = data.overdueCampaigns;
-        } else {
-          this.overdueCampaigns = this.getMockOverdueCampaigns();
-        }
+    this.dashboardService.getTodos(
+      { track: trackParam } as any,
+      'body',
+      false,
+      jsonOptions
+    ).subscribe({
+      next: (raw: any) => {
+        this.resolveResponse(raw, (response) => {
+          console.log('Overdue campaigns response:', response);
+          const data = response?.data || response;
+          if (data && data.overdueCampaigns) {
+            this.overdueCampaigns = data.overdueCampaigns;
+          } else {
+            this.overdueCampaigns = this.getMockOverdueCampaigns();
+          }
+        });
       },
       error: (error: any) => {
         console.error('Failed to load overdue campaigns:', error);
         this.overdueCampaigns = this.getMockOverdueCampaigns();
+        this.cdr.markForCheck();
       }
     });
 
     // 5. 熱度來源狀態
-    this.dashboardService.getHeatSources().subscribe({
-      next: async (raw: any) => {
-        const response = await this.unpack(raw);
-        console.log('Heat sources response:', response);
-        const data = response?.data || response;
-        if (data && data.items) {
-          this.heatSources = data.items;
-        } else {
-          this.heatSources = this.getMockHeatSources();
-        }
+    this.dashboardService.getHeatSources(
+      'body',
+      false,
+      jsonOptions
+    ).subscribe({
+      next: (raw: any) => {
+        this.resolveResponse(raw, (response) => {
+          console.log('Heat sources response:', response);
+          const data = response?.data || response;
+          if (data && data.items) {
+            this.heatSources = data.items;
+          } else {
+            this.heatSources = this.getMockHeatSources();
+          }
+        });
       },
       error: (error: any) => {
         console.error('Failed to load heat sources:', error);
         this.heatSources = this.getMockHeatSources();
+        this.cdr.markForCheck();
       }
     });
   }
@@ -428,6 +496,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
       console.log('Switching track to:', track);
       this.clearRankings();
       this.loadDashboardData(); // Reload data based on new track
+      this.cdr.markForCheck();
     }
   }
 
@@ -441,6 +510,14 @@ export class DashboardComponent implements OnInit, OnDestroy {
       }
       this.clearRankings();
       this.loadDashboardData(); // Reload data based on new period
+      this.cdr.markForCheck();
+    }
+  }
+
+  switchTab(tab: string): void {
+    if (this.activeTab !== tab) {
+      this.activeTab = tab;
+      this.cdr.markForCheck();
     }
   }
 

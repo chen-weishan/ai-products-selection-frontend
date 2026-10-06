@@ -3,7 +3,7 @@
     <div>
         <h3>尋源探索 (Sourcing Scout)</h3>
         <div class="sub">
-            本月已使用：{{ frequency() }} · AI 探索為獨立預算池
+            每日使用：{{ frequency() }} · AI 探索為獨立預算池
         </div>
     </div>
 
@@ -123,7 +123,7 @@
             <!-- 品類前置期 -->
             <div class="eval-row">
                 <span class="label">品類前置期</span>
-                <span class="value">{{ getLeadTimeDays(report) }} <span class="unit">天</span></span>
+                <span class="value">{{ getLeadTimeDays(report) ?? '—' }} @if (getLeadTimeDays(report) != null) {<span class="unit">天</span>}</span>
             </div>
             <!-- 時效落差（高亮警示框） -->
             <div class="gap-highlight-box" [class.danger]="report.timeGapDays !== null && report.timeGapDays < 0"
@@ -138,6 +138,9 @@
             </div>
             <div class="eval-footnote">
                 前置期可由採購覆寫。若已知供應商可即時出貨，改填實際天數。恰為 14 天時落在「高風險」區間，非「可行」——邊界不重疊。
+                @if (report.statDate) {
+                <br>資料日期：{{ report.statDate }}
+                }
             </div>
         </div>
     </div>
@@ -169,12 +172,15 @@
 
 <!-- 底部操作按鈕列 -->
 <div class="action-bar">
-    <button type="button" class="btn" (click)="saveAsWatching(report.productId)">
-        存為觀察
+    <button type="button" class="btn" [disabled]="!canSaveAsWatching(report)"
+        [title]="isActionPending() ? '操作處理中，請稍候。' : ''"
+        (click)="saveAsWatching(report)">
+        {{ isActionPending() ? '處理中…' : '存為觀察' }}
     </button>
-    <button type="button" class="btn pri" [disabled]="report.timeGapDays !== null && report.timeGapDays < 0"
+    <button type="button" class="btn pri" [disabled]="!canAddToSourcingQueue(report)"
+        [title]="getPrioritizeDisabledReason(report)"
         (click)="addToSourcingQueue(report)">
-        加入尋源優先序
+        {{ isActionPending() ? '處理中…' : '加入尋源優先序' }}
     </button>
 </div>
 } @else {

@@ -1,0 +1,29 @@
+<h2 mat-dialog-title>變更品項狀態</h2>
+
+<mat-dialog-content>
+  <p>確定要將「{{ data.productName }}」變更為「{{ data.targetStatusLabel }}」嗎？</p>
+
+  @if (data.targetStatus === 'REJECTED') {
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>淘汰理由</mat-label>
+      <textarea
+        matInput
+        rows="4"
+        maxlength="500"
+        [formControl]="rejectReason"
+        placeholder="請輸入至少 10 個字"
+      ></textarea>
+      <mat-hint align="end">{{ rejectReason.value.trim().length }}/500</mat-hint>
+      @if (rejectReason.hasError('required')) {
+        <mat-error>請輸入淘汰理由</mat-error>
+      } @else if (rejectReason.hasError('minlength')) {
+        <mat-error>淘汰理由至少需要 10 個字</mat-error>
+      }
+    </mat-form-field>
+  }
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button type="button" (click)="cancel()">取消</button>
+  <button mat-flat-button type="button" (click)="confirm()">確認變更</button>
+</mat-dialog-actions>

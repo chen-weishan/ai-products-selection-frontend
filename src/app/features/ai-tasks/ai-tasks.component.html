@@ -1,1 +1,533 @@
-<p>ai-tasks works!</p>
+<!-- 1. 頁首標題與操作工具列 (.mh) -->
+<div class="mh">
+  <div>
+    <div class="title-row">
+      <h3>AI 任務中心 (AI Tasks)</h3>
+      @if (isAnyRunning()) {
+        <span class="status-badge status-running is-pulsing">任務處理中</span>
+      } @else {
+        <span class="status-badge status-normal">系統待命中</span>
+      }
+    </div>
+    <div class="sub">
+      A 軌 REST 直連 OpenRouter・B 軌經 opencode + MCP · 模型 mistral · 併發上限 5
+    </div>
+  </div>
+
+  <div class="tools">
+    <mat-form-field appearance="outline" class="status-filter-field" subscriptSizing="dynamic">
+      <mat-label>狀態篩選</mat-label>
+      <mat-select [ngModel]="selectedStatus()" (ngModelChange)="onStatusFilterChange($event)" panelClass="unified-mat-select-panel">
+        <mat-option value="ALL">全部狀態</mat-option>
+        <mat-option value="RUNNING">執行中 (RUNNING)</mat-option>
+        <mat-option value="PENDING">排隊中 (PENDING)</mat-option>
+        <mat-option value="SUCCEEDED">已完成 (SUCCEEDED)</mat-option>
+        <mat-option value="FAILED">失敗 (FAILED)</mat-option>
+        <mat-option value="PARTIAL">部分成功 (PARTIAL)</mat-option>
+        <mat-option value="CANCELLED">已取消 (CANCELLED)</mat-option>
+      </mat-select>
+    </mat-form-field>
+
+    <button type="button" class="btn" [disabled]="isLoading()" (click)="reload()">
+      重新整理
+    </button>
+    <button type="button" class="btn pri" (click)="openCreateDialog()">
+      ＋ 建立任務
+    </button>
+  </div>
+</div>
+
+<!-- 2. 全域 KPI 統計卡片 (3 Cards - 無 USD 成本卡) -->
+<div class="section-title">任務狀態概覽</div>
+<div class="kpis">
+  <div class="card kpi-card" [class.active-glow]="(summary()?.runningCount ?? 0) > 0">
+    <div class="kpi-top">
+      <div class="l">執行中任務</div>
+      @if ((summary()?.runningCount ?? 0) > 0) {
+        <span class="pulsing-indicator"></span>
+      }
+    </div>
+    <div class="v mono">{{ summary()?.runningCount ?? 0 }}</div>
+    <div class="sub-hint">併發限制上限 5 · 非同步排程中</div>
+  </div>
+
+  <div class="card kpi-card">
+    <div class="kpi-top">
+      <div class="l">本月完成任務</div>
+    </div>
+    <div class="v mono">{{ summary()?.monthlyCompletedCount ?? 0 }}</div>
+    <div class="sub-hint delta mono">已交付完整分析品項</div>
+  </div>
+
+  <div class="card kpi-card" [class.alert]="(summary()?.failedCount ?? 0) > 0">
+    <div class="kpi-top">
+      <div class="l">失敗待重跑</div>
+      @if ((summary()?.failedCount ?? 0) > 0) {
+        <span class="alert-tag">需關注</span>
+      }
+    </div>
+    <div class="v mono">{{ summary()?.failedCount ?? 0 }}</div>
+    @if ((summary()?.failedCount ?? 0) > 0) {
+      <div class="sub-hint risk-hint">建議從列表點擊「重跑失敗」以 RETRY 池修復</div>
+    } @else {
+      <div class="sub-hint">無失敗異常品項，系統健康</div>
+    }
+  </div>
+</div>
+
+<!-- 3. 每日預算池概況 (Daily Budget Pools - 3 Cards) -->
+<div class="budget-section">
+  <div class="section-header-bar">
+    <div class="section-title">每日 AI 額度消耗池 (Daily Budget Pools)</div>
+    <div class="budget-meta mono">
+      今日總配額：{{ budget()?.dailyQuota ?? 1000 }} 次 · 重設時間：{{ budget()?.resetAt || '00:00 UTC+8' }} ({{ budget()?.resetSource || '系統排程' }})
+    </div>
+  </div>
+
+  <div class="budget-grid">
+    <!-- A 軌批次常規 -->
+    <div class="card budget-card">
+      <div class="budget-card-head">
+        <div class="pool-name-wrap">
+          <span class="pool-title">A 軌 批次常規</span>
+          <span class="pool-share-tag">70% 配額</span>
+        </div>
+        <span
+          class="status-badge compact"
+          [ngClass]="{
+            'status-normal': getPool('TRACK_A')?.status === 'OK',
+            'status-quota': getPool('TRACK_A')?.status === 'WARNING',
+            'status-warn': getPool('TRACK_A')?.status === 'EXHAUSTED'
+          }"
+        >
+          {{ getPool('TRACK_A')?.status || 'OK' }}
+        </span>
+      </div>
+
+      <div class="budget-metric">
+        <span class="used-value mono">{{ getPool('TRACK_A')?.used ?? 0 }}</span>
+        <span class="limit-divider">/</span>
+        <span class="limit-value mono">{{ getPool('TRACK_A')?.limit ?? 700 }} 次</span>
+      </div>
+
+      <div class="progress-track">
+        <div
+          class="progress-fill"
+          [style.width.%]="getPoolPercent('TRACK_A')"
+          [ngClass]="{
+            'fill-normal': getPool('TRACK_A')?.status === 'OK',
+            'fill-warn': getPool('TRACK_A')?.status === 'WARNING',
+            'fill-danger': getPool('TRACK_A')?.status === 'EXHAUSTED'
+          }"
+        ></div>
+      </div>
+
+      <div class="budget-card-footer">
+        <span class="footer-stat mono">快取命中：{{ getPool('TRACK_A')?.cacheHits ?? 0 }} 次</span>
+        <span class="footer-desc">全量/單項商品深入分析、場景分類、賣點與評論風險</span>
+      </div>
+    </div>
+
+    <!-- B 軌探索尋源 -->
+    <div class="card budget-card">
+      <div class="budget-card-head">
+        <div class="pool-name-wrap">
+          <span class="pool-title">B 軌 探索尋源</span>
+          <span class="pool-share-tag">20% 配額</span>
+        </div>
+        <span
+          class="status-badge compact"
+          [ngClass]="{
+            'status-normal': getPool('TRACK_B')?.status === 'OK',
+            'status-quota': getPool('TRACK_B')?.status === 'WARNING',
+            'status-warn': getPool('TRACK_B')?.status === 'EXHAUSTED'
+          }"
+        >
+          {{ getPool('TRACK_B')?.status || 'OK' }}
+        </span>
+      </div>
+
+      <div class="budget-metric">
+        <span class="used-value mono">{{ getPool('TRACK_B')?.used ?? 0 }}</span>
+        <span class="limit-divider">/</span>
+        <span class="limit-value mono">{{ getPool('TRACK_B')?.limit ?? 200 }} 次</span>
+      </div>
+
+      <div class="progress-track">
+        <div
+          class="progress-fill"
+          [style.width.%]="getPoolPercent('TRACK_B')"
+          [ngClass]="{
+            'fill-normal': getPool('TRACK_B')?.status === 'OK',
+            'fill-warn': getPool('TRACK_B')?.status === 'WARNING',
+            'fill-danger': getPool('TRACK_B')?.status === 'EXHAUSTED'
+          }"
+        ></div>
+      </div>
+
+      <div class="budget-card-footer">
+        <span class="footer-stat mono">快取命中：{{ getPool('TRACK_B')?.cacheHits ?? 0 }} 次</span>
+        <span class="footer-desc">經由 opencode + MCP 進行市場尋源、生命週期與外部趨勢探索</span>
+      </div>
+    </div>
+
+    <!-- 重試與校準池 -->
+    <div class="card budget-card">
+      <div class="budget-card-head">
+        <div class="pool-name-wrap">
+          <span class="pool-title">重試與校準池</span>
+          <span class="pool-share-tag">10% 配額</span>
+        </div>
+        <span
+          class="status-badge compact"
+          [ngClass]="{
+            'status-normal': getPool('RETRY')?.status === 'OK',
+            'status-quota': getPool('RETRY')?.status === 'WARNING',
+            'status-warn': getPool('RETRY')?.status === 'EXHAUSTED'
+          }"
+        >
+          {{ getPool('RETRY')?.status || 'OK' }}
+        </span>
+      </div>
+
+      <div class="budget-metric">
+        <span class="used-value mono">{{ getPool('RETRY')?.used ?? 0 }}</span>
+        <span class="limit-divider">/</span>
+        <span class="limit-value mono">{{ getPool('RETRY')?.limit ?? 100 }} 次</span>
+      </div>
+
+      <div class="progress-track">
+        <div
+          class="progress-fill"
+          [style.width.%]="getPoolPercent('RETRY')"
+          [ngClass]="{
+            'fill-normal': getPool('RETRY')?.status === 'OK',
+            'fill-warn': getPool('RETRY')?.status === 'WARNING',
+            'fill-danger': getPool('RETRY')?.status === 'EXHAUSTED'
+          }"
+        ></div>
+      </div>
+
+      <div class="budget-card-footer">
+        <span class="footer-stat mono">快取命中：{{ getPool('RETRY')?.cacheHits ?? 0 }} 次</span>
+        <span class="footer-desc">失敗品項重跑、臨時手動驗證與季度權重校準</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 4. 正在執行的聚焦任務卡片 (Active Task Focus Banner) -->
+@if (activeRunningTask(); as active) {
+  <div class="card active-task-card">
+    <div class="active-task-left">
+      <div class="active-badge-line">
+        <span class="pulsing-indicator"></span>
+        <span class="active-title">執行中任務：#{{ active.taskId }} - {{ active.taskTypeDisplayName || active.taskType }}</span>
+        <span class="pool-chip">{{ formatBudgetPool(active.budgetPool) }}</span>
+      </div>
+
+      <div class="active-progress-row">
+        <div class="progress-track active-track">
+          <div
+            class="progress-fill fill-active striped"
+            [style.width.%]="active.progressPercent ?? 0"
+          ></div>
+        </div>
+        <span class="active-percent mono">{{ active.progressPercent ?? 0 }}%</span>
+      </div>
+
+      <div class="active-metrics mono">
+        <span>總品項：{{ active.totalCount }}</span>
+        <span class="sep">·</span>
+        <span class="text-success">成功：{{ active.successCount }}</span>
+        <span class="sep">·</span>
+        <span class="text-danger">失敗：{{ active.failCount }}</span>
+        <span class="sep">·</span>
+        <span>快取：{{ active.cacheHitCount }}</span>
+        <span class="sep">·</span>
+        <span>外部 API 嘗試：{{ active.requestCount ?? 0 }} 次</span>
+        <span class="sep">·</span>
+        <span>已耗時：{{ calculateDuration(active.startedAt) }}</span>
+      </div>
+    </div>
+
+    <div class="active-task-right">
+      <button type="button" class="btn danger" (click)="cancelTask(active)">
+        取消任務
+      </button>
+    </div>
+  </div>
+}
+
+<!-- 5. 主任務資料清單卡片 (.table-card) -->
+<div class="section-title">任務歷史與清單</div>
+<div class="card table-card">
+  <div class="table-responsive">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th style="width: 70px;">任務編號</th>
+          <th style="width: 140px;">任務類型</th>
+          <th style="width: 110px;">預算軌道</th>
+          <th style="width: 80px;" class="text-center">品項數</th>
+          <th style="width: 90px;" class="text-center">狀態</th>
+          <th style="width: 130px;">執行進度</th>
+          <th style="width: 150px;">成效 (成/敗/快取)</th>
+          <th style="width: 90px;" class="text-center">外部請求</th>
+          <th style="width: 150px;">建立 / 耗時</th>
+          <th style="width: 170px;" class="text-right">操作</th>
+        </tr>
+      </thead>
+      <tbody>
+        @if (isLoading()) {
+          <tr>
+            <td colspan="10" class="empty-state">
+              <div class="loading-wrap">載入任務清單中…</div>
+            </td>
+          </tr>
+        } @else if (tasks().length === 0) {
+          <tr>
+            <td colspan="10" class="empty-state">目前無符合條件的 AI 任務記錄</td>
+          </tr>
+        } @else {
+          @for (task of tasks(); track task.taskId) {
+            <tr [class.row-expanded]="expandedTaskId() === task.taskId">
+              <!-- 任務編號 -->
+              <td class="mono fw-600">#{{ task.taskId }}</td>
+
+              <!-- 任務類型 -->
+              <td>
+                <div class="task-type-name">{{ task.taskTypeDisplayName || task.taskType }}</div>
+              </td>
+
+              <!-- 預算軌道 -->
+              <td>
+                <span class="pool-tag-small">{{ formatBudgetPool(task.budgetPool) }}</span>
+              </td>
+
+              <!-- 品項數 -->
+              <td class="text-center mono">{{ task.totalCount }}</td>
+
+              <!-- 狀態 -->
+              <td class="text-center">
+                <span
+                  class="status-badge compact"
+                  [ngClass]="{
+                    'status-running': task.status === 'RUNNING',
+                    'status-pending': task.status === 'PENDING',
+                    'status-normal': task.status === 'SUCCEEDED',
+                    'status-warn': task.status === 'FAILED',
+                    'status-quota': task.status === 'PARTIAL',
+                    'status-cancelled': task.status === 'CANCELLED'
+                  }"
+                >
+                  {{ formatTaskStatus(task.status) }}
+                </span>
+              </td>
+
+              <!-- 執行進度 -->
+              <td>
+                <div class="table-progress-wrap">
+                  <div class="progress-track mini-track">
+                    <div
+                      class="progress-fill"
+                      [style.width.%]="task.progressPercent ?? 0"
+                      [ngClass]="{
+                        'fill-active': task.status === 'RUNNING',
+                        'fill-normal': task.status === 'SUCCEEDED',
+                        'fill-danger': task.status === 'FAILED',
+                        'fill-warn': task.status === 'PARTIAL'
+                      }"
+                    ></div>
+                  </div>
+                  <span class="table-pct mono">{{ task.progressPercent ?? 0 }}%</span>
+                </div>
+              </td>
+
+              <!-- 成效 -->
+              <td class="mono text-nowrap">
+                <span class="text-success" title="成功品項數">{{ task.successCount }}</span>
+                <span class="text-divider">/</span>
+                <span [class.text-danger]="(task.failCount ?? 0) > 0" title="失敗品項數">{{ task.failCount }}</span>
+                <span class="text-divider">/</span>
+                <span class="text-muted" title="快取命中數">{{ task.cacheHitCount }}</span>
+              </td>
+
+              <!-- 外部請求 -->
+              <td class="text-center mono">
+                {{ task.requestCount ?? 0 }} 次
+                @if (task.retryPoolRequestCount) {
+                  <span class="retry-hint" title="重試池嘗試次數">(+{{ task.retryPoolRequestCount }})</span>
+                }
+              </td>
+
+              <!-- 建立與耗時 -->
+              <td class="time-col">
+                <div class="start-time mono">{{ task.startedAt | date:'MM-dd HH:mm' }}</div>
+                <div class="duration-time mono">{{ calculateDuration(task.startedAt, task.finishedAt) }}</div>
+              </td>
+
+              <!-- 操作按鈕 -->
+              <td class="text-right">
+                <div class="action-buttons-group">
+                  @if (canCancel(task)) {
+                    <button type="button" class="btn compact danger" (click)="cancelTask(task)">
+                      取消
+                    </button>
+                  }
+
+                  @if (canRetryFailed(task)) {
+                    <button type="button" class="btn compact warn-btn" (click)="retryFailed(task)">
+                      重跑失敗
+                    </button>
+                  }
+
+                  <button
+                    type="button"
+                    class="btn compact"
+                    [class.active-detail]="expandedTaskId() === task.taskId"
+                    (click)="toggleTaskItems(task.taskId)"
+                  >
+                    {{ expandedTaskId() === task.taskId ? '收合' : '品項' }}
+                  </button>
+                </div>
+              </td>
+            </tr>
+
+            <!-- 展開之品項明細子表格列 -->
+            @if (expandedTaskId() === task.taskId) {
+              <tr class="detail-row">
+                <td colspan="10" class="detail-cell">
+                  <div class="items-drawer">
+                    <div class="drawer-header">
+                      <div class="drawer-title">
+                        任務 #{{ task.taskId }} 品項執行清單
+                        <span class="drawer-count mono">({{ taskItems()[task.taskId!]?.length ?? 0 }} 項)</span>
+                      </div>
+                      <button type="button" class="btn compact" (click)="toggleTaskItems(task.taskId)">
+                        關閉明細
+                      </button>
+                    </div>
+
+                    @if (loadingItemsTaskId() === task.taskId) {
+                      <div class="items-loading">載入品項明細中…</div>
+                    } @else if (!taskItems()[task.taskId!] || taskItems()[task.taskId!].length === 0) {
+                      <div class="items-empty">無子品項記錄</div>
+                    } @else {
+                      <div class="items-table-wrap">
+                        <table class="items-subtable">
+                          <thead>
+                            <tr>
+                              <th style="width: 70px;">子項目 ID</th>
+                              <th style="width: 100px;">商品 ID</th>
+                              <th style="width: 110px;">品項狀態</th>
+                              <th style="width: 90px;" class="text-right">耗時</th>
+                              <th>處理訊息 / 錯誤原因</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            @for (item of taskItems()[task.taskId!]; track item.itemId) {
+                              <tr>
+                                <td class="mono">#{{ item.itemId }}</td>
+                                <td class="mono fw-600">商品 {{ item.productId || item.keywordId || '-' }}</td>
+                                <td>
+                                  <span
+                                    class="status-badge compact"
+                                    [ngClass]="{
+                                      'status-normal': item.status === 'SUCCEEDED',
+                                      'status-warn': item.status === 'FAILED',
+                                      'override-badge': item.status === 'SKIPPED_CACHE',
+                                      'status-quota': item.status === 'SKIPPED_QUOTA',
+                                      'status-pending': item.status === 'PENDING'
+                                    }"
+                                  >
+                                    {{ formatItemStatus(item.status) }}
+                                  </span>
+                                </td>
+                                <td class="text-right mono">
+                                  {{ item.durationMs != null ? item.durationMs + ' ms' : '-' }}
+                                </td>
+                                <td class="message-cell">
+                                  @if (item.errorMessage) {
+                                    <span class="error-msg-text">{{ item.errorMessage }}</span>
+                                  } @else if (item.status === 'SKIPPED_CACHE') {
+                                    <span class="cache-msg-text">命中快取，直接採用本機資料庫最新結果</span>
+                                  } @else if (item.status === 'SUCCEEDED') {
+                                    <span class="success-msg-text">外部分析與資料寫入完成</span>
+                                  } @else {
+                                    <span class="text-muted">-</span>
+                                  }
+                                </td>
+                              </tr>
+                            }
+                          </tbody>
+                        </table>
+                      </div>
+                    }
+                  </div>
+                </td>
+              </tr>
+            }
+          }
+        }
+      </tbody>
+    </table>
+  </div>
+
+  <!-- 分頁器 -->
+  <mat-paginator
+    [length]="totalCount()"
+    [pageIndex]="pageIndex()"
+    [pageSize]="pageSize()"
+    [pageSizeOptions]="[10, 20, 50]"
+    (page)="onPageChange($event)"
+    [selectConfig]="{ panelClass: 'unified-mat-select-panel' }"
+  ></mat-paginator>
+</div>
+
+<!-- 6. 底部業務與配額說明面板 (.info-section) -->
+<div class="info-section">
+  <div class="info-header">
+    <div class="info-title">
+      <h4>AI 任務中心運作架構與預算排程說明</h4>
+    </div>
+  </div>
+
+  <div class="info-grid">
+    <div class="info-card">
+      <div class="card-head">
+        <h5>A 軌 REST 直連配額池 (70%)</h5>
+      </div>
+      <p>
+        專為全量綜合分析與常態批次任務設計，直連 OpenRouter <strong>mistral</strong> 模型。系統具備品項本機結果快取機制，若資料無異動直接跳過外部呼叫，大幅減少重複 token 成本。
+      </p>
+    </div>
+
+    <div class="info-card">
+      <div class="card-head">
+        <h5>B 軌 opencode + MCP 探索池 (20%)</h5>
+      </div>
+      <p>
+        專為市場即時尋源、生命週期推估與即時競品探索設計。經由 Model Context Protocol (MCP) 串聯外部搜尋與數據工具，全域<strong>併發限制上限鎖定為 5</strong>。
+      </p>
+    </div>
+
+    <div class="info-card">
+      <div class="card-head">
+        <h5>重試與校準專用池 (10%)</h5>
+      </div>
+      <p>
+        當批次或探索任務發生外部超時或網路抖動時，提供子項目粒度修復機制。點擊<strong>「重跑失敗」</strong>將自動提取失敗品項由 RETRY 池執行，不重複計費已成功品項。
+      </p>
+    </div>
+
+    <div class="info-card">
+      <div class="card-head">
+        <h5>非同步狀態機與中斷控制</h5>
+      </div>
+      <p>
+        任務生命週期為 PENDING &rarr; RUNNING &rarr; SUCCEEDED / FAILED / PARTIAL。若任務中途執行<strong>「取消」</strong>，已處理之品項結果完好保留，未排入之品項立即釋放額度。
+      </p>
+    </div>
+  </div>
+</div>
