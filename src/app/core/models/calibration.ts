@@ -32,6 +32,8 @@ export interface RegressionResult {
   shrinkage?: number;
   baseVersionId?: number;
   baseVersionNo?: string;
+  /** 樣本最早回填時間（樣本為累積，非當季）。無樣本或舊報告沒有此欄。 */
+  sampleFrom?: string | null;
   cutoff?: string;
   /** 實際產生時間（重算會更新；createdAt 不會）。舊格式報告沒有此欄。 */
   generatedAt?: string;
@@ -49,6 +51,8 @@ export interface BacktestOutcome {
   versionId?: number | null;
   sampleSize?: number;
   correlation: number | null;
+  /** 供與 S-12（Pearson）對照；舊格式報告沒有此欄。 */
+  pearson?: number | null;
   gradeACount?: number;
   gradeAHitCount?: number;
   gradeAHitRate: number | null;
@@ -69,6 +73,8 @@ export interface CalibrationReport {
   belowMinSample: boolean;
   validityWarning: string | null;
   status: CalibrationStatus;
+  /** 待審核報告的基準版本已非現行版本：此時核准會以被取代的版本為底，應先重新產生報告。 */
+  baseVersionStale: boolean;
   regression: RegressionResult | null;
   backtest: BacktestResult | null;
   aiInterpretation: string | null;
@@ -83,6 +89,12 @@ export interface CalibrationReport {
   weightVersionId: number | null;
   weightVersionNo: string | null;
   createdAt: string;
+}
+
+/** POST /calibration/reports：重算後的報告與自動建立的 Agent 7 解讀任務（建立失敗為 null）。 */
+export interface GenerateCalibrationReportResult {
+  report: CalibrationReport;
+  interpretationTaskId: number | null;
 }
 
 export interface AdjustmentAdvice {

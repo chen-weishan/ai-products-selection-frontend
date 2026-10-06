@@ -21,9 +21,11 @@ function report(overrides: Partial<CalibrationReport> = {}): CalibrationReport {
     belowMinSample: true,
     validityWarning: '樣本數不足，統計上建議累積至 200 筆以上再進行權重調整。',
     status: 'PENDING',
+    baseVersionStale: false,
     regression: {
       method: 'spearman-tilt',
       baseVersionId: 2,
+      baseVersionNo: 'v2',
       // 台北 2026-10-01 07:30；直接切 UTC 字串會誤顯示成 09-30
       generatedAt: '2026-09-30T23:30:00Z',
       factors: [],
@@ -139,6 +141,41 @@ describe('CalibrationComponent', () => {
     await setup(report({ regression: { method: 'pearson', factors: [] } }));
     expect(component.reviewable()).toBe(false);
     expect(text()).toContain('舊格式');
+  });
+
+  it('基準版本已被取代時提示先重新產生報告', async () => {
+    await setup(report({ baseVersionStale: true }));
+    expect(text()).toContain('基準版本 v2 已非現行版本');
+  });
+
+  it('建議權重被壓成 0 的因子在審核前提示', async () => {
+    const base = report();
+    const scenes = base.regression!.scenes!.map((s) => ({
+      ...s,
+      weights: s.weights.map((w) => (w.code === 'CLIMATE' ? { ...w, suggestedWeight: 0 } : w)),
+    }));
+    await setup(report({ regression: { ...base.regression!, scenes } }));
+    expect(component.zeroedFactors()).toEqual(['CLIMATE']);
+    expect(text()).toContain('的權重調為 0');
+  });
+
+  it('重算後回報自動建立的 AI 解讀任務', async () => {
+    await setup(report());
+    component.generateQuarter.set('2026Q3');
+    component.generate();
+    const req = http.expectOne((r) => r.url === '/api/v1/calibration/reports' && r.method === 'POST');
+    expect(req.request.params.get('quarter')).toBe('2026Q3');
+    req.flush({ success: true, data: { report: report({ id: 8, quarter: '2026Q3' }), interpretationTaskId: 42 } });
+    expect(component.successMessage()).toContain('任務 #42');
+  });
+
+  it('解讀任務建立失敗時照實提示', async () => {
+    await setup(report());
+    component.generate();
+    http
+      .expectOne((r) => r.url === '/api/v1/calibration/reports' && r.method === 'POST')
+      .flush({ success: true, data: { report: report({ id: 8 }), interpretationTaskId: null } });
+    expect(component.successMessage()).toContain('AI 解讀任務建立失敗');
   });
 
   it('尚無報告時顯示空狀態', async () => {

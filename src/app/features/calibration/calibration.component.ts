@@ -53,6 +53,9 @@ export class CalibrationComponent implements OnInit {
   readonly versionStatusLabels = STATUS_LABELS;
   /** 後端時間一律 UTC；畫面以台北時區顯示，直接切 ISO 字串在 08:00 前會差一天。 */
   readonly TPE = '+0800';
+  /** S-12 用評分當時存下的分數，回測是以該版本重算：只有樣本都由同一版本評分時兩邊數字才會一致。 */
+  readonly pearsonHint =
+    '與 S-12 準確度頁同為 Pearson。S-12 用評分當時存下的分數，此處以該權重重算，樣本並非都由同一版本評分時數字會有差異。';
 
   readonly reports = signal<CalibrationReport[]>([]);
   readonly selectedId = signal<number | null>(null);
@@ -83,7 +86,7 @@ export class CalibrationComponent implements OnInit {
 
   /** 新報告為 spearman-tilt；dev seed 舊報告為 pearson，欄名跟著報告走，避免與 S-12（Pearson）數字混淆。 */
   readonly corrLabel = computed(() =>
-    this.report()?.regression?.method?.startsWith('spearman') ? 'Spearman' : 'Pearson',
+    this.report()?.regression?.method?.startsWith('spearman') ? 'Spearman 等級相關' : 'Pearson',
   );
 
   readonly backtestRows = computed<BacktestOutcome[]>(() => {
@@ -103,6 +106,23 @@ export class CalibrationComponent implements OnInit {
     }
     return changed;
   });
+
+  /**
+   * 建議權重被壓成 0 的因子（任一榜現行 > 0、建議 = 0）。α 接近 1 且 r 遠低於平均時會發生，
+   * 等於透過校準把整個因子拿掉，審核前要讓人看見。
+   */
+  readonly zeroedFactors = computed<FactorCode[]>(() => {
+    const zeroed = new Set<FactorCode>();
+    for (const scene of this.report()?.regression?.scenes ?? []) {
+      for (const w of scene.weights) {
+        if (w.currentWeight > 0 && w.suggestedWeight === 0) {
+          zeroed.add(w.code);
+        }
+      }
+    }
+    return [...zeroed];
+  });
+  readonly zeroedFactorNames = computed(() => this.zeroedFactors().map((c) => this.factorLabels[c]).join('、'));
 
   /** 舊格式報告沒有四榜明細，後端無法據以建版本，只能駁回或重新產生。 */
   readonly reviewable = computed(() => !!this.report()?.regression?.scenes && this.report()?.status === 'PENDING');
@@ -157,9 +177,14 @@ export class CalibrationComponent implements OnInit {
     const quarter = this.generateQuarter().trim().toUpperCase();
     this.acting.set(true);
     this.service.generate(quarter).subscribe({
-      next: (report) => {
+      next: ({ report, interpretationTaskId }) => {
         this.acting.set(false);
-        this.flash(`已產生 ${report.quarter} 校準報告（樣本 ${report.sampleSize} 筆）`);
+        this.flash(
+          `已產生 ${report.quarter} 校準報告（樣本 ${report.sampleSize} 筆）。` +
+            (interpretationTaskId !== null
+              ? `AI 解讀已排入背景處理（任務 #${interpretationTaskId}），完成後重新整理即可看到。`
+              : 'AI 解讀任務建立失敗，目前先顯示統計結果，可稍後再重算一次。'),
+        );
         this.loadReports(report.id);
       },
       error: (err) => {

@@ -5,12 +5,13 @@ import { ApiResponse, PageResponse } from '../../core/models/weight';
 import {
   BacktestComparison,
   CalibrationReport,
+  GenerateCalibrationReportResult,
   ReviewCalibrationRequest,
 } from '../../core/models/calibration';
 
 /**
  * FR-15 權重校準 API（規格書 §8「校準」、畫面 S-19）。手寫理由同 DecisionService。
- * AI 解讀的觸發端點（POST /calibration/reports/{id}/interpretation）屬 Agent 7，不在本頁。
+ * AI 解讀由後端在產生報告後自動排入；單獨觸發的端點（POST /calibration/reports/{id}/interpretation）屬 Agent 7。
  */
 @Injectable({ providedIn: 'root' })
 export class CalibrationService {
@@ -30,11 +31,14 @@ export class CalibrationService {
       .pipe(map((res) => res.data));
   }
 
-  /** 規格外端點（設計決定）：立即產生或重算待審核的季度報告，供 demo／補跑。 */
-  generate(quarter: string): Observable<CalibrationReport> {
+  /**
+   * 規格外端點（設計決定）：立即產生或重算待審核的季度報告，供 demo／補跑。
+   * 後端會自動建立 Agent 7 解讀任務（重算會清空舊解讀）。
+   */
+  generate(quarter: string): Observable<GenerateCalibrationReportResult> {
     const params = new HttpParams().set('quarter', quarter);
     return this.http
-      .post<ApiResponse<CalibrationReport>>('/api/v1/calibration/reports', null, { params })
+      .post<ApiResponse<GenerateCalibrationReportResult>>('/api/v1/calibration/reports', null, { params })
       .pipe(map((res) => res.data));
   }
 

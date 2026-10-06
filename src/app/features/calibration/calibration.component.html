@@ -29,7 +29,11 @@
     <div>
       <div class="title">{{ r.quarter }} 校準建議</div>
       <div class="meta">
-        樣本 <span class="mono">{{ r.sampleSize }}</span> 筆 · 產生於 <span class="mono">{{ (r.regression?.generatedAt ?? r.createdAt) | date: 'yyyy-MM-dd HH:mm' : TPE }}</span>
+        樣本 <span class="mono">{{ r.sampleSize }}</span> 筆
+        @if (r.regression?.sampleFrom && r.regression?.cutoff) {
+          （回填於 <span class="mono">{{ r.regression?.sampleFrom | date: 'yyyy-MM-dd' : TPE }}</span> 起、<span class="mono">{{ r.regression?.cutoff | date: 'yyyy-MM-dd HH:mm' : TPE }}</span> 前，跨季累積）
+        }
+        · 產生於 <span class="mono">{{ (r.regression?.generatedAt ?? r.createdAt) | date: 'yyyy-MM-dd HH:mm' : TPE }}</span>
         · 狀態：<span class="status-badge compact" [class]="'st-' + r.status">{{ statusLabels[r.status] }}</span>
         @if (r.reviewedBy) { · 審核：{{ r.reviewedBy }} <span class="mono">{{ r.reviewedAt | date: 'yyyy-MM-dd' : TPE }}</span> }
       </div>
@@ -158,13 +162,14 @@
     <h4><span class="mark">2</span>回測驗證<span class="auto">同一批歷史資料，比較不同權重的預測表現</span></h4>
     <table class="tbl">
       <thead>
-        <tr><th>權重設定</th><th class="num">相關係數（{{ corrLabel() }}）</th><th class="num">A 級達標率</th><th class="num">A 級（達標／總數）</th></tr>
+        <tr><th>權重設定</th><th class="num">相關係數（{{ corrLabel() }}）</th><th class="num" [title]="pearsonHint">Pearson（對照 S-12）</th><th class="num">A 級達標率</th><th class="num">A 級（達標／總數）</th></tr>
       </thead>
       <tbody>
         @for (b of backtestRows(); track $index) {
           <tr>
             <td>{{ schemeLabel(b) }}</td>
             <td class="num mono">{{ num(b.correlation) }}</td>
+            <td class="num mono muted">{{ num(b.pearson) }}</td>
             <td class="num mono">{{ pct(b.gradeAHitRate) }}</td>
             <td class="num mono">{{ b.gradeACount === undefined ? '—' : b.gradeAHitCount + ' / ' + b.gradeACount }}</td>
           </tr>
@@ -194,13 +199,14 @@
       @if (comparison(); as c) {
         <table class="tbl">
           <thead>
-            <tr><th>權重版本</th><th class="num" title="重算分數與實際銷量的 Spearman 等級相關">相關係數（Spearman）</th><th class="num">A 級達標率</th><th class="num">A 級（達標／總數）</th></tr>
+            <tr><th>權重版本</th><th class="num" title="重算分數與實際銷量的 Spearman 等級相關">相關係數（Spearman 等級相關）</th><th class="num" [title]="pearsonHint">Pearson（對照 S-12）</th><th class="num">A 級達標率</th><th class="num">A 級（達標／總數）</th></tr>
           </thead>
           <tbody>
             @for (b of c.results; track $index) {
               <tr>
                 <td>{{ schemeLabel(b) }}</td>
                 <td class="num mono">{{ num(b.correlation) }}</td>
+                <td class="num mono muted">{{ num(b.pearson) }}</td>
                 <td class="num mono">{{ pct(b.gradeAHitRate) }}</td>
                 <td class="num mono">{{ b.gradeAHitCount }} / {{ b.gradeACount }}</td>
               </tr>
@@ -221,6 +227,17 @@
     @if (r.status === 'PENDING') {
       @if (!reviewable()) {
         <div class="alert warn">此報告為舊格式（缺四榜權重明細），無法據以建立版本。請按上方「產生／重算報告」重新產生 {{ r.quarter }} 報告，或直接駁回。</div>
+      }
+      @if (r.baseVersionStale) {
+        <div class="alert warn">
+          基準版本 {{ r.regression?.baseVersionNo }} 已非現行版本（報告產生後有新版本生效）。此時核准會以舊版本為底建立草稿，
+          草稿生效後等於蓋掉中間那次改版。建議先重新產生 {{ r.quarter }} 報告再審核。
+        </div>
+      }
+      @if (zeroedFactors().length) {
+        <div class="alert warn">
+          建議將「{{ zeroedFactorNames() }}」的權重調為 0（展開四榜明細可看是哪幾榜），核准後該因子在這些榜不再計分。請確認這是預期結果。
+        </div>
       }
       <div class="fld">
         <span class="lbl">審核說明（選填，寫入稽核紀錄與新版本變更說明）</span>
