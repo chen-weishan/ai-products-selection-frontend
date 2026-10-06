@@ -39,7 +39,7 @@ describe('DashboardComponent', () => {
       getSourcingSummary: vi.fn().mockReturnValue(of({
         data: {
           items: [
-            { productId: 3, productName: '測試尋源商品', timeGapDays: 2 }
+            { productId: 3, productName: '測試尋源商品', timeGapDays: 2, sourcingStatus: 'URGENT' }
           ]
         }
       })),
@@ -121,6 +121,24 @@ describe('DashboardComponent', () => {
 
     expect(component.activePeriod).toBe('lastWeek');
     expect(mockDashboardService.getRankings).toHaveBeenCalled();
+  });
+
+  it('uses sourcing status instead of time-gap sign to label rejected items', () => {
+    component.activeTrack = 'B';
+    component.sourcingSummary = {
+      items: [
+        { productId: 10, productName: '既有淘汰', timeGapDays: 11, sourcingStatus: 'REJECTED' },
+        { productId: 11, productName: '待評估', timeGapDays: -4, sourcingStatus: 'PENDING' }
+      ]
+    };
+
+    fixture.changeDetectorRef.detectChanges();
+
+    const badges = Array.from(
+      fixture.nativeElement.querySelectorAll('.op-card .status-badge') as NodeListOf<HTMLElement>
+    ).map(badge => badge.textContent?.replace(/\s+/g, ' ').trim());
+    expect(badges).toContain('時效 +11 天 已淘汰');
+    expect(badges).toContain('時效 -4 天');
   });
 
   it('should handle Blob response and parse JSON asynchronously', async () => {

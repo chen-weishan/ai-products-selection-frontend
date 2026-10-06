@@ -466,9 +466,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
   private loadMockSourcingSummary(): void {
     this.sourcingSummary = {
       items: [
-        { productId: 40, productName: '新興供應商 A', timeGapDays: 2 },
-        { productId: 41, productName: '新興供應商 B', timeGapDays: 5 },
-        { productId: 42, productName: '新興供應商 C', timeGapDays: -1 } // 淘汰
+        { productId: 40, productName: '新興供應商 A', timeGapDays: 2, sourcingStatus: 'URGENT' },
+        { productId: 41, productName: '新興供應商 B', timeGapDays: 15, sourcingStatus: 'SOURCING' },
+        { productId: 42, productName: '新興供應商 C', timeGapDays: -1, sourcingStatus: 'REJECTED' }
       ]
     };
   }
