@@ -213,7 +213,7 @@ export class HeatSourcesComponent implements OnInit {
         this.lastLoadedAt.set(new Date().toISOString());
         this.cdr.markForCheck();
       },
-      error: (err) => {
+      error: (err: any) => {
         this.loading.set(false);
         this.sourceError.set(this.errorMessage(err));
         const msg = this.errorMessage(err);

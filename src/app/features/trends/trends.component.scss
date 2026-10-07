@@ -351,6 +351,27 @@ mat-paginator {
       font-weight: 600;
     }
 
+    &.heat-stage {
+      background: #eaeff3;
+      color: var(--ink-2);
+      font-weight: 600;
+    }
+
+    &.stage-rising {
+      background: #e0f2fe;
+      color: #0369a1;
+    }
+
+    &.stage-plateau {
+      background: #fef3c7;
+      color: #b45309;
+    }
+
+    &.stage-declining {
+      background: #fee2e2;
+      color: #b91c1c;
+    }
+
     &.status-quota {
       background: #d97706; // 沉穩琥珀橘
       color: #ffffff;

@@ -1,12 +1,21 @@
-import { HttpErrorResponse } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable, inject, signal } from '@angular/core';
 import { catchError, finalize, map, Observable, tap, throwError } from 'rxjs';
 import { ProductControllerService } from '../../api/api/productController.service';
 import { ProductCreateRequest, ProductResponse } from '../../api/model/models';
+import { environment } from '../../../environments/environment';
 
 export interface ProductSaveResult {
   product: ProductResponse;
   warnings: readonly string[];
+  taskId?: number;
+  taskStatus?: string;
+}
+
+export interface ProductAnalysisFinalizeResult {
+  taskId?: number;
+  taskStatus?: string;
+  queued: boolean;
 }
 
 export type ProductSaveRequest = ProductCreateRequest;
@@ -14,6 +23,7 @@ export type ProductSaveRequest = ProductCreateRequest;
 @Injectable({ providedIn: 'root' })
 export class ProductEditorService {
   private readonly api = inject(ProductControllerService);
+  private readonly http = inject(HttpClient);
 
   readonly loading = signal(false);
   readonly saving = signal(false);
@@ -30,21 +40,36 @@ export class ProductEditorService {
     );
   }
 
-  save(productId: number | null, request: ProductSaveRequest): Observable<ProductSaveResult> {
+  save(
+    productId: number | null,
+    request: ProductSaveRequest,
+    options: { deferAnalysis?: boolean } = {},
+  ): Observable<ProductSaveResult> {
     this.saving.set(true);
     this.error.set(null);
 
     const action =
       productId == null
         ? this.api.createProduct({ productCreateRequest: request })
-        : this.api.updateProduct({
-            id: productId,
-            productUpdateRequest: request,
-          });
+        : options.deferAnalysis
+          ? this.http.put(
+              `${environment.apiBaseUrl}/products/${productId}`,
+              request,
+              { params: { deferAnalysis: true } },
+            )
+          : this.api.updateProduct({
+              id: productId,
+              productUpdateRequest: request,
+            });
 
     return action.pipe(
       map((response) => {
-        const result = unwrap<{ product?: ProductResponse; warnings?: Array<string> }>(
+        const result = unwrap<{
+          product?: ProductResponse;
+          warnings?: Array<string>;
+          taskId?: number;
+          taskStatus?: string;
+        }>(
           response as any,
           '儲存品項失敗',
         );
@@ -54,11 +79,27 @@ export class ProductEditorService {
         return {
           product: result.product,
           warnings: result.warnings ?? [],
+          taskId: result.taskId,
+          taskStatus: result.taskStatus,
         };
       }),
       this.handleError(),
       finalize(() => this.saving.set(false)),
     );
+  }
+
+  finalizeAnalysis(productId: number): Observable<ProductAnalysisFinalizeResult> {
+    this.saving.set(true);
+    this.error.set(null);
+    return this.http
+      .post(`${environment.apiBaseUrl}/products/${productId}/analysis/finalize`, null)
+      .pipe(
+        map((response) =>
+          unwrap<ProductAnalysisFinalizeResult>(response as any, '建立評分任務失敗'),
+        ),
+        this.handleError(),
+        finalize(() => this.saving.set(false)),
+      );
   }
 
   clearError(): void {

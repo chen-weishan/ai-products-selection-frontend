@@ -1,1 +1,626 @@
-<p>risks works!</p>
+<!-- 1. 主頁首 (Main Header) -->
+<div class="mh">
+  <div>
+    <h3>風險示警中心 (Risk Alert Center)</h3>
+    <div class="sub">追蹤風險示警 · 10 種風險類型 · 處理紀錄與規則設定</div>
+  </div>
+  <div class="tools">
+    <button type="button" class="btn" (click)="openRulesDrawer()">
+      <mat-icon class="btn-icon">tune</mat-icon>
+      規則與門檻設定
+    </button>
+    <button type="button" class="btn pri" (click)="reload()">
+      <mat-icon class="btn-icon">refresh</mat-icon>
+      重新整理
+    </button>
+  </div>
+</div>
+
+<!-- 全域訊息提示橫條 -->
+@if (successMessage()) {
+  <div class="alert-banner success-banner" role="status">
+    <mat-icon class="banner-icon">check_circle</mat-icon>
+    <span>{{ successMessage() }}</span>
+  </div>
+}
+@if (errorMessage()) {
+  <div class="alert-banner error-banner" role="alert">
+    <mat-icon class="banner-icon">error</mat-icon>
+    <span>{{ errorMessage() }}</span>
+  </div>
+}
+
+<!-- 2. 全域 KPI 統計卡片網格 (頂部 4 張 KPI 卡，不受篩選條件影響) -->
+<div class="section-title">
+  <span>示警指標總覽 (Risk Overview)</span>
+  @if (summaryAvailable() && summary().lastDetectedAt) {
+    <span class="last-detect-hint"
+      >最新示警時間：<span class="mono">{{
+        summary().lastDetectedAt | date: 'yyyy-MM-dd HH:mm:ss'
+      }}</span></span
+    >
+  }
+</div>
+@if (summaryError()) {
+  <div class="alert-banner error-banner" role="alert">
+    <span>{{ summaryError() }}</span>
+    <button type="button" class="btn" (click)="loadSummary()">重試統計</button>
+  </div>
+}
+<div class="kpis">
+  <!-- 卡片 1：高風險未處理 (紅色系警示卡) -->
+  <div class="card kpi-card alert">
+    <div class="v mono">
+      {{ isLoadingSummary() ? '…' : summaryAvailable() ? summary().highRiskCount : '—' }}
+    </div>
+    <div class="l">高風險待處理</div>
+    <div class="sub-hint risk-hint">需即時介入與排查</div>
+  </div>
+
+  <!-- 卡片 2：中風險未處理 (琥珀橘色卡) -->
+  <div class="card kpi-card">
+    <div class="v mono">
+      {{ isLoadingSummary() ? '…' : summaryAvailable() ? summary().mediumRiskCount : '—' }}
+    </div>
+    <div class="l">中風險待處理</div>
+    <div class="sub-hint warn-hint">列入觀察與採購評估</div>
+  </div>
+
+  <!-- 卡片 3：低風險未處理 (板岩灰色卡) -->
+  <div class="card kpi-card">
+    <div class="v mono">
+      {{ isLoadingSummary() ? '…' : summaryAvailable() ? summary().lowRiskCount : '—' }}
+    </div>
+    <div class="l">低風險待處理</div>
+    <div class="sub-hint default-hint">樣本偏低或輕微波動</div>
+  </div>
+
+  <!-- 卡片 4：本月已處理 (莫蘭迪綠色卡) -->
+  <div class="card kpi-card">
+    <div class="v mono text-teal">
+      {{ isLoadingSummary() ? '…' : summaryAvailable() ? summary().monthlyHandledCount : '—' }}
+    </div>
+    <div class="l">本月已處理示警</div>
+    <div class="sub-hint success-hint">已確認或已標註處理</div>
+  </div>
+</div>
+
+<!-- 3. 篩選工具列 (Filter Bar) -->
+<div class="filter-bar">
+  <!-- 關鍵字搜尋 -->
+  <mat-form-field appearance="outline" class="filter-field search-field" subscriptSizing="dynamic">
+    <mat-label>搜尋商品</mat-label>
+    <input
+      matInput
+      placeholder="輸入商品名稱（最多 100 字）"
+      maxlength="100"
+      [ngModel]="searchKeyword()"
+      (ngModelChange)="onSearchChange($event)"
+    />
+  </mat-form-field>
+
+  <!-- 嚴重度篩選 -->
+  <mat-form-field appearance="outline" class="filter-field select-field" subscriptSizing="dynamic">
+    <mat-label>風險等級</mat-label>
+    <mat-select
+      [ngModel]="filterSeverity()"
+      (ngModelChange)="filterSeverity.set($event); onFilterChange()"
+      panelClass="unified-mat-select-panel"
+    >
+      <mat-option value="ALL">全部風險等級</mat-option>
+      <mat-option value="HIGH">高風險 (HIGH)</mat-option>
+      <mat-option value="MEDIUM">中風險 (MEDIUM)</mat-option>
+      <mat-option value="LOW">低風險 (LOW)</mat-option>
+    </mat-select>
+  </mat-form-field>
+
+  <!-- 風險類型篩選 (10 種) -->
+  <mat-form-field
+    appearance="outline"
+    class="filter-field select-field-wide"
+    subscriptSizing="dynamic"
+  >
+    <mat-label>風險類型</mat-label>
+    <mat-select
+      [ngModel]="filterRiskType()"
+      (ngModelChange)="filterRiskType.set($event); onFilterChange()"
+      panelClass="unified-mat-select-panel"
+    >
+      <mat-option value="ALL">全部風險類型 (10 種)</mat-option>
+      @for (code of riskTypeKeys; track code) {
+        <mat-option [value]="code">{{ riskTypeMeta[code].label }} ({{ code }})</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+
+  <!-- 狀態篩選 (預設 ALL 不含已忽略，若選 IGNORED 則單獨篩選) -->
+  <mat-form-field appearance="outline" class="filter-field select-field" subscriptSizing="dynamic">
+    <mat-label>警示狀態</mat-label>
+    <mat-select
+      [ngModel]="filterStatus()"
+      (ngModelChange)="filterStatus.set($event); onFilterChange()"
+      panelClass="unified-mat-select-panel"
+    >
+      <mat-option value="ALL">未忽略 (預設)</mat-option>
+      <mat-option value="OPEN">待處理 (OPEN)</mat-option>
+      <mat-option value="ACKNOWLEDGED">已確認 (ACKNOWLEDGED)</mat-option>
+      <mat-option value="IGNORED">已忽略 (IGNORED)</mat-option>
+    </mat-select>
+  </mat-form-field>
+
+  <!-- 品類篩選 -->
+  <mat-form-field appearance="outline" class="filter-field select-field" subscriptSizing="dynamic">
+    <mat-label>品類類別</mat-label>
+    <mat-select
+      [ngModel]="filterCategoryId()"
+      [disabled]="!!categoryError()"
+      (ngModelChange)="filterCategoryId.set($event); onFilterChange()"
+      panelClass="unified-mat-select-panel"
+    >
+      <mat-option value="ALL">全部品類</mat-option>
+      @for (cat of categoryOptions(); track cat.id) {
+        <mat-option [value]="cat.id">{{ cat.name }}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+
+  <!-- 重設按鈕 -->
+  <button
+    type="button"
+    class="btn reset-filter-btn"
+    [disabled]="isDefaultFilter()"
+    (click)="resetFilters()"
+  >
+    <mat-icon class="btn-icon">restart_alt</mat-icon>
+    清除條件
+  </button>
+</div>
+@if (categoryError()) {
+  <div class="alert-banner error-banner" role="alert">
+    <span>{{ categoryError() }}</span>
+    <button type="button" class="btn" (click)="loadCategories()">重試品類</button>
+  </div>
+}
+
+<!-- 4. 主示警資料表格卡片 -->
+<div class="card table-card">
+  <div class="table-responsive">
+    <table mat-table [dataSource]="alerts()" class="alerts-table" [attr.aria-busy]="isLoading()">
+      <!-- 商品資訊欄位 -->
+      <ng-container matColumnDef="product">
+        <th mat-header-cell *matHeaderCellDef>商品資訊</th>
+        <td mat-cell *matCellDef="let row">
+          <div class="product-cell">
+            <span class="product-id mono">#{{ row.productId }}</span>
+            <span class="product-name font-medium">{{ row.productName }}</span>
+            @if (row.categoryName) {
+              <span class="category-chip">{{ row.categoryName }}</span>
+            }
+          </div>
+        </td>
+      </ng-container>
+
+      <!-- 風險類型欄位 (10 種對照) -->
+      <ng-container matColumnDef="riskType">
+        <th mat-header-cell *matHeaderCellDef>風險類型</th>
+        <td mat-cell *matCellDef="let row">
+          <div class="risk-type-cell">
+            <span class="risk-name">{{ getRiskLabel(row.riskType) }}</span>
+            <span class="risk-code mono">{{ row.riskType }}</span>
+          </div>
+        </td>
+      </ng-container>
+
+      <!-- 嚴重度欄位 -->
+      <ng-container matColumnDef="severity">
+        <th mat-header-cell *matHeaderCellDef>嚴重度</th>
+        <td mat-cell *matCellDef="let row">
+          <span class="status-badge compact" [ngClass]="getSeverityBadgeClass(row.severity)">
+            {{ getSeverityLabel(row.severity) }}
+          </span>
+        </td>
+      </ng-container>
+
+      <!-- 觸發數值欄位 -->
+      <ng-container matColumnDef="triggerValue">
+        <th mat-header-cell *matHeaderCellDef>觸發數值</th>
+        <td mat-cell *matCellDef="let row">
+          <span class="trigger-val mono">{{ row.triggerValue }}</span>
+        </td>
+      </ng-container>
+
+      <!-- 影響說明欄位 -->
+      <ng-container matColumnDef="impact">
+        <th mat-header-cell *matHeaderCellDef>影響說明</th>
+        <td mat-cell *matCellDef="let row">
+          <span class="impact-text">{{ row.impact || '未提供影響說明' }}</span>
+        </td>
+      </ng-container>
+
+      <!-- 偵測時間欄位 -->
+      <ng-container matColumnDef="detectedAt">
+        <th mat-header-cell *matHeaderCellDef>偵測時間</th>
+        <td mat-cell *matCellDef="let row">
+          <div class="date-cell mono">
+            <span>{{ row.detectedAt | date: 'yyyy-MM-dd' }}</span>
+            <span class="time-sub">{{ row.detectedAt | date: 'HH:mm:ss' }}</span>
+          </div>
+        </td>
+      </ng-container>
+
+      <!-- 狀態欄位 -->
+      <ng-container matColumnDef="status">
+        <th mat-header-cell *matHeaderCellDef>狀態</th>
+        <td mat-cell *matCellDef="let row">
+          <span class="status-badge compact" [ngClass]="getStatusBadgeClass(row.status)">
+            {{ getStatusLabel(row.status) }}
+          </span>
+        </td>
+      </ng-container>
+
+      <!-- 處理紀錄 / 忽略理由欄位 -->
+      <ng-container matColumnDef="handledInfo">
+        <th mat-header-cell *matHeaderCellDef>處理紀錄 / 忽略理由</th>
+        <td mat-cell *matCellDef="let row">
+          @if (row.status === 'ACKNOWLEDGED') {
+            <div class="handled-cell">
+              <span class="handled-by">{{
+                row.handledByName || (row.handledBy ? '使用者 #' + row.handledBy : '未提供')
+              }}</span>
+              <span class="handled-time mono">{{ row.handledAt | date: 'MM-dd HH:mm' }}</span>
+            </div>
+          } @else if (row.status === 'IGNORED') {
+            <div class="ignored-cell" [title]="row.ignoreReason || ''">
+              <span class="ignore-reason-text">「{{ row.ignoreReason || '未提供理由' }}」</span>
+              <span class="handled-time mono"
+                >{{
+                  row.handledByName || (row.handledBy ? '使用者 #' + row.handledBy : '未提供')
+                }}
+                · {{ row.handledAt | date: 'MM-dd HH:mm' }}</span
+              >
+            </div>
+          } @else {
+            <span class="text-muted text-xs">尚未處理</span>
+          }
+        </td>
+      </ng-container>
+
+      <!-- 操作欄位 (僅 OPEN 狀態可操作) -->
+      <ng-container matColumnDef="actions">
+        <th mat-header-cell *matHeaderCellDef class="text-right">操作</th>
+        <td mat-cell *matCellDef="let row" class="text-right">
+          @if (row.status === 'OPEN' && canManageRisks()) {
+            <div class="actions-group">
+              <button
+                type="button"
+                class="btn pri compact"
+                [disabled]="isAlertPending(row.id) || targetAlert()?.id === row.id"
+                (click)="acknowledgeAlert(row)"
+                title="確認此示警已處理"
+              >
+                {{ isAlertPending(row.id) ? '處理中…' : '確認處理' }}
+              </button>
+              <button
+                type="button"
+                class="btn danger compact"
+                [disabled]="isAlertPending(row.id) || isIgnoreModalOpen()"
+                (click)="openIgnoreDialog(row)"
+                title="忽略此示警（需填寫原因）"
+              >
+                忽略
+              </button>
+            </div>
+          } @else {
+            <span class="text-muted text-xs">{{
+              row.status === 'OPEN' ? '無操作權限' : getStatusLabel(row.status)
+            }}</span>
+          }
+        </td>
+      </ng-container>
+
+      <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+      <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
+
+      <!-- 無資料列 -->
+      <tr class="mat-row" *matNoDataRow>
+        <td class="mat-cell empty-cell" [attr.colspan]="displayedColumns.length">
+          <div class="empty-state">
+            @if (isLoading()) {
+              <p class="empty-title" role="status">正在載入風險示警…</p>
+            } @else if (listError()) {
+              <p class="empty-title" role="alert">{{ listError() }}</p>
+              <button type="button" class="btn" (click)="loadAlerts()">重新載入清單</button>
+            } @else {
+              <mat-icon class="empty-icon">verified_user</mat-icon>
+              <p class="empty-title">目前無符合條件之風險示警</p>
+              <span class="empty-sub">目前清單沒有符合這些條件的示警。</span>
+            }
+          </div>
+        </td>
+      </tr>
+    </table>
+  </div>
+
+  <!-- 分頁器 -->
+  <mat-paginator
+    [length]="totalElements()"
+    [pageSize]="pageSize()"
+    [pageIndex]="pageIndex()"
+    [pageSizeOptions]="pageSizeOptions"
+    [selectConfig]="{ panelClass: 'unified-mat-select-panel' }"
+    (page)="onPageChange($event)"
+  ></mat-paginator>
+</div>
+
+<!-- 5. 底部業務與 AI 判讀規則說明面板 (規範 5.1) -->
+<div class="info-section">
+  <div class="info-header">
+    <div class="info-title">
+      <h4>風險示警判讀與 10 種風險類型說明</h4>
+    </div>
+  </div>
+  <div class="info-grid">
+    @for (code of riskTypeKeys; track code) {
+      <div class="info-card">
+        <div class="card-head">
+          <h5>{{ riskTypeMeta[code].label }} ({{ code }})</h5>
+        </div>
+        <p>{{ riskTypeMeta[code].description }}</p>
+      </div>
+    }
+  </div>
+</div>
+
+<!-- ==================== 忽略理由填寫 Dialog Modal ==================== -->
+@if (isIgnoreModalOpen()) {
+  <div class="modal-overlay" (click)="closeIgnoreDialog()">
+    <div
+      class="modal-card"
+      (click)="$event.stopPropagation()"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="ignoreDialogTitle"
+      cdkTrapFocus
+      [cdkTrapFocusAutoCapture]="true"
+    >
+      <div class="modal-header">
+        <div class="modal-title-group">
+          <h4 id="ignoreDialogTitle">忽略風險示警</h4>
+          <span class="modal-subtitle">
+            商品：{{ targetAlert()?.productName }} ({{
+              getRiskLabel(targetAlert()?.riskType || '')
+            }})
+          </span>
+        </div>
+        <button
+          type="button"
+          class="close-btn"
+          (click)="closeIgnoreDialog()"
+          [disabled]="isSubmittingIgnore()"
+          aria-label="關閉忽略對話框"
+        >
+          <mat-icon>close</mat-icon>
+        </button>
+      </div>
+
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="ignoreReasonInput" class="form-label">
+            忽略原因 <span class="required-star">*</span>
+          </label>
+          <textarea
+            id="ignoreReasonInput"
+            class="reason-textarea"
+            rows="4"
+            placeholder="請填寫忽略此項風險示警的原因（必填，上限 300 字）…"
+            [disabled]="isSubmittingIgnore()"
+            cdkFocusInitial
+            maxlength="300"
+            [ngModel]="ignoreReasonText()"
+            (ngModelChange)="ignoreReasonText.set($event); ignoreError.set(null)"
+          ></textarea>
+          <div class="textarea-footer">
+            <span class="error-msg" role="alert">{{ ignoreError() }}</span>
+            <span class="char-count mono">{{ ignoreReasonText().length }} / 300</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button
+          type="button"
+          class="btn"
+          (click)="closeIgnoreDialog()"
+          [disabled]="isSubmittingIgnore()"
+        >
+          取消
+        </button>
+        <button
+          type="button"
+          class="btn pri danger-btn"
+          (click)="submitIgnore()"
+          [disabled]="!ignoreReasonText().trim() || isSubmittingIgnore() || !canManageRisks()"
+        >
+          {{ isSubmittingIgnore() ? '提交中...' : '確認忽略並記錄' }}
+        </button>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- ==================== 規則與門檻管理抽屜 / Drawer ==================== -->
+@if (isRulesDrawerOpen()) {
+  <div class="drawer-overlay" (click)="closeRulesDrawer()">
+    <div
+      class="drawer-panel"
+      (click)="$event.stopPropagation()"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="rulesDrawerTitle"
+      cdkTrapFocus
+      [cdkTrapFocusAutoCapture]="true"
+    >
+      <div class="drawer-header">
+        <div>
+          <h3 id="rulesDrawerTitle">風險規則與門檻設定 (Risk Rules)</h3>
+          <div class="sub">檢視風險規則；管理員可修改門檻。重算狀態以服務回應為準。</div>
+        </div>
+        <button
+          type="button"
+          class="close-btn"
+          (click)="closeRulesDrawer()"
+          [disabled]="!!savingRuleCode()"
+          aria-label="關閉規則設定"
+        >
+          <mat-icon>close</mat-icon>
+        </button>
+      </div>
+
+      <!-- 背景全量重算進度條 -->
+      @if (rulesAvailable() && !isLoadingRules() && recalculation().running && !rulesError()) {
+        <div class="recalc-banner">
+          <div class="recalc-title">
+            <span class="recalc-spin"><mat-icon>sync</mat-icon></span>
+            <span
+              >正在執行背景全量扣分重算中… (<span class="mono"
+                >{{ recalculation().progressPercent }}%</span
+              >)</span
+            >
+          </div>
+          <div class="progress-track">
+            <div class="progress-bar" [style.width.%]="recalculation().progressPercent"></div>
+          </div>
+        </div>
+      }
+
+      <div class="drawer-body">
+        @if (recalculationWarning()) {
+          <div class="alert-banner" role="status">
+            <span>{{ recalculationWarning() }}</span>
+            <button
+              type="button"
+              class="btn"
+              (click)="loadRules()"
+              [disabled]="isLoadingRules() || !!savingRuleCode()"
+            >
+              重新查詢進度
+            </button>
+          </div>
+        }
+        @if (rulesError()) {
+          <div class="alert-banner error-banner" role="alert">
+            <span>{{ rulesError() }}</span>
+            <button type="button" class="btn" (click)="loadRules()" [disabled]="isLoadingRules()">
+              重試
+            </button>
+          </div>
+        }
+        @if (isLoadingRules()) {
+          <div class="loading-box" role="status">載入規則門檻中…</div>
+        } @else {
+          <div class="rules-list">
+            @for (rule of rulesList(); track ruleKey(rule)) {
+              <div class="card rule-item-card">
+                <div class="rule-item-head">
+                  <div>
+                    <span class="rule-title font-bold">{{ getRiskLabel(rule.ruleCode) }}</span>
+
+                    <span>{{
+                      rule.categoryId == null ? '全域規則' : '品類 #' + rule.categoryId
+                    }}</span>
+                  </div>
+                  <span
+                    class="status-badge compact"
+                    [ngClass]="getSeverityBadgeClass(rule.severity || 'MEDIUM')"
+                  >
+                    {{ getSeverityLabel(rule.severity || 'MEDIUM') }}
+                  </span>
+                </div>
+
+                <p class="rule-desc">
+                  {{ rule.description || riskTypeMeta[rule.ruleCode]?.description }}
+                </p>
+
+                <div class="threshold-box">
+                  <span class="threshold-title">門檻設定</span>
+                  @for (key of thresholdFields(rule); track key) {
+                    <div class="threshold-field">
+                      <label [for]="'threshold-' + ruleKey(rule) + '-' + key">{{
+                        thresholdLabel(key)
+                      }}</label>
+                      @if (canEditThresholdField(rule, key)) {
+                        <input
+                          class="threshold-editor"
+                          type="number"
+                          [id]="'threshold-' + ruleKey(rule) + '-' + key"
+                          [ngModel]="thresholdValue(rule, key)"
+                          (ngModelChange)="updateThresholdField(rule, key, $event)"
+                          [disabled]="
+                            !rulesAvailable() ||
+                            !!rulesError() ||
+                            !!savingRuleCode() ||
+                            recalculation().running
+                          "
+                          [attr.aria-invalid]="!!getThresholdError(rule)"
+                        />
+                      } @else {
+                        <span>{{ thresholdDisplay(rule, key) }}</span>
+                      }
+                    </div>
+                  }
+                  @if (isSysAdmin() && getThresholdError(rule)) {
+                    <div class="threshold-error" role="alert">{{ getThresholdError(rule) }}</div>
+                  }
+                </div>
+                @if (ruleSaveErrors()[ruleKey(rule)]) {
+                  <div class="threshold-error" role="alert">
+                    {{ ruleSaveErrors()[ruleKey(rule)] }}
+                  </div>
+                }
+
+                @if (isSysAdmin() && rule.ruleCode !== 'PENALTY_CAP') {
+                  <div class="rule-actions">
+                    <button
+                      type="button"
+                      class="btn compact"
+                      (click)="resetRuleDraft(rule)"
+                      [disabled]="
+                        !!savingRuleCode() ||
+                        recalculation().running ||
+                        thresholdDrafts()[ruleKey(rule)] === formatThresholdJson(rule.thresholdJson)
+                      "
+                    >
+                      取消修改
+                    </button>
+                    <button
+                      type="button"
+                      class="btn pri compact"
+                      (click)="saveRuleThreshold(rule)"
+                      [disabled]="!canSaveRule(rule)"
+                    >
+                      {{ savingRuleCode() === ruleKey(rule) ? '儲存中…' : '儲存變更' }}
+                    </button>
+                  </div>
+                }
+              </div>
+            }
+          </div>
+          @if (rulesAvailable() && !rulesList().length) {
+            <div class="empty-state">目前沒有可設定的風險規則。</div>
+          }
+        }
+      </div>
+
+      <div class="drawer-footer">
+        <button
+          type="button"
+          class="btn"
+          (click)="closeRulesDrawer()"
+          [disabled]="!!savingRuleCode()"
+        >
+          關閉面板
+        </button>
+      </div>
+    </div>
+  </div>
+}
