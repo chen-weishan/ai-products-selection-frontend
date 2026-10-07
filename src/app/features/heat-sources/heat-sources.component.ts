@@ -204,7 +204,7 @@ export class HeatSourcesComponent implements OnInit {
     this.loading.set(true);
     const jsonOptions = { httpHeaderAccept: 'application/json' as any };
 
-    this.sourceSubscription = this.heatSourceApi.list4('body', false, jsonOptions)
+    this.sourceSubscription = this.heatSourceApi.list5('body', false, jsonOptions)
       .pipe(takeUntil(this.sessionChanged$), takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (res: any) => {
         this.loading.set(false);

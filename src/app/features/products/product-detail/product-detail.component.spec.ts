@@ -2,6 +2,9 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ActivatedRoute, Router, convertToParamMap } from '@angular/router';
+import { MatDialog } from '@angular/material/dialog';
+import { of } from 'rxjs';
+import { vi } from 'vitest';
 
 import { BASE_PATH } from '../../../api';
 import { AuthService } from '../../../core/auth/auth.service';
@@ -11,8 +14,11 @@ describe('ProductDetailComponent', () => {
   let component: ProductDetailComponent;
   let fixture: ComponentFixture<ProductDetailComponent>;
   let http: HttpTestingController;
+  const dialog = { open: vi.fn() };
 
   beforeEach(async () => {
+    dialog.open.mockReset();
+    dialog.open.mockReturnValue({ afterClosed: () => of(undefined) });
     await TestBed.configureTestingModule({
       imports: [ProductDetailComponent],
       providers: [
@@ -30,6 +36,7 @@ describe('ProductDetailComponent', () => {
         },
         { provide: Router, useValue: { navigate: () => Promise.resolve(true) } },
         { provide: AuthService, useValue: { hasRole: () => true } },
+        { provide: MatDialog, useValue: dialog },
       ],
     }).compileComponents();
 
@@ -71,6 +78,32 @@ describe('ProductDetailComponent', () => {
     expect(renderedText).toContain('AI 進貨建議');
     expect(renderedText).toContain('✓抹茶風味濃郁');
     expect(renderedText).toContain('⚠夏季易融化');
+    expect(renderedText).toContain('建立決策');
+    expect(renderedText).not.toContain('建立開團決策（尚未開放）');
+  });
+
+  it('從 S-06 開啟既有決策對話框，觀察操作預選 WATCH，成功後同步品項狀態', () => {
+    flushInitialRequests();
+    dialog.open.mockReturnValue({
+      afterClosed: () =>
+        of({
+          decision: 'WATCH',
+          productStatus: 'WATCHING',
+        }),
+    });
+
+    component.openDecision('WATCH');
+
+    expect(dialog.open).toHaveBeenCalledWith(
+      expect.any(Function),
+      expect.objectContaining({
+        data: { productId: 7, initialDecision: 'WATCH' },
+        maxWidth: '96vw',
+        autoFocus: false,
+      }),
+    );
+    expect(component.product()?.status).toBe('WATCHING');
+    expect(component.successMessage()).toContain('已建立觀察決策');
   });
 
   it('分開處理 0.5 採用門檻與 0.7 計分門檻', () => {

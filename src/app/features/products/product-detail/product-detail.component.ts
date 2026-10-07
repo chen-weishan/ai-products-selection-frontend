@@ -5,6 +5,7 @@ import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angula
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
+import { MatDialog } from '@angular/material/dialog';
 import { ActivatedRoute, Router } from '@angular/router';
 import { catchError, forkJoin, map, of } from 'rxjs';
 
@@ -25,6 +26,11 @@ import {
   ScoreFactorDetailResponse,
 } from '../../../api';
 import { AuthService } from '../../../core/auth/auth.service';
+import { DECISION_LABELS, Decision, DecisionType } from '../../../core/models/decision';
+import {
+  CreateDecisionDialogComponent,
+  CreateDecisionDialogData,
+} from '../../decisions/create-decision-dialog/create-decision-dialog.component';
 
 type SceneType = 'VIRAL' | 'FESTIVAL' | 'REPLENISHMENT' | 'SEASONAL';
 type FactorCode = 'TREND' | 'MARGIN' | 'CVR' | 'PRICE_FIT' | 'FESTIVAL' | 'CLIMATE';
@@ -53,6 +59,7 @@ export class ProductDetailComponent implements OnInit {
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
   private readonly authService = inject(AuthService);
+  private readonly dialog = inject(MatDialog);
   private readonly productService = inject(ProductControllerService);
   private readonly scoreService = inject(ProductScoresService);
   private readonly sceneService = inject(ProductScenesService);
@@ -324,27 +331,29 @@ export class ProductDetailComponent implements OnInit {
       });
   }
 
-  markWatching(): void {
+  openDecision(initialDecision?: DecisionType): void {
     const id = this.productId();
     if (!id || this.actionLoading() || !this.canOperateDecision()) return;
-    this.actionLoading.set(true);
-    this.productService
-      .changeStatus({
-        id,
-        productStatusUpdateRequest: { targetStatus: 'WATCHING' },
-      })
+    const data: CreateDecisionDialogData = { productId: id, initialDecision };
+    this.errorMessage.set(null);
+    this.successMessage.set(null);
+    this.dialog
+      .open(CreateDecisionDialogComponent, { data, maxWidth: '96vw', autoFocus: false })
+      .afterClosed()
       .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe({
-        next: () => {
+      .subscribe((created: Decision | undefined) => {
+        if (created) {
           const current = this.product();
-          if (current) this.product.set({ ...current, status: 'WATCHING' });
-          this.successMessage.set('品項已加入觀察。');
-          this.actionLoading.set(false);
-        },
-        error: () => {
-          this.errorMessage.set('更新觀察狀態失敗，請稍後再試。');
-          this.actionLoading.set(false);
-        },
+          if (current) {
+            this.product.set({
+              ...current,
+              status: created.productStatus as ProductResponse.StatusEnum,
+            });
+          }
+          this.successMessage.set(
+            `已建立${DECISION_LABELS[created.decision]}決策，決策快照已鎖定。`,
+          );
+        }
       });
   }
 

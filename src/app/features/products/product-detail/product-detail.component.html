@@ -42,17 +42,17 @@
             type="button"
             class="btn"
             [disabled]="actionLoading() || item.status === 'WATCHING'"
-            (click)="markWatching()"
+            (click)="openDecision('WATCH')"
           >
             {{ item.status === 'WATCHING' ? '已在觀察' : '加入觀察' }}
           </button>
           <button
             type="button"
             class="btn pri"
-            disabled
-            title="後端尚未提供 POST /products/{id}/decisions"
+            [disabled]="actionLoading()"
+            (click)="openDecision()"
           >
-            建立開團決策（尚未開放）
+            建立決策
           </button>
         }
       </div>
