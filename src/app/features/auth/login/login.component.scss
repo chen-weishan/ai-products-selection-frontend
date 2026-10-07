@@ -678,3 +678,159 @@
     transform: none;
   }
 }
+
+// Desktop layout follows both viewport width and height. Keep the existing
+// narrow-screen layout independent from these rules.
+@media (min-width: 721px) {
+  :host .concept-page {
+    padding: clamp(16px, 2.8vh, 40px) clamp(28px, 5vw, 128px) clamp(14px, 2vh, 28px);
+  }
+
+  :host .concept-header,
+  :host .concept-main,
+  :host .concept-footer {
+    max-width: 1760px;
+  }
+
+  :host .concept-header {
+    padding-bottom: clamp(14px, 2.5vh, 30px);
+  }
+
+  :host .concept-main {
+    flex: 1;
+    align-items: center;
+    gap: clamp(28px, 4.5vw, 112px);
+    padding: clamp(16px, 3vh, 44px) 0;
+  }
+
+  :host h1 {
+    font-size: clamp(46px, 4.5vw, 88px);
+  }
+
+  :host .hero-tagline {
+    font-size: clamp(16px, 1.5vw, 25px);
+  }
+
+  :host .hero-body {
+    font-size: clamp(12px, 1vw, 16px);
+  }
+
+  :host .feature-heading {
+    margin-top: clamp(40px, calc(25vh - 80px), 240px);
+  }
+
+  :host .trend-art {
+    top: -15px;
+    left: -4%;
+    width: 108%;
+    height: clamp(330px, 56vh, 660px);
+  }
+
+  :host .concept-login {
+    align-self: stretch;
+    padding-left: clamp(28px, 4vw, 88px);
+  }
+
+  :host .concept-form-area {
+    max-width: clamp(300px, 27vw, 460px);
+  }
+
+  :host h2 {
+    font-size: clamp(28px, 2.4vw, 42px);
+  }
+
+  :host .feature-stage {
+    min-height: 220px;
+  }
+
+  :host .feature-sheet {
+    min-height: 154px;
+  }
+
+  :host .feature-entry,
+  :host .feature-switch,
+  :host .feature-tab,
+  :host .feature-copy,
+  :host .login-caption,
+  :host .concept-form > label:not(.concept-remember),
+  :host input[type='email'],
+  :host input[type='password'],
+  :host input[type='text'],
+  :host .concept-submit {
+    font-size: clamp(12px, 0.9vw, 15px);
+  }
+
+  :host .feature-hook {
+    font-size: clamp(13px, 1vw, 17px);
+  }
+
+  :host input[type='email'],
+  :host input[type='password'],
+  :host input[type='text'],
+  :host .concept-submit {
+    height: clamp(44px, 5.2vh, 56px);
+  }
+
+  :host .password-eye {
+    top: 50%;
+    transform: translateY(-50%);
+  }
+
+  :host .feature-hook {
+    padding-right: 20px;
+  }
+}
+
+@media (min-width: 721px) and (max-height: 760px) {
+  :host .feature-heading {
+    margin-top: clamp(24px, calc(16vh - 70px), 52px);
+  }
+  :host .login-caption {
+    margin-bottom: 18px;
+  }
+
+  :host .concept-form > label:not(.concept-remember) {
+    margin-top: 14px;
+  }
+
+  :host .concept-remember {
+    margin: 14px 0 18px;
+  }
+
+  :host .workspace-signature {
+    margin-top: 8px;
+    padding-top: 12px;
+  }
+
+  :host .feature-sheet {
+    min-height: 142px;
+    padding: 14px 16px;
+  }
+
+  :host .feature-stage {
+    min-height: 210px;
+  }
+}
+
+@media (min-width: 721px) and (max-height: 640px) {
+  :host .concept-main {
+    padding: 12px 0;
+  }
+
+  :host h1 {
+    font-size: clamp(42px, 4vw, 60px);
+    margin-top: 10px;
+  }
+
+  :host .hero-tagline {
+    margin-top: 10px;
+  }
+
+  :host .hero-body {
+    margin-top: 10px;
+  }
+
+  :host .feature-heading {
+    margin-top: 24px;
+  }
+}
