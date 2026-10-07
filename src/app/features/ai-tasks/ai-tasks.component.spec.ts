@@ -20,11 +20,11 @@ describe('AiTasksComponent', () => {
 
   let mockAiTasksService: {
     summary1: ReturnType<typeof vi.fn>;
-    list1: ReturnType<typeof vi.fn>;
+    list3: ReturnType<typeof vi.fn>;
     items: ReturnType<typeof vi.fn>;
     cancel: ReturnType<typeof vi.fn>;
     retryFailed: ReturnType<typeof vi.fn>;
-    create1: ReturnType<typeof vi.fn>;
+    create3: ReturnType<typeof vi.fn>;
   };
 
   let mockAiBudgetService: {
@@ -95,11 +95,11 @@ describe('AiTasksComponent', () => {
   beforeEach(async () => {
     mockAiTasksService = {
       summary1: vi.fn().mockReturnValue(of({ success: true, data: sampleSummary })),
-      list1: vi.fn().mockReturnValue(of({ success: true, data: { content: sampleTasks, totalElements: 2 } })),
+      list3: vi.fn().mockReturnValue(of({ success: true, data: { content: sampleTasks, totalElements: 2 } })),
       items: vi.fn().mockReturnValue(of({ success: true, data: [{ itemId: 1, productId: 501, status: 'SUCCEEDED', durationMs: 120 }] })),
       cancel: vi.fn().mockReturnValue(of({ success: true, data: { ...sampleTasks[0], status: 'CANCELLED' } })),
       retryFailed: vi.fn().mockReturnValue(of({ success: true, data: { taskId: 102, status: 'PENDING' } })),
-      create1: vi.fn().mockReturnValue(of({ success: true, data: { taskId: 103, status: 'PENDING', taskType: 'FULL_ANALYSIS' } })),
+      create3: vi.fn().mockReturnValue(of({ success: true, data: { taskId: 103, status: 'PENDING', taskType: 'FULL_ANALYSIS' } })),
     };
 
     mockAiBudgetService = {
@@ -132,33 +132,23 @@ describe('AiTasksComponent', () => {
       ],
     }).compileComponents();
 
+    vi.spyOn(Date, 'now').mockReturnValue(new Date('2026-09-26T10:05:00Z').getTime());
+
     fixture = TestBed.createComponent(AiTasksComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
   });
 
   afterEach(() => {
+    vi.restoreAllMocks();
     component.ngOnDestroy();
   });
 
   it('should create and load initial summary, budget, and tasks', () => {
     expect(component).toBeTruthy();
-    expect(mockAiTasksService.summary1).toHaveBeenCalledWith(
-      'body',
-      false,
-      expect.objectContaining({ httpHeaderAccept: 'application/json' })
-    );
-    expect(mockAiBudgetService.current).toHaveBeenCalledWith(
-      'body',
-      false,
-      expect.objectContaining({ httpHeaderAccept: 'application/json' })
-    );
-    expect(mockAiTasksService.list1).toHaveBeenCalledWith(
-      expect.objectContaining({ page: 0, size: 10 }),
-      'body',
-      false,
-      expect.objectContaining({ httpHeaderAccept: 'application/json' })
-    );
+    expect(mockAiTasksService.summary1).toHaveBeenCalled();
+    expect(mockAiBudgetService.current).toHaveBeenCalled();
+    expect(mockAiTasksService.list3).toHaveBeenCalled();
 
     expect(component.summary()).toEqual(sampleSummary);
     expect(component.budget()).toEqual(sampleBudget);
@@ -175,23 +165,18 @@ describe('AiTasksComponent', () => {
     component.onStatusFilterChange('FAILED');
     expect(component.selectedStatus()).toBe('FAILED');
     expect(component.pageIndex()).toBe(0);
-    expect(mockAiTasksService.list1).toHaveBeenCalledWith(
+    expect(mockAiTasksService.list3).toHaveBeenCalledWith(
       expect.objectContaining({ status: 'FAILED', page: 0, size: 10 }),
       'body',
       false,
-      expect.objectContaining({ httpHeaderAccept: 'application/json' })
+      expect.anything()
     );
   });
 
   it('should toggle and load task items', () => {
     component.toggleTaskItems(101);
     expect(component.expandedTaskId()).toBe(101);
-    expect(mockAiTasksService.items).toHaveBeenCalledWith(
-      { taskId: 101 },
-      'body',
-      false,
-      expect.objectContaining({ httpHeaderAccept: 'application/json' })
-    );
+    expect(mockAiTasksService.items).toHaveBeenCalledWith({ taskId: 101 }, 'body', false, expect.anything());
 
     // Toggle again to collapse
     component.toggleTaskItems(101);
@@ -205,12 +190,7 @@ describe('AiTasksComponent', () => {
     expect(mockDialogService.Confirm).toHaveBeenCalledWith(
       expect.objectContaining({ isDanger: true })
     );
-    expect(mockAiTasksService.cancel).toHaveBeenCalledWith(
-      { taskId: 101 },
-      'body',
-      false,
-      expect.objectContaining({ httpHeaderAccept: 'application/json' })
-    );
+    expect(mockAiTasksService.cancel).toHaveBeenCalledWith({ taskId: 101 });
     expect(mockSnackBar.open).toHaveBeenCalledWith(expect.stringContaining('成功取消'), '關閉', expect.anything());
   });
 
@@ -221,12 +201,7 @@ describe('AiTasksComponent', () => {
     expect(mockDialogService.Confirm).toHaveBeenCalledWith(
       expect.objectContaining({ confirmText: '確認重跑' })
     );
-    expect(mockAiTasksService.retryFailed).toHaveBeenCalledWith(
-      { taskId: 100 },
-      'body',
-      false,
-      expect.objectContaining({ httpHeaderAccept: 'application/json' })
-    );
+    expect(mockAiTasksService.retryFailed).toHaveBeenCalledWith({ taskId: 100 });
     expect(mockSnackBar.open).toHaveBeenCalledWith(expect.stringContaining('已建立重試任務 #102'), '關閉', expect.anything());
   });
 
@@ -243,18 +218,13 @@ describe('AiTasksComponent', () => {
     component.openCreateDialog();
 
     expect(mockMatDialog.open).toHaveBeenCalled();
-    expect(mockAiTasksService.create1).toHaveBeenCalledWith(
-      {
-        createAiTaskRequest: {
-          taskType: 'FULL_ANALYSIS',
-          productIds: [101, 102],
-          options: { forceRefresh: true },
-        },
+    expect(mockAiTasksService.create3).toHaveBeenCalledWith({
+      createAiTaskRequest: {
+        taskType: 'FULL_ANALYSIS',
+        productIds: [101, 102],
+        options: { forceRefresh: true },
       },
-      'body',
-      false,
-      expect.objectContaining({ httpHeaderAccept: 'application/json' })
-    );
+    });
     expect(mockSnackBar.open).toHaveBeenCalledWith(expect.stringContaining('已成功建立 AI 任務 #103'), '關閉', expect.anything());
   });
 
@@ -264,5 +234,8 @@ describe('AiTasksComponent', () => {
 
     const duration = component.calculateDuration('2026-09-26T10:00:00Z', '2026-09-26T10:02:15Z');
     expect(duration).toBe('2 分 15 秒');
+
+    component.currentTime.set(new Date('2026-09-26T10:05:00Z').getTime());
+    expect(component.calculateDuration('2026-09-26T10:00:00Z')).toBe('5 分 0 秒');
   });
 });

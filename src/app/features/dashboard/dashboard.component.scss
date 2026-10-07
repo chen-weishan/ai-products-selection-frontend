@@ -649,6 +649,18 @@
         text-overflow: ellipsis;
         white-space: nowrap;
       }
+
+      .item-actions {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-shrink: 0;
+      }
+
+      .btn.small {
+        height: 26px;
+        padding: 3px 10px;
+      }
     }
 
     .op-empty {

@@ -55,7 +55,12 @@
       <div class="h c">合計</div>
 
       @for (group of detail.sceneGroups; track group.sceneType) {
-        <div class="rowname">{{ sceneLabels[group.sceneType] }}</div>
+        <div class="rowname">
+          {{ sceneLabels[group.sceneType] }}
+          @if (statsByScene()[group.sceneType]; as st) {
+            <span class="mini">{{ st.finalCount }} 項</span>
+          }
+        </div>
         @for (code of factorCodes; track code) {
           <div class="cell" [class.hi]="group.weights[code] === peakValues()[group.sceneType]">
             {{ percent(group.weights[code]) }}
@@ -77,6 +82,46 @@
           <div class="v">A ≥ {{ group.gradeAMin }}　B {{ group.gradeBMin }} 起</div>
         </div>
       }
+    </div>
+
+    <!-- AI 選組規則（§5.4；統計來自 scene-stats，§8.2 v3.0 補入）──── -->
+    <div class="card rules">
+      <h5><span class="mk">1</span>AI 選組規則</h5>
+      <div class="mini">
+        SceneClassifierAgent 每次評分時判定情境，輸出必須是四組之一，並附信心值與依據訊號。
+        信心 &lt; 0.5 時退回「常態補貨型」並標示；JSON Schema 驗證失敗時同樣退回預設。
+      </div>
+      @if (sceneStats(); as st) {
+        @if (st.windowFrom) {
+          <div class="stat">
+            {{ st.windowFrom }} 起{{ st.windowTo ? '至 ' + st.windowTo + ' 前' : '至今' }}：
+            判定 <b>{{ st.judgedCount }}</b> 項 · 人工覆寫 <b>{{ st.overriddenCount }}</b> 項 ·
+            覆寫率 <b>{{ percent(st.overrideRate) }}</b>
+            @if (st.aiFailedCount > 0) {
+              <span class="mini">（其中 {{ st.aiFailedCount }} 項 AI 判定失敗、已退回預設）</span>
+            }
+          </div>
+          <div class="scene-stats">
+            <div class="h">AI 判定</div>
+            <div class="h c">判定數</div>
+            <div class="h c">覆寫數</div>
+            <div class="h c">覆寫率</div>
+            @for (s of st.scenes; track s.sceneType) {
+              <div>{{ sceneLabels[s.sceneType] }}</div>
+              <div class="c">{{ s.aiJudgedCount }}</div>
+              <div class="c">{{ s.overriddenCount }}</div>
+              <div class="c">{{ percent(s.overrideRate) }}</div>
+            }
+          </div>
+        } @else {
+          <div class="stat mini">草稿尚未生效，沒有判定統計。</div>
+        }
+      } @else if (sceneStatsError()) {
+        <div class="stat mini">判定統計載入失敗。</div>
+      }
+      <div class="mini">
+        統計範圍為該版本的生效期間（本版生效日至下一版生效日前），每個品項只計最新一筆判定。
+      </div>
     </div>
 
     @if (detail.status === 'DRAFT') {
@@ -155,20 +200,21 @@
         <input
           class="cell"
           type="number"
-          step="0.01"
+          step="0.1"
           min="0"
-          max="1"
+          max="100"
+          [class.bad]="!validWeight(form().weights[scene][code])"
           [value]="form().weights[scene][code]"
           (input)="setWeight(scene, code, $any($event.target).value)" />
       }
-      <div class="cell sum" [class.bad]="formSums()[scene] !== 1">
-        {{ formSums()[scene].toFixed(3) }}
+      <div class="cell sum" [class.bad]="formSums()[scene] !== 100">
+        {{ formSums()[scene] }}
       </div>
     }
   </div>
 
   <div class="mini" style="margin-bottom: 12px">
-    權重以小數填寫（0.5 表示 50%），每一榜六個因子加總必須剛好是 1.000。
+    權重以 0–100 填寫（50 表示 50%，最多一位小數），每一榜六個因子加總必須剛好是 100。
   </div>
 
   <div class="sect">四榜分級門檻</div>
@@ -212,7 +258,7 @@
     </button>
     <button type="button" class="btn" (click)="cancel()">取消</button>
     @if (!canSubmit()) {
-      <span class="mini">四榜加總都等於 1.000 才能送出</span>
+      <span class="mini">每格 0–100（最多一位小數）、四榜加總都等於 100 才能送出</span>
     }
   </div>
 }
@@ -249,6 +295,6 @@
 </div>
 
 <div class="todo">
-  尚未實作：AI 選組規則、風險扣分規則、每組品項數、本季判定統計。
-  這四個區塊在畫面示意圖中有，但後端尚無對應端點，故不以假資料呈現。
+  尚未實作：風險扣分規則。
+  這個區塊在畫面示意圖中有，但後端尚無對應端點，故不以假資料呈現。
 </div>

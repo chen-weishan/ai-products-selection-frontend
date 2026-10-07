@@ -64,6 +64,10 @@ describe('RankingComponent', () => {
       weight: 0.07,
       dataAvailable: true,
       imputed: false,
+      drivingKeywordId: null,
+      drivingKeyword: null,
+      drivingFestivalId: null,
+      drivingFestivalName: null,
     };
 
     const bars = component.orderedFactors(row({ factors: [only] }));
@@ -134,6 +138,29 @@ describe('RankingComponent', () => {
     component.counts.set({ VIRAL: 0 });
     expect(component.countOf('VIRAL')).toBe('0');
     expect(component.countOf('SEASONAL')).toBeNull();
+  });
+
+  /** AC-17-6「於 UI 標示生效節慶」、§5.3.3 生效關鍵字（v3.0.1 E-01／E-02）。 */
+  it('有生效節慶／關鍵字時列出名稱，都沒有時回 null', () => {
+    const bar = (code: (typeof FACTOR_CODES)[number], keyword: string | null, festival: string | null) => ({
+      factorCode: code,
+      normalizedValue: 80,
+      weight: 0.1,
+      dataAvailable: true,
+      imputed: false,
+      drivingKeywordId: keyword ? 9 : null,
+      drivingKeyword: keyword,
+      drivingFestivalId: festival ? 7 : null,
+      drivingFestivalName: festival,
+    });
+    const withTargets = row({
+      factors: [bar('TREND', '露營', null), bar('MARGIN', null, null), bar('FESTIVAL', null, '中秋節')],
+    });
+
+    expect(component.drivingText(withTargets)).toBe('關鍵字：露營 · 節慶：中秋節');
+    expect(component.barTitle(withTargets.factors[2])).toContain('生效節慶：中秋節');
+    expect(component.barTitle(withTargets.factors[1])).not.toContain('生效');
+    expect(component.drivingText(row({ factors: [bar('MARGIN', null, null)] }))).toBeNull();
   });
 
   it('百分比與分數的顯示格式避開浮點誤差，null 顯示破折號', () => {

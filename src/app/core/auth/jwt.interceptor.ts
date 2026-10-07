@@ -5,7 +5,10 @@ import { AuthService } from './auth.service';
 
 export const jwtInterceptor: HttpInterceptorFn = (request, next) => {
   const token = inject(AuthService).getAccessToken();
-  const isBackendRequest = request.url.startsWith(environment.apiBaseUrl);
+  const isBackendRequest =
+    request.url.startsWith(environment.apiBaseUrl) ||
+    request.url.startsWith('/api/v1') ||
+    request.url.includes('/api/v1');
 
   if (!isBackendRequest || !token || request.headers.has('Authorization')) {
     return next(request);

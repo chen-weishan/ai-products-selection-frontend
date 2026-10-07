@@ -90,6 +90,7 @@ export const routes: Routes = [
       },
       {
         path: 'heat-tags',
+        data: { roles: [...PRODUCT_EDIT_ROLES] },
         loadComponent: () =>
           import('./features/heat-tags/heat-tags.component').then(
             m => m.HeatTagsComponent
@@ -133,6 +134,15 @@ export const routes: Routes = [
             m => m.WeightsComponent
           ),
         data: { roles: ['BUYER', 'BUYER_LEAD', 'DATA_ADMIN', 'SYS_ADMIN'] }
+      },
+      {
+        // S-19（FR-15）：§9.2 路由表 Auth + Role(BUYER_LEAD)
+        path: 'weights/calibration',
+        loadComponent: () =>
+          import('./features/calibration/calibration.component').then(
+            m => m.CalibrationComponent
+          ),
+        data: { roles: ['BUYER_LEAD'] }
       },
       {
         path: 'festivals',

@@ -15,7 +15,7 @@
       </button>
     </div>
     <button type="button" class="btn" (click)="reload()">重新整理</button>
-    <button type="button" class="btn pri" (click)="navigateToQuickMark()">＋ 我看到一個</button>
+    <button *appHasRole="['BUYER', 'BUYER_LEAD', 'DATA_ADMIN', 'SYS_ADMIN']" type="button" class="btn pri" (click)="navigateToQuickMark()">＋ 我看到一個</button>
   </div>
 </div>
 
@@ -99,13 +99,13 @@
 <div class="ranking-header">
   <div class="range-tabs main-tabs">
     <button type="button" class="range-btn" [class.active]="activeTab === 'viral'"
-      (click)="activeTab = 'viral'">話題爆款榜</button>
+      (click)="switchTab('viral')">話題爆款榜</button>
     <button type="button" class="range-btn" [class.active]="activeTab === 'festival'"
-      (click)="activeTab = 'festival'">節慶檔期榜</button>
+      (click)="switchTab('festival')">節慶檔期榜</button>
     <button type="button" class="range-btn" [class.active]="activeTab === 'replenishment'"
-      (click)="activeTab = 'replenishment'">常態補貨榜</button>
+      (click)="switchTab('replenishment')">常態補貨榜</button>
     <button type="button" class="range-btn" [class.active]="activeTab === 'seasonal'"
-      (click)="activeTab = 'seasonal'">季節導向榜</button>
+      (click)="switchTab('seasonal')">季節導向榜</button>
   </div>
 
   <div class="period-switcher">
@@ -146,8 +146,9 @@
       </tr>
     </thead>
     <tbody>
+      @if (!isLoadingRankings) {
       @for (item of getRankingsForTab(activeTab); track item.productId || $index; let i = $index) {
-      <tr class="clickable-row">
+      <tr class="clickable-row" (click)="navigateToProduct(item.productId)">
         <td class="rank mono">{{ i + 1 }}</td>
         <td class="name">
           {{ item.productName }}
@@ -187,6 +188,7 @@
         <td colspan="7" class="empty-cell">此榜單暫無排行資料</td>
       </tr>
       }
+      }
     </tbody>
   </table>
 </div>
@@ -201,10 +203,15 @@
     <div class="op-body">
       @if (overdueCampaigns && overdueCampaigns.length > 0) {
       <div class="op-list">
-        @for (campaign of overdueCampaigns; track campaign.productName || $index) {
+        @for (campaign of overdueCampaigns; track campaign.decisionId || $index) {
         <div class="op-item">
           <span class="item-title">{{ campaign.productName }}</span>
-          <span class="status-badge status-warn compact mono">逾 {{ campaign.overdueDays }} 天</span>
+          <span class="item-actions">
+            <span class="status-badge status-warn compact mono">逾 {{ campaign.overdueDays }} 天</span>
+            @if (campaign.decisionId) {
+            <button type="button" class="btn small" (click)="navigateToFillResult(campaign.decisionId)">去回填</button>
+            }
+          </span>
         </div>
         }
       </div>
@@ -228,10 +235,14 @@
         @for (item of sourcingSummary.items; track item.productId || $index) {
         <div class="op-item">
           <span class="item-title">{{ item.productName }}</span>
-          @if (item.timeGapDays !== null && item.timeGapDays !== undefined && item.timeGapDays >= 0) {
+          @if (item.sourcingStatus === 'REJECTED') {
+          <span class="status-badge status-warn compact mono">
+            時效 {{ item.timeGapDays !== null && item.timeGapDays !== undefined && item.timeGapDays > 0 ? '+' : '' }}{{ item.timeGapDays ?? '—' }} 天　已淘汰
+          </span>
+          } @else if (item.timeGapDays !== null && item.timeGapDays !== undefined && item.timeGapDays >= 0) {
           <span class="status-badge status-normal compact mono">時效 +{{ item.timeGapDays }} 天</span>
           } @else if (item.timeGapDays !== null && item.timeGapDays !== undefined) {
-          <span class="status-badge status-warn compact mono">時效 {{ item.timeGapDays }} 天　已淘汰</span>
+          <span class="status-badge status-warn compact mono">時效 {{ item.timeGapDays }} 天</span>
           }
         </div>
         }
