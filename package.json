@@ -8,7 +8,7 @@
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
     "e2e:fr03": "node --test e2e/fr03-api.e2e.mjs",
-    "generate:api": "node -e \"require('fs').rmSync('src/app/api',{recursive:true,force:true})\" && openapi-generator-cli generate -i openapi.json -g typescript-angular -o src/app/api --skip-validate-spec --additional-properties=ngVersion=21,providedInRoot=true,serviceSuffix=Service,withInterfaces=true,useSingleRequestParameter=true && node scripts/ensure-api-exports.js"
+    "generate:api": "node scripts/normalize-openapi-schema-names.js && node -e \"require('fs').rmSync('src/app/api',{recursive:true,force:true})\" && openapi-generator-cli generate -i openapi.json -g typescript-angular -o src/app/api --skip-validate-spec --additional-properties=ngVersion=21,providedInRoot=true,serviceSuffix=Service,withInterfaces=true,useSingleRequestParameter=true && node scripts/ensure-api-exports.js"
   },
   "private": true,
   "packageManager": "npm@10.9.8",

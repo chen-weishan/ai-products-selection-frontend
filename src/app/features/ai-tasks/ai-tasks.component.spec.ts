@@ -19,7 +19,7 @@ describe('AiTasksComponent', () => {
   let fixture: ComponentFixture<AiTasksComponent>;
 
   let mockAiTasksService: {
-    summary1: ReturnType<typeof vi.fn>;
+    summary2: ReturnType<typeof vi.fn>;
     list3: ReturnType<typeof vi.fn>;
     items: ReturnType<typeof vi.fn>;
     cancel: ReturnType<typeof vi.fn>;
@@ -94,7 +94,7 @@ describe('AiTasksComponent', () => {
 
   beforeEach(async () => {
     mockAiTasksService = {
-      summary1: vi.fn().mockReturnValue(of({ success: true, data: sampleSummary })),
+      summary2: vi.fn().mockReturnValue(of({ success: true, data: sampleSummary })),
       list3: vi.fn().mockReturnValue(of({ success: true, data: { content: sampleTasks, totalElements: 2 } })),
       items: vi.fn().mockReturnValue(of({ success: true, data: [{ itemId: 1, productId: 501, status: 'SUCCEEDED', durationMs: 120 }] })),
       cancel: vi.fn().mockReturnValue(of({ success: true, data: { ...sampleTasks[0], status: 'CANCELLED' } })),
@@ -146,7 +146,7 @@ describe('AiTasksComponent', () => {
 
   it('should create and load initial summary, budget, and tasks', () => {
     expect(component).toBeTruthy();
-    expect(mockAiTasksService.summary1).toHaveBeenCalled();
+    expect(mockAiTasksService.summary2).toHaveBeenCalled();
     expect(mockAiBudgetService.current).toHaveBeenCalled();
     expect(mockAiTasksService.list3).toHaveBeenCalled();
 
