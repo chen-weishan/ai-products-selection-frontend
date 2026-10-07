@@ -118,7 +118,7 @@ export class AiTasksComponent implements OnInit, OnDestroy {
         : undefined;
 
     this.aiTasksService
-      .list2(
+      .list3(
         {
           status: statusParam,
           page: this.pageIndex(),

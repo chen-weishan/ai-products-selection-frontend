@@ -20,7 +20,7 @@ describe('AiTasksComponent', () => {
 
   let mockAiTasksService: {
     summary1: ReturnType<typeof vi.fn>;
-    list2: ReturnType<typeof vi.fn>;
+    list3: ReturnType<typeof vi.fn>;
     items: ReturnType<typeof vi.fn>;
     cancel: ReturnType<typeof vi.fn>;
     retryFailed: ReturnType<typeof vi.fn>;
@@ -95,7 +95,7 @@ describe('AiTasksComponent', () => {
   beforeEach(async () => {
     mockAiTasksService = {
       summary1: vi.fn().mockReturnValue(of({ success: true, data: sampleSummary })),
-      list2: vi.fn().mockReturnValue(of({ success: true, data: { content: sampleTasks, totalElements: 2 } })),
+      list3: vi.fn().mockReturnValue(of({ success: true, data: { content: sampleTasks, totalElements: 2 } })),
       items: vi.fn().mockReturnValue(of({ success: true, data: [{ itemId: 1, productId: 501, status: 'SUCCEEDED', durationMs: 120 }] })),
       cancel: vi.fn().mockReturnValue(of({ success: true, data: { ...sampleTasks[0], status: 'CANCELLED' } })),
       retryFailed: vi.fn().mockReturnValue(of({ success: true, data: { taskId: 102, status: 'PENDING' } })),
@@ -148,7 +148,7 @@ describe('AiTasksComponent', () => {
     expect(component).toBeTruthy();
     expect(mockAiTasksService.summary1).toHaveBeenCalled();
     expect(mockAiBudgetService.current).toHaveBeenCalled();
-    expect(mockAiTasksService.list2).toHaveBeenCalled();
+    expect(mockAiTasksService.list3).toHaveBeenCalled();
 
     expect(component.summary()).toEqual(sampleSummary);
     expect(component.budget()).toEqual(sampleBudget);
@@ -165,7 +165,7 @@ describe('AiTasksComponent', () => {
     component.onStatusFilterChange('FAILED');
     expect(component.selectedStatus()).toBe('FAILED');
     expect(component.pageIndex()).toBe(0);
-    expect(mockAiTasksService.list2).toHaveBeenCalledWith(
+    expect(mockAiTasksService.list3).toHaveBeenCalledWith(
       expect.objectContaining({ status: 'FAILED', page: 0, size: 10 }),
       'body',
       false,

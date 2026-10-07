@@ -79,12 +79,14 @@ export class ProductSupplementService {
   saveAffinities(
     productId: number,
     affinities: readonly Pick<ProductFestivalAffinity, 'festivalCode' | 'affinity'>[],
+    options: { deferAnalysis?: boolean } = {},
   ): Observable<readonly ProductFestivalAffinity[]> {
     return this.track(
       this.http
         .put<ApiResponse<ProductFestivalAffinity[]>>(
           `${this.baseUrl}/products/${productId}/festival-affinity`,
           { affinities },
+          { params: options.deferAnalysis ? { deferAnalysis: true } : {} },
         )
         .pipe(
           map((response) => unwrap(response, '儲存節慶關聯度失敗')),
@@ -108,7 +110,11 @@ export class ProductSupplementService {
     );
   }
 
-  uploadReviewFile(productId: number, file: File): Observable<ProductReviewFileUploadResult> {
+  uploadReviewFile(
+    productId: number,
+    file: File,
+    options: { deferAnalysis?: boolean } = {},
+  ): Observable<ProductReviewFileUploadResult> {
     const formData = new FormData();
     formData.append('file', file, file.name);
     return this.track(
@@ -116,6 +122,7 @@ export class ProductSupplementService {
         .post<ApiResponse<ProductReviewFileUploadResult>>(
           `${this.baseUrl}/products/${productId}/comments-file`,
           formData,
+          { params: options.deferAnalysis ? { deferAnalysis: true } : {} },
         )
         .pipe(
           map((response) => unwrap(response, '上傳評論 CSV 失敗')),

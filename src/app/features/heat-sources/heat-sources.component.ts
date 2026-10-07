@@ -204,7 +204,7 @@ export class HeatSourcesComponent implements OnInit {
     this.loading.set(true);
     const jsonOptions = { httpHeaderAccept: 'application/json' as any };
 
-    this.sourceSubscription = this.heatSourceApi.list4('body', false, jsonOptions)
+    this.sourceSubscription = this.heatSourceApi.list5('body', false, jsonOptions)
       .pipe(takeUntil(this.sessionChanged$), takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (res: any) => {
         this.loading.set(false);
@@ -213,7 +213,7 @@ export class HeatSourcesComponent implements OnInit {
         this.lastLoadedAt.set(new Date().toISOString());
         this.cdr.markForCheck();
       },
-      error: (err) => {
+      error: (err: any) => {
         this.loading.set(false);
         this.sourceError.set(this.errorMessage(err));
         const msg = this.errorMessage(err);
