@@ -89,39 +89,25 @@
 <div class="filter-bar">
   <!-- 關鍵字搜尋 -->
   <mat-form-field appearance="outline" class="filter-field search-field" subscriptSizing="dynamic">
-    <mat-label>搜尋商品或品類</mat-label>
+    <mat-label>搜尋商品</mat-label>
     <input
       matInput
-      placeholder="輸入商品名稱、品類…"
+      placeholder="輸入商品名稱（最多 100 字）"
+      maxlength="100"
       [ngModel]="searchKeyword()"
       (ngModelChange)="onSearchChange($event)"
     />
   </mat-form-field>
 
-  <!-- 狀態篩選 (預設 ALL 不含已忽略，若選 IGNORED 則單獨篩選) -->
-  <mat-form-field appearance="outline" class="filter-field select-field" subscriptSizing="dynamic">
-    <mat-label>示警狀態</mat-label>
-    <mat-select
-      [ngModel]="filterStatus()"
-      (ngModelChange)="filterStatus.set($event); onFilterChange()"
-      panelClass="unified-mat-select-panel"
-    >
-      <mat-option value="ALL">未忽略 (預設)</mat-option>
-      <mat-option value="OPEN">待處理 (OPEN)</mat-option>
-      <mat-option value="ACKNOWLEDGED">已確認 (ACKNOWLEDGED)</mat-option>
-      <mat-option value="IGNORED">已忽略 (IGNORED)</mat-option>
-    </mat-select>
-  </mat-form-field>
-
   <!-- 嚴重度篩選 -->
   <mat-form-field appearance="outline" class="filter-field select-field" subscriptSizing="dynamic">
-    <mat-label>嚴重度等級</mat-label>
+    <mat-label>風險等級</mat-label>
     <mat-select
       [ngModel]="filterSeverity()"
       (ngModelChange)="filterSeverity.set($event); onFilterChange()"
       panelClass="unified-mat-select-panel"
     >
-      <mat-option value="ALL">全部嚴重度</mat-option>
+      <mat-option value="ALL">全部風險等級</mat-option>
       <mat-option value="HIGH">高風險 (HIGH)</mat-option>
       <mat-option value="MEDIUM">中風險 (MEDIUM)</mat-option>
       <mat-option value="LOW">低風險 (LOW)</mat-option>
@@ -144,6 +130,21 @@
       @for (code of riskTypeKeys; track code) {
         <mat-option [value]="code">{{ riskTypeMeta[code].label }} ({{ code }})</mat-option>
       }
+    </mat-select>
+  </mat-form-field>
+
+  <!-- 狀態篩選 (預設 ALL 不含已忽略，若選 IGNORED 則單獨篩選) -->
+  <mat-form-field appearance="outline" class="filter-field select-field" subscriptSizing="dynamic">
+    <mat-label>警示狀態</mat-label>
+    <mat-select
+      [ngModel]="filterStatus()"
+      (ngModelChange)="filterStatus.set($event); onFilterChange()"
+      panelClass="unified-mat-select-panel"
+    >
+      <mat-option value="ALL">未忽略 (預設)</mat-option>
+      <mat-option value="OPEN">待處理 (OPEN)</mat-option>
+      <mat-option value="ACKNOWLEDGED">已確認 (ACKNOWLEDGED)</mat-option>
+      <mat-option value="IGNORED">已忽略 (IGNORED)</mat-option>
     </mat-select>
   </mat-form-field>
 
@@ -493,6 +494,19 @@
       }
 
       <div class="drawer-body">
+        @if (recalculationWarning()) {
+          <div class="alert-banner" role="status">
+            <span>{{ recalculationWarning() }}</span>
+            <button
+              type="button"
+              class="btn"
+              (click)="loadRules()"
+              [disabled]="isLoadingRules() || !!savingRuleCode()"
+            >
+              重新查詢進度
+            </button>
+          </div>
+        }
         @if (rulesError()) {
           <div class="alert-banner error-banner" role="alert">
             <span>{{ rulesError() }}</span>
@@ -510,7 +524,7 @@
                 <div class="rule-item-head">
                   <div>
                     <span class="rule-title font-bold">{{ getRiskLabel(rule.ruleCode) }}</span>
-                    <span class="rule-code-badge mono">{{ rule.ruleCode }}</span>
+
                     <span>{{
                       rule.categoryId == null ? '全域規則' : '品類 #' + rule.categoryId
                     }}</span>
@@ -523,36 +537,39 @@
                   </span>
                 </div>
 
-                <p class="rule-desc">{{ rule.description }}</p>
+                <p class="rule-desc">
+                  {{ rule.description || riskTypeMeta[rule.ruleCode]?.description }}
+                </p>
 
-                <!-- 門檻 JSON 檢視 / 編輯 -->
                 <div class="threshold-box">
-                  @if (isSysAdmin() && rule.ruleCode !== 'PENALTY_CAP') {
-                    <label class="threshold-title" [for]="'threshold-' + ruleKey(rule)"
-                      >門檻設定（JSON）</label
-                    >
-                    <textarea
-                      class="threshold-editor mono"
-                      [id]="'threshold-' + ruleKey(rule)"
-                      rows="5"
-                      [ngModel]="thresholdDrafts()[ruleKey(rule)]"
-                      (ngModelChange)="updateThresholdDraft(rule, $event)"
-                      [disabled]="
-                        !rulesAvailable() ||
-                        !!rulesError() ||
-                        !!savingRuleCode() ||
-                        recalculation().running
-                      "
-                      [attr.aria-invalid]="!!getThresholdError(rule)"
-                    ></textarea>
-                    @if (getThresholdError(rule)) {
-                      <div class="threshold-error" role="alert">{{ getThresholdError(rule) }}</div>
-                    }
-                  } @else {
-                    <span class="threshold-title">目前門檻設定：</span>
-                    <pre class="threshold-pre mono">{{
-                      formatThresholdJson(rule.thresholdJson)
-                    }}</pre>
+                  <span class="threshold-title">門檻設定</span>
+                  @for (key of thresholdFields(rule); track key) {
+                    <div class="threshold-field">
+                      <label [for]="'threshold-' + ruleKey(rule) + '-' + key">{{
+                        thresholdLabel(key)
+                      }}</label>
+                      @if (canEditThresholdField(rule, key)) {
+                        <input
+                          class="threshold-editor"
+                          type="number"
+                          [id]="'threshold-' + ruleKey(rule) + '-' + key"
+                          [ngModel]="thresholdValue(rule, key)"
+                          (ngModelChange)="updateThresholdField(rule, key, $event)"
+                          [disabled]="
+                            !rulesAvailable() ||
+                            !!rulesError() ||
+                            !!savingRuleCode() ||
+                            recalculation().running
+                          "
+                          [attr.aria-invalid]="!!getThresholdError(rule)"
+                        />
+                      } @else {
+                        <span>{{ thresholdDisplay(rule, key) }}</span>
+                      }
+                    </div>
+                  }
+                  @if (isSysAdmin() && getThresholdError(rule)) {
+                    <div class="threshold-error" role="alert">{{ getThresholdError(rule) }}</div>
                   }
                 </div>
                 @if (ruleSaveErrors()[ruleKey(rule)]) {

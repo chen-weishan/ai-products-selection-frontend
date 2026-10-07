@@ -135,6 +135,7 @@ export class RisksComponent implements OnInit, OnDestroy {
   isLoadingRules = signal<boolean>(false);
   rulesList = signal<RiskRuleItem[]>([]);
   rulesError = signal<string | null>(null);
+  recalculationWarning = signal<string | null>(null);
   rulesAvailable = signal(false);
   thresholdDrafts = signal<Record<string, string>>({});
   ruleSaveErrors = signal<Record<string, string>>({});
@@ -273,7 +274,7 @@ export class RisksComponent implements OnInit, OnDestroy {
   }
 
   onSearchChange(keyword: string): void {
-    this.searchKeyword.set(keyword);
+    this.searchKeyword.set(keyword.slice(0, 100));
     this.pageIndex.set(0);
     this.searchSub?.unsubscribe();
     this.listSub?.unsubscribe();
@@ -478,6 +479,7 @@ export class RisksComponent implements OnInit, OnDestroy {
     this.isLoadingRules.set(true);
     this.rulesAvailable.set(false);
     this.rulesError.set(null);
+    this.recalculationWarning.set(null);
     this.rulesSub = this.riskService.getRiskRules().subscribe({
       next: (res) => {
         const previousRules = this.rulesList();
@@ -501,7 +503,9 @@ export class RisksComponent implements OnInit, OnDestroy {
         this.recalculation.set(res.recalculation);
         this.rulesAvailable.set(true);
         if (res.recalculation.lastError || res.recalculation.errorMessage) {
-          this.rulesError.set('背景重算失敗，請聯絡管理員或重新查詢進度。');
+          this.recalculationWarning.set(
+            '前次背景重算失敗。可重新查詢進度，或修改門檻並儲存以觸發新一輪重算。',
+          );
         }
         this.isLoadingRules.set(false);
 
@@ -527,6 +531,8 @@ export class RisksComponent implements OnInit, OnDestroy {
       .subscribe({
         next: (res) => {
           this.recalculation.set(res.recalculation);
+          if (!res.recalculation.lastError && !res.recalculation.errorMessage)
+            this.recalculationWarning.set(null);
           if (this.awaitingRecalculation) {
             if (
               res.recalculation.running ||
@@ -539,7 +545,9 @@ export class RisksComponent implements OnInit, OnDestroy {
             } else {
               this.awaitingRecalculation = false;
               this.stopRecalcPolling();
-              this.rulesError.set('門檻已儲存，但尚無法確認新一輪重算是否開始。請重新查詢進度。');
+              this.recalculationWarning.set(
+                '門檻已儲存，但尚無法確認新一輪重算是否開始。請重新查詢進度。',
+              );
               return;
             }
           }
@@ -550,11 +558,13 @@ export class RisksComponent implements OnInit, OnDestroy {
               res.recalculation.lastError ||
               res.recalculation.errorMessage
             ) {
-              this.rulesError.set('背景重算失敗，請重新查詢進度或聯絡管理員。');
+              this.recalculationWarning.set(
+                '背景重算失敗。可重新查詢進度，或修改門檻並儲存以觸發新一輪重算。',
+              );
             } else if (res.recalculation.progressPercent >= 100) {
               this.showSuccessNotification('背景全量扣分重算已完成！');
             } else {
-              this.rulesError.set('重算已停止，目前無法確認完成。請重新查詢進度。');
+              this.recalculationWarning.set('重算已停止，目前無法確認完成。請重新查詢進度。');
             }
             this.loadSummary();
             this.loadAlerts();
@@ -635,6 +645,86 @@ export class RisksComponent implements OnInit, OnDestroy {
     this.ruleSaveErrors.update((errors) => ({ ...errors, [this.ruleKey(rule)]: '' }));
   }
 
+  readonly thresholdLabels: Record<string, string> = {
+    negativeRateThreshold: '負評率門檻（%）',
+    minSampleSize: '最低評論樣本數',
+    slope7dThreshold: '七日熱度跌幅門檻（%）',
+    slopePercentile: '熱度斜率百分位（%）',
+    confidenceThreshold: '信心度門檻',
+    climateFitPercentileThreshold: '氣候適配百分位門檻',
+    daysBeforeLeadTimeCutoff: '節慶窗口提前提醒天數',
+    penaltySubtotalThreshold: '扣分壓級門檻（固定）',
+    moqThreshold: '最低訂購量門檻',
+    shelfLifeDaysThreshold: '保存期限門檻（天）',
+    highMoqPoints: '訂購量過高扣分',
+    seasonalPoints: '季節性商品扣分',
+    shortShelfLifePoints: '短保存期限扣分',
+    fragilePoints: '易碎商品扣分',
+    coldChainPoints: '冷鏈需求扣分',
+    oversizedPoints: '超材商品扣分',
+    meltableSummerPoints: '夏季易融商品扣分',
+    conditions: '適用物流條件',
+  };
+  private readonly percentageFields = [
+    'negativeRateThreshold',
+    'slope7dThreshold',
+    'slopePercentile',
+  ];
+
+  thresholdFields(rule: RiskRuleItem): string[] {
+    return Object.keys(rule.thresholdJson);
+  }
+  thresholdLabel(key: string): string {
+    return this.thresholdLabels[key] ?? '其他設定（' + key + '）';
+  }
+  thresholdValue(rule: RiskRuleItem, key: string): unknown {
+    const draft = JSON.parse(
+      this.thresholdDrafts()[this.ruleKey(rule)] ?? JSON.stringify(rule.thresholdJson),
+    );
+    const value = draft[key];
+    return this.percentageFields.includes(key) && typeof value === 'number'
+      ? Number((value * 100).toFixed(8))
+      : value;
+  }
+  canEditThresholdField(rule: RiskRuleItem, key: string): boolean {
+    return (
+      this.isSysAdmin() &&
+      rule.ruleCode !== 'PENALTY_CAP' &&
+      !!this.thresholdLabels[key] &&
+      typeof rule.thresholdJson[key] === 'number'
+    );
+  }
+  thresholdDisplay(rule: RiskRuleItem, key: string): string {
+    const value = this.thresholdValue(rule, key);
+    const conditions: Record<string, string> = {
+      CHILLED: '冷藏',
+      FROZEN: '冷凍',
+      FRAGILE: '易碎',
+      MELTABLE: '易融',
+      OVERSIZED: '超材',
+    };
+    return Array.isArray(value)
+      ? value.map((item) => conditions[String(item)] ?? String(item)).join('、')
+      : typeof value === 'object'
+        ? JSON.stringify(value)
+        : String(value);
+  }
+  updateThresholdField(rule: RiskRuleItem, key: string, value: number | null): void {
+    if (
+      !this.canEditThresholdField(rule, key) ||
+      !this.rulesAvailable() ||
+      this.rulesError() ||
+      this.savingRuleCode() ||
+      this.recalculation().running
+    )
+      return;
+    const draft = JSON.parse(
+      this.thresholdDrafts()[this.ruleKey(rule)] ?? JSON.stringify(rule.thresholdJson),
+    );
+    draft[key] = value == null ? null : this.percentageFields.includes(key) ? value / 100 : value;
+    this.updateThresholdDraft(rule, JSON.stringify(draft, null, 2));
+  }
+
   resetRuleDraft(rule: RiskRuleItem): void {
     this.updateThresholdDraft(rule, this.formatThresholdJson(rule.thresholdJson));
   }
@@ -650,18 +740,18 @@ export class RisksComponent implements OnInit, OnDestroy {
       }
       for (const key of originalKeys) {
         if (!this.sameThresholdShape(draft[key], rule.thresholdJson[key])) {
-          return `欄位 ${key} 的資料類型或數值不正確。`;
+          return `欄位 ${this.thresholdLabel(key)} 的資料類型或數值不正確。`;
         }
         if (
           ['negativeRateThreshold', 'slopePercentile'].includes(key) &&
           (draft[key] < 0 || draft[key] > 1)
         )
-          return `欄位 ${key} 必須介於 0 與 1。`;
+          return `欄位 ${this.thresholdLabel(key)} 必須介於 0 與 1。`;
         if (
           ['confidenceThreshold', 'climateFitPercentileThreshold'].includes(key) &&
           (draft[key] < 0 || draft[key] > 100)
         )
-          return `欄位 ${key} 必須介於 0 與 100。`;
+          return `欄位 ${this.thresholdLabel(key)} 必須介於 0 與 100。`;
       }
       const bounds: Record<string, [number, number, boolean?]> = {
         minSampleSize: [1, 100000, true],
@@ -682,7 +772,7 @@ export class RisksComponent implements OnInit, OnDestroy {
           key in draft &&
           (draft[key] < min || draft[key] > max || (integer && !Number.isInteger(draft[key])))
         )
-          return `欄位 ${key} 超出允許範圍或必須為整數。`;
+          return `欄位 ${this.thresholdLabel(key)} 超出允許範圍或必須為整數。`;
       }
       if (
         'slope7dThreshold' in draft &&

@@ -489,7 +489,44 @@ describe('RisksComponent', () => {
     vi.advanceTimersByTime(2000);
     expect(component.successMessage()).not.toContain('已完成');
     vi.advanceTimersByTime(28000);
-    expect(component.rulesError()).toContain('尚無法確認新一輪重算');
+    expect(component.recalculationWarning()).toContain('尚無法確認新一輪重算');
+  });
+
+  it('allows editing after a failed recalculation but blocks unavailable rules', () => {
+    authService.currentUser.set({ id: 'admin', name: '管理員', role: 'SYS_ADMIN' });
+    vi.spyOn(riskService, 'getRiskRules').mockReturnValue(
+      of({
+        ...mockRulesResponse,
+        recalculation: { running: false, progressPercent: 100, lastError: 'scan failed' },
+      }),
+    );
+    component.openRulesDrawer();
+    const rule = component.rulesList()[0];
+    component.updateThresholdDraft(rule, '{"negativeRateThreshold":0.2}');
+    expect(component.recalculationWarning()).toContain('重算失敗');
+    expect(component.rulesError()).toBeNull();
+    expect(component.canSaveRule(rule)).toBe(true);
+    component.rulesAvailable.set(false);
+    expect(component.canSaveRule(rule)).toBe(false);
+  });
+
+  it('limits search text to the backend maximum', () => {
+    component.onSearchChange('a'.repeat(101));
+    expect(component.searchKeyword().length).toBe(100);
+  });
+
+  it('converts Chinese percentage inputs back to JSON ratios and retains other keys', () => {
+    authService.currentUser.set({ id: 'admin', name: '管理員', role: 'SYS_ADMIN' });
+    component.openRulesDrawer();
+    const rule = {...mockRulesResponse.rules[0], thresholdJson: {negativeRateThreshold: 0.15, minSampleSize: 20}};
+    component.resetRuleDraft(rule);
+    expect(component.thresholdValue(rule, 'negativeRateThreshold')).toBe(15);
+    component.updateThresholdField(rule, 'negativeRateThreshold', 25);
+    expect(JSON.parse(component.thresholdDrafts()[component.ruleKey(rule)])).toEqual({negativeRateThreshold: 0.25, minSampleSize: 20});
+    authService.currentUser.set({id: 'viewer', name: '觀察者', role: 'VIEWER'});
+    component.updateThresholdField(rule, 'negativeRateThreshold', 50);
+    expect(component.thresholdValue(rule, 'negativeRateThreshold')).toBe(25);
+    expect(component.canEditThresholdField(rule, 'negativeRateThreshold')).toBe(false);
   });
 
   it('cancels an in-flight poll on close and prevents overlapping polls', () => {
@@ -570,7 +607,7 @@ describe('RisksComponent', () => {
       );
     component.openRulesDrawer();
     vi.advanceTimersByTime(2000);
-    expect(component.rulesError()).toContain('重算失敗');
+    expect(component.recalculationWarning()).toContain('重算失敗');
     expect(component.successMessage()).toBeNull();
   });
 });

@@ -2,6 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting, HttpTestingController } from '@angular/common/http/testing';
 import { RiskService } from './risk.service';
+import { SKIP_GLOBAL_LOADING } from '../../core/http/loading-interceptor';
 import { RiskFilterState } from './risk.model';
 import { Observable } from 'rxjs';
 
@@ -43,6 +44,7 @@ describe('RiskService', () => {
 
     const req = httpTesting.expectOne((r) => r.url.startsWith('/api/v1/risks'));
     expect(req.request.method).toBe('GET');
+    expect(req.request.context.get(SKIP_GLOBAL_LOADING)).toBe(true);
     expect(req.request.params.get('page')).toBe('0');
     expect(req.request.params.get('size')).toBe('10');
 
@@ -82,6 +84,7 @@ describe('RiskService', () => {
 
     const req = httpTesting.expectOne('/api/v1/risks/summary');
     expect(req.request.method).toBe('GET');
+    expect(req.request.context.get(SKIP_GLOBAL_LOADING)).toBe(true);
     req.flush({
       data: {
         highOpen: 5,
@@ -189,6 +192,7 @@ describe('RiskService', () => {
 
     const req = httpTesting.expectOne('/api/v1/risks/rules');
     expect(req.request.method).toBe('GET');
+    expect(req.request.context.get(SKIP_GLOBAL_LOADING)).toBe(true);
     req.flush({
       data: {
         rules: [
@@ -214,6 +218,7 @@ describe('RiskService', () => {
 
     const req = httpTesting.expectOne('/api/v1/risks/rules/REVIEW_RISK');
     expect(req.request.method).toBe('PUT');
+    expect(req.request.context.get(SKIP_GLOBAL_LOADING)).toBe(true);
     expect(req.request.body).toEqual({
       threshold: { negativeRateThreshold: 0.2 },
       categoryId: null,
