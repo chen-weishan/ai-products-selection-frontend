@@ -3,7 +3,10 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 
-import { CreateDecisionDialogComponent } from './create-decision-dialog.component';
+import {
+  CreateDecisionDialogComponent,
+  CreateDecisionDialogData,
+} from './create-decision-dialog.component';
 import { DecisionContext } from '../../../core/models/decision';
 
 function context(patch: Partial<DecisionContext> = {}): DecisionContext {
@@ -26,15 +29,17 @@ describe('CreateDecisionDialogComponent', () => {
   let fixture: ComponentFixture<CreateDecisionDialogComponent>;
   let http: HttpTestingController;
   const closed: unknown[] = [];
+  const dialogData: CreateDecisionDialogData = { productId: 112 };
 
   beforeEach(async () => {
     closed.length = 0;
+    delete dialogData.initialDecision;
     await TestBed.configureTestingModule({
       imports: [CreateDecisionDialogComponent],
       providers: [
         provideHttpClient(),
         provideHttpClientTesting(),
-        { provide: MAT_DIALOG_DATA, useValue: { productId: 112 } },
+        { provide: MAT_DIALOG_DATA, useValue: dialogData },
         { provide: MatDialogRef, useValue: { close: (v: unknown) => closed.push(v) } },
       ],
     }).compileComponents();
@@ -59,6 +64,14 @@ describe('CreateDecisionDialogComponent', () => {
     expect(component.firstOrderQty()).toBe(125);
     expect(component.reasonRequired()).toBe(false);
     expect(component.canSubmit()).toBe(true);
+  });
+
+  it('品項詳情指定觀察時優先預選 WATCH，不受 AI 建議覆蓋', () => {
+    dialogData.initialDecision = 'WATCH';
+    load(context({ allowedDecisions: ['ADOPT', 'WATCH', 'REJECT'] }));
+
+    expect(component.decision()).toBe('WATCH');
+    expect(component.reasonRequired()).toBe(true);
   });
 
   it('AC-11-2：選了與 AI 不同的決策時理由必填', () => {

@@ -17,6 +17,7 @@ import { SCENE_LABELS } from '../../../core/models/weight';
 /** 開啟時帶 productId 就直接進入表單（品項詳情頁用）；不帶則先挑品項（S-12 用）。 */
 export interface CreateDecisionDialogData {
   productId?: number;
+  initialDecision?: DecisionType;
 }
 
 /**
@@ -125,7 +126,13 @@ export class CreateDecisionDialogComponent implements OnInit {
         this.loadingContext.set(false);
         // 預設選 AI 建議的動作（若目前允許），並帶入建議數量的中位數
         const ai = ctx.ai;
-        const preset = ai && ctx.allowedDecisions.includes(ai.action) ? ai.action : null;
+        const requested = this.data.initialDecision;
+        const preset =
+          requested && ctx.allowedDecisions.includes(requested)
+            ? requested
+            : ai && ctx.allowedDecisions.includes(ai.action)
+              ? ai.action
+              : null;
         this.chooseDecision(preset);
       },
       error: (err) => {

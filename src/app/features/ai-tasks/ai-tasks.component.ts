@@ -87,7 +87,7 @@ export class AiTasksComponent implements OnInit, OnDestroy {
 
   private loadSummary(silent = false): void {
     const context = silent ? new HttpContext().set(SKIP_LOADING, true) : undefined;
-    this.aiTasksService.summary1('body', false, { context }).subscribe({
+    this.aiTasksService.summary2('body', false, { context }).subscribe({
       next: (res) => {
         if (res.data) {
           this.summary.set(res.data);
