@@ -190,6 +190,31 @@ describe('ProductService', () => {
     expect(service.analysisMessage()).toBeNull();
   });
 
+  it('tracks a task created by product save without creating another analysis task', async () => {
+    vi.useFakeTimers();
+    getTaskStatus.mockReturnValue(
+      of({
+        success: true,
+        data: {
+          taskId: 77,
+          status: 'RUNNING',
+          totalCount: 1,
+          successCount: 0,
+          failCount: 0,
+          progressPercent: 40,
+        },
+      }),
+    );
+
+    service.trackAnalysisTask(77, 1);
+    await vi.advanceTimersByTimeAsync(2_000);
+
+    expect(analyzeBatch).not.toHaveBeenCalled();
+    expect(getTaskStatus).toHaveBeenCalledWith('http://localhost:8080/api/v1/ai/tasks/77');
+    expect(service.analysisMessage()).toBe('評分任務 #77 執行中（40%）…');
+    expect(service.analysisPolling()).toBe(true);
+  });
+
   it('reports an analysis task failure and still refreshes the list', async () => {
     vi.useFakeTimers();
     analyzeBatch.mockReturnValue(

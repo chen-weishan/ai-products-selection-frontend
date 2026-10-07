@@ -4,7 +4,7 @@
 
     <mat-nav-list class="nav-list">
       @for (item of navItems(); track item.path) {
-      <a mat-list-item [routerLink]="item.path" routerLinkActive="active" class="nav-link-item"
+      <a mat-list-item [routerLink]="item.path" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: !!item.exact }" class="nav-link-item"
         [title]="layoutService.isCollapsed()?item.label:''">
         <mat-icon matListItemIcon class="menu-icon">{{ item.icon }}</mat-icon>
 

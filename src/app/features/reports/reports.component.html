@@ -1,1 +1,191 @@
-<p>reports works!</p>
+<section class="reports-page">
+  <header class="page-header">
+    <div>
+      <span class="eyebrow">S-13 · FR-12</span>
+      <h1>報表中心</h1>
+      <p>大型報表會在背景產生；完成後此頁會自動顯示下載通知。</p>
+    </div>
+    <button mat-stroked-button type="button" class="refresh-button" [disabled]="loading()" (click)="refresh()">
+      <mat-icon>refresh</mat-icon>{{ loading() ? '更新中…' : '重新整理' }}
+    </button>
+  </header>
+
+  @if (errorMessage()) {
+    <div class="message error" role="alert"><mat-icon>error_outline</mat-icon>{{ errorMessage() }}</div>
+  }
+  @if (successMessage()) {
+    <div class="message success" role="status">
+      <mat-icon>check_circle_outline</mat-icon>
+      <span>{{ successMessage() }}</span>
+      <button type="button" class="message-close" aria-label="關閉成功通知" (click)="dismissSuccess()">
+        <mat-icon>close</mat-icon>
+      </button>
+    </div>
+  }
+
+  <section class="filter-bar" aria-labelledby="report-filter-title">
+    <div class="filter-heading">
+      <div>
+        <strong id="report-filter-title">報表條件</strong>
+        <span>依報表類型設定輸出範圍</span>
+      </div>
+      <small>未填的條件代表全部</small>
+    </div>
+    <div class="filter-grid">
+      <div class="filter-row filter-row-primary">
+        <div class="period-filter" role="group" aria-label="評分期別">
+          <mat-form-field appearance="outline" subscriptSizing="dynamic" class="filter-field">
+            <mat-label>評分年份</mat-label>
+            <mat-select [formControl]="periodYear" panelClass="unified-mat-select-panel"
+              (selectionChange)="onPeriodYearChange($event.value)">
+              @for (year of periodYears(); track year) {
+                <mat-option [value]="year">{{ year }} 年</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic" class="filter-field">
+            <mat-label>週次</mat-label>
+            <mat-select [formControl]="periodWeek" panelClass="unified-mat-select-panel">
+              @for (week of periodWeeks(); track week) {
+                <mat-option [value]="week">第 {{ week }} 週</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+          <span class="period-preview">{{ periodLabel() }}</span>
+        </div>
+        <mat-form-field appearance="outline" subscriptSizing="dynamic" class="filter-field">
+          <mat-label>類別</mat-label>
+          <mat-select [formControl]="categoryId" panelClass="unified-mat-select-panel">
+            <mat-option [value]="null">全部類別</mat-option>
+            @for (category of categories(); track category.id) {
+              <mat-option [value]="category.id">{{ category.label }}</mat-option>
+            }
+          </mat-select>
+          <mat-hint>週選品、評分、準確度、尋源</mat-hint>
+        </mat-form-field>
+        <mat-form-field appearance="outline" subscriptSizing="dynamic" class="filter-field date-filter">
+          <mat-label>準確度起日</mat-label>
+          <input matInput [matDatepicker]="accuracyFromPicker" [formControl]="accuracyFrom"
+            autocomplete="off" (click)="accuracyFromPicker.open()" />
+          <mat-datepicker-toggle matIconSuffix [for]="accuracyFromPicker" aria-label="開啟準確度起日日曆"></mat-datepicker-toggle>
+          <mat-datepicker #accuracyFromPicker></mat-datepicker>
+        </mat-form-field>
+        <mat-form-field appearance="outline" subscriptSizing="dynamic" class="filter-field date-filter">
+          <mat-label>準確度迄日</mat-label>
+          <input matInput [matDatepicker]="accuracyToPicker" [formControl]="accuracyTo"
+            autocomplete="off" (click)="accuracyToPicker.open()" />
+          <mat-datepicker-toggle matIconSuffix [for]="accuracyToPicker" aria-label="開啟準確度迄日日曆"></mat-datepicker-toggle>
+          <mat-datepicker #accuracyToPicker></mat-datepicker>
+        </mat-form-field>
+        <mat-form-field appearance="outline" subscriptSizing="dynamic" class="filter-field">
+          <mat-label>決策者</mat-label>
+          <mat-select [formControl]="decisionMakerId" panelClass="unified-mat-select-panel">
+            <mat-option [value]="null">全部決策者</mat-option>
+            @for (decisionMaker of decisionMakers(); track decisionMaker.id) {
+              <mat-option [value]="decisionMaker.id">
+                {{ decisionMaker.displayName }}（{{ decisionMaker.email }}）
+              </mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+      </div>
+
+      <div class="filter-row filter-row-secondary">
+        <mat-form-field appearance="outline" subscriptSizing="dynamic" class="filter-field">
+          <mat-label>尋源狀態</mat-label>
+          <mat-select [formControl]="sourcingStatus" panelClass="unified-mat-select-panel">
+            <mat-option value="">全部狀態</mat-option>
+            <mat-option value="PENDING">待評估</mat-option>
+            <mat-option value="SOURCING">尋源中</mat-option>
+            <mat-option value="URGENT">需加速</mat-option>
+            <mat-option value="PROMOTED">已成案</mat-option>
+            <mat-option value="REJECTED">已淘汰</mat-option>
+          </mat-select>
+        </mat-form-field>
+        <mat-form-field appearance="outline" subscriptSizing="dynamic" class="filter-field">
+          <mat-label>校準起始季度</mat-label>
+          <mat-select [formControl]="fromQuarter" panelClass="unified-mat-select-panel">
+            <mat-option value="">全部季度</mat-option>
+            @for (quarter of calibrationQuarters(); track quarter) {
+              <mat-option [value]="quarter">{{ quarter }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+        <mat-form-field appearance="outline" subscriptSizing="dynamic" class="filter-field">
+          <mat-label>校準結束季度</mat-label>
+          <mat-select [formControl]="toQuarter" panelClass="unified-mat-select-panel">
+            <mat-option value="">全部季度</mat-option>
+            @for (quarter of calibrationQuarters(); track quarter) {
+              <mat-option [value]="quarter">{{ quarter }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+        <mat-form-field appearance="outline" subscriptSizing="dynamic" class="filter-field">
+          <mat-label>校準狀態</mat-label>
+          <mat-select [formControl]="calibrationStatus" panelClass="unified-mat-select-panel">
+            <mat-option value="">全部狀態</mat-option>
+            <mat-option value="PENDING">待審核</mat-option>
+            <mat-option value="APPROVED">已核准</mat-option>
+            <mat-option value="PARTIAL">部分採納</mat-option>
+            <mat-option value="REJECTED">未採納</mat-option>
+          </mat-select>
+        </mat-form-field>
+      </div>
+    </div>
+  </section>
+
+  <div class="report-grid" aria-label="報表類型">
+    @for (definition of definitions; track definition.type) {
+      <article class="report-card">
+        <div class="report-icon"><mat-icon>{{ definition.icon }}</mat-icon></div>
+        <div class="report-copy">
+          <div class="report-title-row"><h2>{{ definition.title }}</h2><span>{{ definition.format }}</span></div>
+          <p>{{ definition.description }}</p>
+        </div>
+        <button mat-flat-button type="button" class="generate-button"
+          [disabled]="generating() !== null || !canGenerate(definition)" (click)="generate(definition)">
+          <mat-icon>{{ generating() === definition.type ? 'sync' : 'download' }}</mat-icon>
+          {{ generating() === definition.type ? '建立中…' : `產生 ${definition.format}` }}
+        </button>
+      </article>
+    }
+    <article class="report-card future"><mat-icon>add_chart</mat-icon><span>自訂報表</span><small>後續擴充</small></article>
+  </div>
+
+  <section class="history-card">
+    <div class="section-heading">
+      <div><h2>已產生報表</h2><p>最近 20 筆；目前有 {{ activeCount() }} 筆正在處理。</p></div>
+      @if (activeCount()) { <span class="live"><i></i>自動更新中</span> }
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>報表</th><th>條件</th><th>格式</th><th>資料列</th><th>大小</th><th>產生時間</th><th>狀態</th><th></th></tr></thead>
+        <tbody>
+          @for (job of jobs(); track job.id) {
+            <tr>
+              <td><strong>{{ reportLabel(job.reportType) }}</strong><small>#{{ job.id }}</small></td>
+              <td class="condition">{{ filterSummary(job) }}</td>
+              <td><span class="format">{{ job.format }}</span></td>
+              <td class="number">{{ job.rowCount == null ? '—' : (job.rowCount | number) }}</td>
+              <td class="number">{{ fileSize(job.fileSize) }}</td>
+              <td>{{ job.requestedAt | date: 'yyyy/MM/dd HH:mm' }}</td>
+              <td><span class="status" [class]="statusClass(job)">{{ statusLabel(job) }}</span></td>
+              <td>
+                @if (job.downloadable) {
+                  <button mat-button type="button" class="download-button" [disabled]="downloading() === job.id" (click)="download(job)">
+                    <mat-icon>download</mat-icon>{{ downloading() === job.id ? '下載中…' : '下載' }}
+                  </button>
+                } @else if (isActive(job)) {
+                  <span class="working"><mat-icon>sync</mat-icon>處理中</span>
+                } @else { <span class="unavailable">—</span> }
+              </td>
+            </tr>
+          } @empty {
+            <tr><td colspan="8" class="empty">{{ loading() ? '讀取報表紀錄中…' : '尚未產生任何報表' }}</td></tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    <footer><mat-icon>verified</mat-icon>PDF 內嵌 Noto Sans TC；檔名包含日期與篩選摘要；所有產生與下載動作均寫入稽核紀錄。</footer>
+  </section>
+</section>

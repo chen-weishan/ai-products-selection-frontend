@@ -82,7 +82,7 @@ describe('HeatSourcesComponent', () => {
 
   beforeEach(async () => {
     mockHeatSourceApi = {
-      list4: vi.fn().mockReturnValue(of({ success: true, data: sampleSources })),
+      list5: vi.fn().mockReturnValue(of({ success: true, data: sampleSources })),
       excluded: vi.fn().mockReturnValue(of({ success: true, data: sampleExcluded })),
       get2: vi.fn(),
       update2: vi.fn().mockReturnValue(of({ success: true, data: sampleSources[0] })),
@@ -126,7 +126,7 @@ describe('HeatSourcesComponent', () => {
 
   it('should create and load initial sources and excluded sources', () => {
     expect(component).toBeTruthy();
-    expect(mockHeatSourceApi.list4).toHaveBeenCalled();
+    expect(mockHeatSourceApi.list5).toHaveBeenCalled();
     expect(mockHeatSourceApi.excluded).toHaveBeenCalled();
     expect(component.sources().length).toBe(4);
     expect(component.excludedSources().length).toBe(3);
@@ -242,7 +242,7 @@ describe('HeatSourcesComponent', () => {
 
     it('displays loading and the nested backend failure without showing stale rows', () => {
       const response = new Subject<any>();
-      mockHeatSourceApi.list4.mockReturnValue(response);
+      mockHeatSourceApi.list5.mockReturnValue(response);
       component.loadSources();
       fixture.detectChanges();
       expect(fixture.nativeElement.textContent).toContain('載入熱度來源中');
@@ -255,7 +255,7 @@ describe('HeatSourcesComponent', () => {
 
     it('cancels old list requests so they cannot overwrite the latest response', () => {
       const oldResponse = new Subject<any>();
-      mockHeatSourceApi.list4.mockReturnValueOnce(oldResponse).mockReturnValueOnce(of({ data: [sampleSources[1]] }));
+      mockHeatSourceApi.list5.mockReturnValueOnce(oldResponse).mockReturnValueOnce(of({ data: [sampleSources[1]] }));
       component.loadSources();
       component.loadSources();
       oldResponse.next({ data: sampleSources });

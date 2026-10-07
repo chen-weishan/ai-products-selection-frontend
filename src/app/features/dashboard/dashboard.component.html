@@ -235,10 +235,14 @@
         @for (item of sourcingSummary.items; track item.productId || $index) {
         <div class="op-item">
           <span class="item-title">{{ item.productName }}</span>
-          @if (item.timeGapDays !== null && item.timeGapDays !== undefined && item.timeGapDays >= 0) {
+          @if (item.sourcingStatus === 'REJECTED') {
+          <span class="status-badge status-warn compact mono">
+            時效 {{ item.timeGapDays !== null && item.timeGapDays !== undefined && item.timeGapDays > 0 ? '+' : '' }}{{ item.timeGapDays ?? '—' }} 天　已淘汰
+          </span>
+          } @else if (item.timeGapDays !== null && item.timeGapDays !== undefined && item.timeGapDays >= 0) {
           <span class="status-badge status-normal compact mono">時效 +{{ item.timeGapDays }} 天</span>
           } @else if (item.timeGapDays !== null && item.timeGapDays !== undefined) {
-          <span class="status-badge status-warn compact mono">時效 {{ item.timeGapDays }} 天　已淘汰</span>
+          <span class="status-badge status-warn compact mono">時效 {{ item.timeGapDays }} 天</span>
           }
         </div>
         }

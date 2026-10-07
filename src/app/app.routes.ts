@@ -136,6 +136,15 @@ export const routes: Routes = [
         data: { roles: ['BUYER', 'BUYER_LEAD', 'DATA_ADMIN', 'SYS_ADMIN'] }
       },
       {
+        // S-19（FR-15）：§9.2 路由表 Auth + Role(BUYER_LEAD)
+        path: 'weights/calibration',
+        loadComponent: () =>
+          import('./features/calibration/calibration.component').then(
+            m => m.CalibrationComponent
+          ),
+        data: { roles: ['BUYER_LEAD'] }
+      },
+      {
         path: 'festivals',
         loadComponent: () =>
           import('./features/festivals/festivals.component').then(

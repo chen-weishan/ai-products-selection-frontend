@@ -14,6 +14,8 @@ interface NavItem {
   label: string;
   icon: string;
   roles?: UserRole[];
+  /** 子路徑另有選單項目時設 true，避免兩項同時高亮（/weights vs /weights/calibration）。 */
+  exact?: boolean;
 }
 
 
@@ -37,7 +39,8 @@ export class MainLayoutComponent {
     { label: 'S-15 熱度標記', path: '/heat-tags', icon: 'local_fire_department', roles: ['BUYER', 'BUYER_LEAD', 'DATA_ADMIN', 'SYS_ADMIN'] },
     { label: 'S-17 尋源探索', path: '/sourcing', icon: 'travel_explore', roles: ['BUYER', 'BUYER_LEAD', 'DATA_ADMIN', 'SYS_ADMIN'] },
     { label: 'S-08 AI任務', path: '/ai-tasks', icon: 'smart_toy', roles: ['BUYER', 'BUYER_LEAD', 'DATA_ADMIN', 'SYS_ADMIN'] },
-    { label: 'S-09 權重設定', path: '/weights', icon: 'tune', roles: ['BUYER', 'BUYER_LEAD', 'DATA_ADMIN', 'SYS_ADMIN'] },
+    { label: 'S-09 權重設定', path: '/weights', icon: 'tune', roles: ['BUYER', 'BUYER_LEAD', 'DATA_ADMIN', 'SYS_ADMIN'], exact: true },
+    { label: 'S-19 權重校準', path: '/weights/calibration', icon: 'model_training', roles: ['BUYER_LEAD'] },
     { label: 'S-20 節慶檔期', path: '/festivals', icon: 'event', roles: ['BUYER_LEAD', 'DATA_ADMIN', 'SYS_ADMIN'] },
     { label: 'S-10 資料匯入', path: '/imports', icon: 'file_upload', roles: ['BUYER_LEAD', 'DATA_ADMIN', 'SYS_ADMIN'] },
     { label: 'S-11 風險示警', path: '/risks', icon: 'warning' },

@@ -1,0 +1,319 @@
+// S-19 沿用 S-12 的設計 token 與控制項（FRONTEND_UI_GUIDELINES.md §2、§3.5、§4）
+@use '../decisions/decision-shared' as shared;
+
+:host {
+  @include shared.tokens;
+  display: block;
+  padding: 18px 20px 22px;
+  background: var(--surface);
+  min-height: calc(100vh - 64px);
+}
+
+@include shared.controls;
+
+.mh {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+
+  h3 {
+    font-family: var(--serif);
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0;
+    color: var(--navy-deep);
+  }
+
+  .sub {
+    font-size: 12px;
+    color: var(--ink-3);
+    margin-top: 2px;
+  }
+}
+
+.tools {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+
+  .sel {
+    width: auto;
+    min-width: 160px;
+  }
+
+  .quarter {
+    width: 92px;
+    font-family: var(--mono);
+  }
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  padding: 14px 16px;
+  margin-bottom: 14px;
+
+  h4 {
+    margin: 0 0 12px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--navy-deep);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+
+    .mark {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: var(--navy);
+      color: #ffffff;
+      font-size: 11px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .auto {
+      font-size: 11px;
+      font-weight: 400;
+      color: var(--ink-3);
+    }
+  }
+
+  h5 {
+    margin: 0 0 8px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--navy-deep);
+  }
+}
+
+.head-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+
+  .title {
+    font-family: var(--serif);
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--navy-deep);
+  }
+
+  .meta {
+    font-size: 12px;
+    color: var(--ink-2);
+    margin-top: 4px;
+  }
+
+  a.btn {
+    text-decoration: none;
+  }
+}
+
+.status-badge {
+  &.st-PENDING {
+    background: var(--warn);
+  }
+
+  &.st-APPROVED {
+    background: var(--a);
+  }
+
+  &.st-PARTIAL {
+    background: var(--teal);
+  }
+
+  &.st-REJECTED {
+    background: var(--c);
+  }
+}
+
+.validity {
+  font-size: 13px;
+}
+
+.tbl {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
+
+  th {
+    text-align: left;
+    font-weight: 500;
+    color: var(--ink-3);
+    font-size: 11.5px;
+    padding: 6px 8px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  td {
+    padding: 7px 8px;
+    border-bottom: 1px solid var(--line-soft);
+  }
+
+  .num {
+    text-align: right;
+  }
+
+  .chk {
+    width: 44px;
+    text-align: center;
+  }
+
+  &.compact td {
+    padding: 4px 6px;
+    font-size: 12px;
+  }
+}
+
+.bar {
+  width: 120px;
+  height: 8px;
+  background: #eef2f6;
+  border-radius: 4px;
+  overflow: hidden;
+
+  span {
+    display: block;
+    height: 100%;
+    background: var(--teal);
+
+    &.neg {
+      background: var(--risk);
+    }
+  }
+}
+
+.up {
+  color: #166534;
+  font-weight: 600;
+}
+
+.down {
+  color: var(--risk);
+  font-weight: 600;
+}
+
+.note {
+  font-size: 11.5px;
+  color: var(--ink-3);
+  margin: 10px 0 0;
+}
+
+.warn-text {
+  color: #92400e;
+}
+
+.link {
+  border: none;
+  background: none;
+  color: var(--teal);
+  cursor: pointer;
+  font-size: 11.5px;
+  padding: 0 4px;
+}
+
+.scene-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 12px;
+  margin-top: 10px;
+
+  .scene {
+    background: #f8fafc;
+    border: 1px solid var(--line-soft);
+    border-radius: 8px;
+    padding: 10px 12px;
+  }
+}
+
+.ai-card {
+  border-left: 3px solid var(--teal);
+
+  .ai-text {
+    font-size: 13px;
+    margin: 0 0 10px;
+    white-space: pre-line;
+  }
+
+  .advice,
+  .attention ul {
+    font-size: 12.5px;
+    margin: 0 0 10px;
+    padding-left: 18px;
+  }
+
+  .attention {
+    background: #fffbeb;
+    border: 1px solid #fde68a;
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin-bottom: 10px;
+
+    ul {
+      list-style: none;
+      padding-left: 0;
+      margin: 0;
+      color: #92400e;
+    }
+  }
+
+  .small {
+    font-size: 11px;
+  }
+}
+
+.empty {
+  font-size: 12px;
+  color: var(--ink-3);
+  margin: 0;
+}
+
+.compare {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--line);
+
+  .compare-form {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+
+    .sel {
+      width: auto;
+      min-width: 180px;
+    }
+  }
+}
+
+.review-card {
+  .review-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+    margin-top: 12px;
+    flex-wrap: wrap;
+  }
+}
+
+.disclosure {
+  font-size: 12px;
+  color: var(--ink-2);
+  background: #f1f5f9;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 14px;
+}
