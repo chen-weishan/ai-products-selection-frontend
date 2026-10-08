@@ -1,6 +1,6 @@
 import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
@@ -10,11 +10,19 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatTabsModule } from '@angular/material/tabs';
 import { filter, finalize, forkJoin, switchMap } from 'rxjs';
 import { DialogService } from '../../services/dialog-service';
+import { RiskService } from '../risks/risk.service';
+import { RiskRuleItem } from '../risks/risk.model';
 import {
   CategoryNode,
   MasterDataService,
   SupplierRecord,
 } from './master-data.service';
+import {
+  AiRuntimeConfig,
+  OperationalRuntimeConfig,
+  RuntimeSchedule,
+  RuntimeSettingsService,
+} from './runtime-settings.service';
 
 interface FlatCategory {
   id: number;
@@ -26,10 +34,21 @@ interface FlatCategory {
   hasChildren: boolean;
 }
 
+interface ModelRouteDraft {
+  alias: string;
+  primary: string;
+  fallbacks: string;
+}
+
+interface RiskRuleDraft extends RiskRuleItem {
+  thresholdText: string;
+}
+
 @Component({
   selector: 'app-admin',
   imports: [
     ReactiveFormsModule,
+    FormsModule,
     MatButtonModule,
     MatFormFieldModule,
     MatIconModule,
@@ -46,6 +65,8 @@ export class AdminComponent {
   private readonly fb = inject(FormBuilder);
   private readonly destroyRef = inject(DestroyRef);
   private readonly dialogs = inject(DialogService);
+  private readonly runtimeSettings = inject(RuntimeSettingsService);
+  private readonly risksApi = inject(RiskService);
   private successTimer: ReturnType<typeof setTimeout> | null = null;
 
   readonly loading = signal(false);
@@ -56,6 +77,11 @@ export class AdminComponent {
   readonly suppliers = signal<SupplierRecord[]>([]);
   readonly editingCategoryId = signal<number | null>(null);
   readonly editingSupplierId = signal<number | null>(null);
+  aiConfig: AiRuntimeConfig | null = null;
+  modelRoutes: ModelRouteDraft[] = [];
+  schedules: RuntimeSchedule[] = [];
+  operationalConfig: OperationalRuntimeConfig | null = null;
+  riskRules: RiskRuleDraft[] = [];
   readonly flatCategories = computed(() => flattenCategories(this.categories()));
   readonly rootCategories = computed(() =>
     this.categories().filter((category) => category.id !== this.editingCategoryId()),
@@ -81,15 +107,34 @@ export class AdminComponent {
   reload(): void {
     this.loading.set(true);
     this.error.set(null);
-    forkJoin({ categories: this.api.categories(), suppliers: this.api.suppliers() })
+    forkJoin({
+      categories: this.api.categories(),
+      suppliers: this.api.suppliers(),
+      aiConfig: this.runtimeSettings.getAiConfig(),
+      schedules: this.runtimeSettings.getSchedules(),
+      operationalConfig: this.runtimeSettings.getOperationalConfig(),
+      riskRules: this.risksApi.getRiskRules(),
+    })
       .pipe(
         finalize(() => this.loading.set(false)),
         takeUntilDestroyed(this.destroyRef),
       )
       .subscribe({
-        next: ({ categories, suppliers }) => {
+        next: ({ categories, suppliers, aiConfig, schedules, operationalConfig, riskRules }) => {
           this.categories.set(categories);
           this.suppliers.set(suppliers);
+          this.aiConfig = structuredClone(aiConfig);
+          this.modelRoutes = Object.entries(aiConfig.models).map(([alias, route]) => ({
+            alias,
+            primary: route.primary,
+            fallbacks: route.fallbacks.join(', '),
+          }));
+          this.schedules = structuredClone(schedules.items);
+          this.operationalConfig = structuredClone(operationalConfig);
+          this.riskRules = riskRules.rules.map((rule) => ({
+            ...rule,
+            thresholdText: JSON.stringify(rule.thresholdJson, null, 2),
+          }));
         },
         error: (error: Error) => this.error.set(error.message),
       });
@@ -247,6 +292,53 @@ export class AdminComponent {
     this.error.set(null);
   }
 
+  saveAiConfig(): void {
+    if (this.aiConfig == null || this.saving()) return;
+    const request: AiRuntimeConfig = {
+      ...this.aiConfig,
+      models: Object.fromEntries(this.modelRoutes.map((route) => [route.alias, {
+        primary: route.primary.trim(),
+        fallbacks: route.fallbacks.split(',').map((value) => value.trim()).filter(Boolean),
+      }])),
+    };
+    this.runSave(this.runtimeSettings.updateAiConfig(request), 'AI 設定已立即生效', (saved) => {
+      this.aiConfig = structuredClone(saved);
+    });
+  }
+
+  saveSchedules(): void {
+    if (this.saving()) return;
+    this.runSave(
+      this.runtimeSettings.updateSchedules({ items: this.schedules }),
+      '排程已重新註冊',
+      (saved) => { this.schedules = structuredClone(saved.items); },
+    );
+  }
+
+  saveOperationalConfig(): void {
+    if (this.operationalConfig == null || this.saving()) return;
+    this.runSave(
+      this.runtimeSettings.updateOperationalConfig(this.operationalConfig),
+      '營運參數已立即生效',
+      (saved) => { this.operationalConfig = structuredClone(saved); },
+    );
+  }
+
+  saveRiskRule(rule: RiskRuleDraft): void {
+    if (this.saving()) return;
+    let threshold: Record<string, unknown>;
+    try {
+      threshold = JSON.parse(rule.thresholdText) as Record<string, unknown>;
+    } catch {
+      this.error.set(`${rule.ruleCode} 的門檻不是合法 JSON`);
+      return;
+    }
+    this.runSave(
+      this.risksApi.updateRuleThreshold(rule.ruleCode, threshold, rule.categoryId, rule.maxPenalty),
+      `${rule.ruleCode} 已更新，背景重算已啟動`,
+    );
+  }
+
   private reloadCategories(): void {
     this.api.categories()
       .pipe(takeUntilDestroyed(this.destroyRef))
@@ -269,6 +361,21 @@ export class AdminComponent {
     this.success.set(message);
     if (this.successTimer != null) clearTimeout(this.successTimer);
     this.successTimer = setTimeout(() => this.success.set(null), 5000);
+  }
+
+  private runSave<T>(operation: import('rxjs').Observable<T>, message: string, onSaved?: (value: T) => void): void {
+    this.saving.set(true);
+    this.error.set(null);
+    operation.pipe(
+      finalize(() => this.saving.set(false)),
+      takeUntilDestroyed(this.destroyRef),
+    ).subscribe({
+      next: (value) => {
+        onSaved?.(value);
+        this.showSuccess(message);
+      },
+      error: (error: Error) => this.error.set(error.message),
+    });
   }
 }
 
