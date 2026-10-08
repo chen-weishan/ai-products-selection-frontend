@@ -4,6 +4,8 @@ import { DialogService } from '../../services/dialog-service';
 
 import { AdminComponent } from './admin.component';
 import { MasterDataService } from './master-data.service';
+import { RuntimeSettingsService } from './runtime-settings.service';
+import { RiskService } from '../risks/risk.service';
 
 describe('AdminComponent', () => {
   let component: AdminComponent;
@@ -18,6 +20,18 @@ describe('AdminComponent', () => {
     deleteCategory: vi.fn(),
     deleteSupplier: vi.fn(),
   };
+  const runtimeSettings = {
+    getAiConfig: vi.fn(),
+    updateAiConfig: vi.fn(),
+    getSchedules: vi.fn(),
+    updateSchedules: vi.fn(),
+    getOperationalConfig: vi.fn(),
+    updateOperationalConfig: vi.fn(),
+  };
+  const risks = {
+    getRiskRules: vi.fn(),
+    updateRuleThreshold: vi.fn(),
+  };
   const dialogs = { Confirm: vi.fn() };
 
   beforeEach(async () => {
@@ -29,10 +43,44 @@ describe('AdminComponent', () => {
     api.suppliers.mockReturnValue(of([
       { id: 2, name: '晨曦食品', contact: null, phone: null, note: null },
     ]));
+    runtimeSettings.getAiConfig.mockReturnValue(of({
+      models: {},
+      dailyQuota: 1000,
+      trackAShare: 0.7,
+      trackBShare: 0.2,
+      retryShare: 0.1,
+      warningRatio: 0.8,
+      rateLimitPerMinute: 20,
+      trendRateLimitPerMinute: 5,
+      batchItemCap: 150,
+      retryMax: 3,
+      timeoutSeconds: 30,
+      sourcingTimeoutSeconds: 90,
+      cacheDays: 6,
+      trendCacheDays: 3,
+      sourcingCacheDays: 3,
+    }));
+    runtimeSettings.getSchedules.mockReturnValue(of({ items: [] }));
+    runtimeSettings.getOperationalConfig.mockReturnValue(of({
+      loginMaxFailedAttempts: 5,
+      loginLockDurationMinutes: 15,
+      heatTagHalveAfterDays: 14,
+      heatTagExpireDays: 30,
+      scoringMinCategorySample: 10,
+      sceneAdoptConfidence: 0.5,
+      sceneScoringConfidence: 0.7,
+      calibrationMinSample: 200,
+    }));
+    risks.getRiskRules.mockReturnValue(of({
+      rules: [],
+      recalculation: { running: false, progressPercent: 0 },
+    }));
     await TestBed.configureTestingModule({
       imports: [AdminComponent],
       providers: [
         { provide: MasterDataService, useValue: api },
+        { provide: RuntimeSettingsService, useValue: runtimeSettings },
+        { provide: RiskService, useValue: risks },
         { provide: DialogService, useValue: dialogs },
       ],
     })

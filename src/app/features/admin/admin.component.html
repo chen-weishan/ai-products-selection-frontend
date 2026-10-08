@@ -24,6 +24,120 @@
     </div>
   } @else {
     <mat-tab-group animationDuration="150ms">
+      <mat-tab label="AI 設定">
+        @if (aiConfig) {
+          <div class="settings-stack">
+            <section class="list-card">
+              <div class="card-heading">
+                <div>
+                  <h2>模型路由</h2>
+                  <p>儲存後套用到後續 AI 任務；API Key 仍由部署環境管理。</p>
+                </div>
+              </div>
+              <div class="settings-grid model-grid">
+                @for (route of modelRoutes; track route.alias) {
+                  <label class="setting-field">
+                    <span>{{ route.alias }}</span>
+                    <input [(ngModel)]="route.primary" [name]="route.alias + '-primary'" placeholder="主要模型 ID" />
+                    <input [(ngModel)]="route.fallbacks" [name]="route.alias + '-fallbacks'" placeholder="備援模型，以逗號分隔" />
+                  </label>
+                }
+              </div>
+            </section>
+
+            <section class="list-card">
+              <div class="card-heading">
+                <div><h2>配額與執行策略</h2><p>比例總和必須為 100%。</p></div>
+                <button mat-flat-button class="btn pri" type="button" [disabled]="saving()" (click)="saveAiConfig()">儲存並套用</button>
+              </div>
+              <div class="settings-grid compact-grid">
+                <label class="setting-field"><span>每日總配額</span><input type="number" min="0" [(ngModel)]="aiConfig.dailyQuota" name="dailyQuota" /></label>
+                <label class="setting-field"><span>A 軌比例</span><input type="number" min="0" max="1" step="0.05" [(ngModel)]="aiConfig.trackAShare" name="trackAShare" /></label>
+                <label class="setting-field"><span>B 軌比例</span><input type="number" min="0" max="1" step="0.05" [(ngModel)]="aiConfig.trackBShare" name="trackBShare" /></label>
+                <label class="setting-field"><span>重試／校準比例</span><input type="number" min="0" max="1" step="0.05" [(ngModel)]="aiConfig.retryShare" name="retryShare" /></label>
+                <label class="setting-field"><span>警示比例</span><input type="number" min="0.01" max="0.99" step="0.05" [(ngModel)]="aiConfig.warningRatio" name="warningRatio" /></label>
+                <label class="setting-field"><span>每分鐘請求上限</span><input type="number" min="1" [(ngModel)]="aiConfig.rateLimitPerMinute" name="rateLimit" /></label>
+                <label class="setting-field"><span>趨勢每分鐘上限</span><input type="number" min="1" [(ngModel)]="aiConfig.trendRateLimitPerMinute" name="trendRateLimit" /></label>
+                <label class="setting-field"><span>單輪品項上限</span><input type="number" min="1" [(ngModel)]="aiConfig.batchItemCap" name="batchItemCap" /></label>
+                <label class="setting-field"><span>重試次數</span><input type="number" min="0" [(ngModel)]="aiConfig.retryMax" name="retryMax" /></label>
+                <label class="setting-field"><span>一般逾時（秒）</span><input type="number" min="1" [(ngModel)]="aiConfig.timeoutSeconds" name="timeoutSeconds" /></label>
+                <label class="setting-field"><span>尋源逾時（秒）</span><input type="number" min="1" [(ngModel)]="aiConfig.sourcingTimeoutSeconds" name="sourcingTimeoutSeconds" /></label>
+                <label class="setting-field"><span>一般快取（天）</span><input type="number" min="0" [(ngModel)]="aiConfig.cacheDays" name="cacheDays" /></label>
+                <label class="setting-field"><span>趨勢快取（天）</span><input type="number" min="0" [(ngModel)]="aiConfig.trendCacheDays" name="trendCacheDays" /></label>
+                <label class="setting-field"><span>尋源快取（天）</span><input type="number" min="0" [(ngModel)]="aiConfig.sourcingCacheDays" name="sourcingCacheDays" /></label>
+              </div>
+            </section>
+          </div>
+        }
+      </mat-tab>
+
+      <mat-tab label="營運參數">
+        @if (operationalConfig) {
+          <div class="settings-stack">
+            <section class="list-card">
+              <div class="card-heading">
+                <div>
+                  <h2>安全與判定門檻</h2>
+                  <p>僅列出目前已有正式消費端、儲存後可立即生效的參數。</p>
+                </div>
+                <button mat-flat-button class="btn pri" type="button" [disabled]="saving()" (click)="saveOperationalConfig()">儲存並套用</button>
+              </div>
+              <div class="settings-grid compact-grid">
+                <label class="setting-field"><span>登入失敗鎖定門檻</span><input type="number" min="1" [(ngModel)]="operationalConfig.loginMaxFailedAttempts" name="loginMaxFailedAttempts" /></label>
+                <label class="setting-field"><span>登入鎖定時間（分鐘）</span><input type="number" min="1" [(ngModel)]="operationalConfig.loginLockDurationMinutes" name="loginLockDurationMinutes" /></label>
+                <label class="setting-field"><span>人工熱度減半天數</span><input type="number" min="1" [(ngModel)]="operationalConfig.heatTagHalveAfterDays" name="heatTagHalveAfterDays" /></label>
+                <label class="setting-field"><span>人工熱度失效天數</span><input type="number" min="2" [(ngModel)]="operationalConfig.heatTagExpireDays" name="heatTagExpireDays" /></label>
+                <label class="setting-field"><span>同品類最低樣本數</span><input type="number" min="1" [(ngModel)]="operationalConfig.scoringMinCategorySample" name="scoringMinCategorySample" /></label>
+                <label class="setting-field"><span>情境採用信心門檻</span><input type="number" min="0" max="1" step="0.05" [(ngModel)]="operationalConfig.sceneAdoptConfidence" name="sceneAdoptConfidence" /></label>
+                <label class="setting-field"><span>情境計分信心門檻</span><input type="number" min="0" max="1" step="0.05" [(ngModel)]="operationalConfig.sceneScoringConfidence" name="sceneScoringConfidence" /></label>
+                <label class="setting-field"><span>校準最低樣本數</span><input type="number" min="1" [(ngModel)]="operationalConfig.calibrationMinSample" name="calibrationMinSample" /></label>
+              </div>
+              <p class="setting-note">失效天數必須大於減半天數；情境計分門檻不得低於採用門檻。所有變更都會寫入稽核紀錄。</p>
+            </section>
+          </div>
+        }
+      </mat-tab>
+
+      <mat-tab label="排程">
+        <div class="settings-stack">
+          <section class="list-card">
+            <div class="card-heading">
+              <div><h2>主要業務排程</h2><p>使用 Spring cron 格式；儲存後立即取消舊排程並重新註冊。</p></div>
+              <button mat-flat-button class="btn pri" type="button" [disabled]="saving()" (click)="saveSchedules()">儲存排程</button>
+            </div>
+            <div class="schedule-list">
+              @for (schedule of schedules; track schedule.code) {
+                <div class="schedule-row">
+                  <label class="toggle"><input type="checkbox" [(ngModel)]="schedule.enabled" [name]="schedule.code + '-enabled'" />啟用</label>
+                  <div><strong>{{ schedule.label }}</strong><small>{{ schedule.code }}</small></div>
+                  <input class="cron-input" [(ngModel)]="schedule.cron" [name]="schedule.code + '-cron'" />
+                </div>
+              }
+            </div>
+          </section>
+        </div>
+      </mat-tab>
+
+      <mat-tab label="風險規則">
+        <div class="settings-stack">
+          <section class="list-card">
+            <div class="card-heading"><div><h2>扣分與示警門檻</h2><p>儲存後會寫入稽核紀錄；影響分數的規則會啟動背景重算。</p></div></div>
+            <div class="risk-rule-grid">
+              @for (rule of riskRules; track rule.ruleCode + '-' + (rule.categoryId ?? 'global')) {
+                <article class="rule-card">
+                  <div class="rule-title"><strong>{{ rule.ruleName || rule.ruleCode }}</strong><code>{{ rule.ruleCode }}</code></div>
+                  <textarea rows="5" [(ngModel)]="rule.thresholdText" [name]="rule.ruleCode + '-threshold-' + (rule.categoryId ?? 'global')"></textarea>
+                  @if (rule.maxPenalty != null) {
+                    <label class="setting-field"><span>最大扣分</span><input type="number" min="0" [(ngModel)]="rule.maxPenalty" [name]="rule.ruleCode + '-penalty'" /></label>
+                  }
+                  <button mat-stroked-button class="btn" type="button" [disabled]="saving()" (click)="saveRiskRule(rule)">儲存此規則</button>
+                </article>
+              }
+            </div>
+          </section>
+        </div>
+      </mat-tab>
+
       <mat-tab label="類別管理">
         <div class="tab-content">
           <section class="list-card">

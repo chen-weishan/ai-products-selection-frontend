@@ -166,6 +166,41 @@
 .edit-actions button { flex: none; white-space: nowrap; }
 .empty-message { padding: 42px 12px; color: var(--ink-3); font-size: 12px; text-align: center; }
 
+.settings-stack { display: grid; gap: 16px; }
+.settings-grid { display: grid; gap: 12px; margin-top: 16px; }
+.model-grid { grid-template-columns: repeat(2, minmax(280px, 1fr)); }
+.compact-grid { grid-template-columns: repeat(4, minmax(150px, 1fr)); }
+.setting-field { display: grid; gap: 6px; color: var(--ink-2); font-size: 11px; }
+.setting-field > span { font-weight: 600; }
+.setting-field input,
+.cron-input,
+.rule-card textarea {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 38px;
+  padding: 7px 9px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--ink);
+  font: 12px var(--mono);
+}
+.setting-field input:focus,
+.cron-input:focus,
+.rule-card textarea:focus { border-color: var(--teal); outline: 2px solid rgb(30 122 158 / 12%); }
+.schedule-list { display: grid; gap: 8px; margin-top: 16px; }
+.schedule-row { display: grid; grid-template-columns: 72px minmax(180px, .7fr) minmax(280px, 1.3fr); align-items: center; gap: 12px; padding: 10px 12px; border: 1px solid var(--line-soft); border-radius: 7px; }
+.schedule-row strong { display: block; color: var(--navy-deep); font-size: 12px; }
+.schedule-row small { color: var(--ink-3); font: 10px var(--mono); }
+.toggle { display: flex; align-items: center; gap: 6px; color: var(--ink-2); font-size: 11px; }
+.risk-rule-grid { display: grid; grid-template-columns: repeat(2, minmax(300px, 1fr)); gap: 12px; margin-top: 16px; }
+.rule-card { display: grid; gap: 10px; padding: 14px; border: 1px solid var(--line-soft); border-radius: 8px; background: var(--surface); }
+.rule-title { display: flex; align-items: center; justify-content: space-between; gap: 10px; color: var(--navy-deep); font-size: 12px; }
+.rule-title code { color: var(--ink-3); font-size: 10px; }
+.rule-card textarea { resize: vertical; }
+.rule-card .btn { justify-self: start; }
+.setting-note { margin: 14px 0 0; color: var(--ink-3); font-size: 11px; }
+
 :host ::ng-deep .form-card .mat-mdc-text-field-wrapper {
   min-height: 42px;
   border-radius: 8px;
@@ -187,6 +222,7 @@
 
 @media (max-width: 980px) {
   .tab-content { grid-template-columns: 1fr; }
+  .compact-grid { grid-template-columns: repeat(2, minmax(150px, 1fr)); }
 }
 
 @media (max-width: 620px) {
@@ -200,4 +236,6 @@
   .category-row > mat-icon { grid-column: 2; grid-row: 1; }
   .two-columns { grid-template-columns: 1fr; }
   .edit-actions { align-items: stretch; flex-direction: column; }
+  .model-grid, .compact-grid, .risk-rule-grid { grid-template-columns: 1fr; }
+  .schedule-row { grid-template-columns: 1fr; }
 }
