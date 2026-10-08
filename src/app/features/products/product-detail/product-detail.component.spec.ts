@@ -80,6 +80,7 @@ describe('ProductDetailComponent', () => {
     expect(renderedText).toContain('⚠夏季易融化');
     expect(renderedText).toContain('建立決策');
     expect(renderedText).not.toContain('建立開團決策（尚未開放）');
+    expect(renderedText).not.toContain('重新生成（尚未開放）');
   });
 
   it('從 S-06 開啟既有決策對話框，觀察操作預選 WATCH，成功後同步品項狀態', () => {
