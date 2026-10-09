@@ -1,0 +1,220 @@
+@if (loading()) {
+  <div class="loading-panel"><mat-spinner diameter="32" /><span>正在載入 AI 設定…</span></div>
+} @else {
+  @if (error()) {
+    <div class="notice error" role="alert">
+      <span>{{ error() }}</span>
+      <button type="button" aria-label="關閉訊息" (click)="error.set(null)">×</button>
+    </div>
+  }
+  @if (success()) {
+    <div class="notice" role="status">
+      <span>{{ success() }}</span>
+      <button type="button" aria-label="關閉訊息" (click)="success.set(null)">×</button>
+    </div>
+  }
+
+  @if (quota) {
+    <div class="settings-stack">
+      <div class="save-bar sticky">
+        @if (isDirty()) { <span class="dirty">有尚未儲存的變更</span> } @else { <span>所有變更已儲存</span> }
+        <button mat-stroked-button class="btn" type="button" [disabled]="saving() || !isDirty()" (click)="reset()">還原</button>
+        <button mat-flat-button class="btn pri" type="button" [disabled]="!canSave() || !isDirty()" (click)="save()">
+          {{ saving() ? '儲存中…' : '儲存並立即套用' }}
+        </button>
+      </div>
+
+      <!-- 1. 模型分派 -->
+      <section class="list-card">
+        <div class="card-heading">
+          <div>
+            <h2>模型分派</h2>
+            <p>每種 AI 工作用哪個模型。主要模型失敗時，依序改用備援模型。API 金鑰由部署環境管理，不在此設定。</p>
+          </div>
+        </div>
+        @if (options(); as opts) {
+          @if (opts.source === 'MISTRAL_API') {
+            <p class="source-note ok"><mat-icon>verified</mat-icon>下拉清單為 Mistral 帳號目前可用的對話模型（即時查詢）。</p>
+          } @else {
+            <p class="source-note warn"><mat-icon>info</mat-icon>{{ opts.warning }}</p>
+          }
+        }
+
+        <div class="route-list">
+          @for (route of routes; track route.alias) {
+            <article class="route-card" [class.invalid]="routeError(route)">
+              <header class="route-head">
+                <div>
+                  <strong>{{ route.info?.label ?? route.alias }}</strong>
+                  <code>{{ route.alias }}</code>
+                </div>
+                @if (route.info) {
+                  <p>{{ route.info.description }}
+                    @for (agent of route.info.agents; track agent) { <span class="badge muted">{{ agent }}</span> }
+                  </p>
+                }
+              </header>
+
+              <div class="route-body">
+                <label class="setting-field">
+                  <span>主要模型</span>
+                  <mat-select class="model-select" panelClass="unified-mat-select-panel" [(ngModel)]="route.primaryChoice"
+                    [aria-label]="(route.info?.label ?? route.alias) + ' 主要模型'">
+                    @for (model of options()?.models ?? []; track model.id) {
+                      <mat-option [value]="model.id">
+                        {{ model.id }}
+                        @if (!model.available) { <span class="badge warn">不在可用清單</span> }
+                      </mat-option>
+                    }
+                    <mat-option [value]="customModel">其他（手動輸入模型名稱）</mat-option>
+                  </mat-select>
+                  @if (route.primaryChoice === customModel) {
+                    <input class="plain-input mono" [(ngModel)]="route.customPrimary" placeholder="例如 mistral-small-latest"
+                      [attr.aria-label]="(route.info?.label ?? route.alias) + ' 手動輸入主要模型'" />
+                  }
+                </label>
+
+                <div class="setting-field">
+                  <span>備援模型 <small>（依序嘗試）</small></span>
+                  <ol class="fallback-list">
+                    @for (model of route.fallbacks; track model; let i = $index; let last = $last) {
+                      <li>
+                        <span class="order">{{ i + 1 }}</span>
+                        <span class="mono">{{ model }}</span>
+                        @if (!modelOption(model)?.available) { <span class="badge warn">不在可用清單</span> }
+                        <span class="spacer"></span>
+                        <button type="button" class="icon-btn" [disabled]="i === 0" (click)="moveFallback(route, i, -1)"
+                          matTooltip="往前移" aria-label="往前移"><mat-icon>arrow_upward</mat-icon></button>
+                        <button type="button" class="icon-btn" [disabled]="last" (click)="moveFallback(route, i, 1)"
+                          matTooltip="往後移" aria-label="往後移"><mat-icon>arrow_downward</mat-icon></button>
+                        <button type="button" class="icon-btn" (click)="removeFallback(route, i)"
+                          matTooltip="移除" aria-label="移除備援模型"><mat-icon>close</mat-icon></button>
+                      </li>
+                    } @empty {
+                      <li class="empty">未設定備援，主要模型失敗時該工作改走規則備援。</li>
+                    }
+                  </ol>
+                  <mat-select class="model-select" panelClass="unified-mat-select-panel" placeholder="＋ 加入備援模型…"
+                    [(ngModel)]="route.fallbackChoice" (ngModelChange)="onFallbackChosen(route, $event)"
+                    [aria-label]="(route.info?.label ?? route.alias) + ' 加入備援模型'">
+                    @for (model of fallbackCandidates(route); track model.id) {
+                      <mat-option [value]="model.id">{{ model.id }}</mat-option>
+                    }
+                    <mat-option [value]="customModel">其他（手動輸入模型名稱）</mat-option>
+                  </mat-select>
+                  @if (route.fallbackChoice === customModel) {
+                    <div class="inline-add">
+                      <input class="plain-input mono" [(ngModel)]="route.customFallback" placeholder="輸入模型名稱"
+                        (keydown.enter)="addFallback(route, route.customFallback)" aria-label="手動輸入備援模型" />
+                      <button mat-stroked-button class="btn small" type="button" [disabled]="!route.customFallback.trim()"
+                        (click)="addFallback(route, route.customFallback)">加入</button>
+                    </div>
+                  }
+                </div>
+              </div>
+
+              @if (routeError(route); as message) {
+                <p class="field-error">{{ message }}</p>
+              } @else if (unavailableModels(route).length) {
+                <p class="route-warn">{{ unavailableModels(route).join('、') }} 不在可用清單，可能拼錯或已下架；儲存仍可，但呼叫時可能失敗並改用下一個備援。</p>
+              }
+            </article>
+          }
+        </div>
+      </section>
+
+      <!-- 2. 每日配額 -->
+      <section class="list-card">
+        <div class="card-heading">
+          <div>
+            <h2>每日請求配額</h2>
+            <p>三個預算池分別計算每日請求數；達警示比例時畫面示警，用滿即停止送出並保留待重跑清單。</p>
+          </div>
+          @if (budget(); as b) {
+            <span class="badge muted">今日用量・每日 {{ b.dailyQuota }} 次</span>
+          }
+        </div>
+
+        <div class="settings-grid quota-head">
+          <label class="setting-field">
+            <span>每日總配額</span>
+            <div class="unit-input"><input type="number" min="0" step="10" [(ngModel)]="quota.dailyQuota" name="dailyQuota" /><em>次</em></div>
+          </label>
+          <label class="setting-field">
+            <span>用量警示</span>
+            <div class="unit-input"><input type="number" min="1" max="99" step="5" [(ngModel)]="quota.warningPercent" name="warningPercent" /><em>%</em></div>
+            <small>池用量達此比例時顯示警示</small>
+          </label>
+        </div>
+
+        <div class="pool-grid">
+          @for (pool of pools; track pool.code) {
+            <div class="pool-card">
+              <div class="pool-title">
+                <strong>{{ poolLabels[pool.code].label }}</strong>
+                <small>{{ poolLabels[pool.code].hint }}</small>
+              </div>
+              <label class="setting-field">
+                <span>分配比例</span>
+                <div class="unit-input">
+                  <input type="number" min="0" max="100" step="5" [(ngModel)]="quota[pool.key]" [name]="pool.key" />
+                  <em>%</em>
+                </div>
+                <small>＝ 每日 {{ poolLimit(quota[pool.key]) }} 次</small>
+              </label>
+              @if (todayPool(pool.code); as today) {
+                <div class="usage">
+                  <div class="usage-bar" [class.warn]="today.status === 'WARNING'" [class.full]="today.status === 'EXHAUSTED'">
+                    <i [style.width.%]="usagePercent(today)"></i>
+                  </div>
+                  <small>今日已用 {{ today.used }} / {{ today.limit }} 次・快取命中 {{ today.cacheHits }}
+                    @switch (today.status) {
+                      @case ('WARNING') { <span class="badge warn">接近上限</span> }
+                      @case ('EXHAUSTED') { <span class="badge danger">已用完</span> }
+                    }
+                  </small>
+                </div>
+              }
+            </div>
+          }
+        </div>
+        <p class="share-total" [class.bad]="shareTotal() !== 100">三池合計 {{ shareTotal() }}%{{ shareTotal() === 100 ? '' : '（須為 100%）' }}</p>
+      </section>
+
+      <!-- 3. 呼叫與快取 -->
+      <section class="list-card">
+        <div class="card-heading">
+          <div><h2>呼叫限制與快取</h2><p>控制送往模型的速度與重複呼叫。快取期間內相同內容不重複呼叫、不佔配額。</p></div>
+        </div>
+        <div class="settings-grid compact-grid">
+          <label class="setting-field"><span>每分鐘請求上限</span>
+            <div class="unit-input"><input type="number" min="1" [(ngModel)]="quota.rateLimitPerMinute" name="rateLimit" /><em>次</em></div></label>
+          <label class="setting-field"><span>趨勢解讀每分鐘上限</span>
+            <div class="unit-input"><input type="number" min="1" [(ngModel)]="quota.trendRateLimitPerMinute" name="trendRateLimit" /><em>次</em></div></label>
+          <label class="setting-field"><span>單輪分析品項上限</span>
+            <div class="unit-input"><input type="number" min="1" [(ngModel)]="quota.batchItemCap" name="batchItemCap" /><em>項</em></div>
+            <small>每週 AI 分析一輪最多處理幾個品項</small></label>
+          <label class="setting-field"><span>限流重試次數</span>
+            <div class="unit-input"><input type="number" min="0" [(ngModel)]="quota.retryMax" name="retryMax" /><em>次</em></div></label>
+          <label class="setting-field"><span>一般呼叫逾時</span>
+            <div class="unit-input"><input type="number" min="1" [(ngModel)]="quota.timeoutSeconds" name="timeoutSeconds" /><em>秒</em></div></label>
+          <label class="setting-field"><span>尋源探索逾時</span>
+            <div class="unit-input"><input type="number" min="1" [(ngModel)]="quota.sourcingTimeoutSeconds" name="sourcingTimeoutSeconds" /><em>秒</em></div></label>
+          <label class="setting-field"><span>一般快取</span>
+            <div class="unit-input"><input type="number" min="0" [(ngModel)]="quota.cacheDays" name="cacheDays" /><em>天</em></div>
+            <small>須短於每週評分週期（7 天）</small></label>
+          <label class="setting-field"><span>趨勢快取</span>
+            <div class="unit-input"><input type="number" min="0" [(ngModel)]="quota.trendCacheDays" name="trendCacheDays" /><em>天</em></div></label>
+          <label class="setting-field"><span>尋源快取</span>
+            <div class="unit-input"><input type="number" min="0" [(ngModel)]="quota.sourcingCacheDays" name="sourcingCacheDays" /><em>天</em></div></label>
+        </div>
+      </section>
+
+      @if (quotaErrors().length) {
+        <div class="notice error" role="alert">
+          <span>{{ quotaErrors().join('；') }}</span>
+        </div>
+      }
+    </div>
+  }
+}

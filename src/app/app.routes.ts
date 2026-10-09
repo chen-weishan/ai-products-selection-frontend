@@ -187,7 +187,7 @@ export const routes: Routes = [
           import('./features/admin/admin.component').then(
             m => m.AdminComponent
           ),
-        data: { roles: ['BUYER_LEAD', 'DATA_ADMIN', 'SYS_ADMIN'] }
+        data: { roles: ['SYS_ADMIN'] }
       }
     ]
   },

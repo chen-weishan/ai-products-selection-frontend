@@ -48,6 +48,46 @@ export interface OperationalRuntimeConfig {
   calibrationMinSample: number;
 }
 
+/** §6.7.2 邏輯別名的中文名稱與使用者（後端提供，前端不寫死）。 */
+export interface ModelAliasInfo {
+  code: string;
+  label: string;
+  description: string;
+  agents: string[];
+}
+
+export interface ModelOption {
+  id: string;
+  /** 出現在可用清單（Mistral 即時查詢或系統設定清單）。 */
+  available: boolean;
+  /** 目前設定中的主模型或備援模型。 */
+  inUse: boolean;
+}
+
+export interface AiConfigOptions {
+  aliases: ModelAliasInfo[];
+  models: ModelOption[];
+  /** MISTRAL_API＝向 Mistral 即時查得；CONFIGURED_LIST＝取自系統設定。 */
+  source: string;
+  warning: string | null;
+}
+
+export interface BudgetPoolSnapshot {
+  pool: 'TRACK_A' | 'TRACK_B' | 'RETRY' | string;
+  share: number;
+  limit: number;
+  used: number;
+  cacheHits: number;
+  status: 'OK' | 'WARNING' | 'EXHAUSTED' | string;
+}
+
+export interface BudgetSnapshot {
+  dailyQuota: number;
+  resetAt: string;
+  resetSource: string;
+  pools: BudgetPoolSnapshot[];
+}
+
 interface ApiResponse<T> {
   success: boolean;
   data?: T;
@@ -62,6 +102,16 @@ export class RuntimeSettingsService {
   getAiConfig(): Observable<AiRuntimeConfig> {
     return this.http.get<ApiResponse<AiRuntimeConfig>>(`${this.baseUrl}/ai-config`)
       .pipe(this.unwrap('取得 AI 設定失敗'));
+  }
+
+  getAiConfigOptions(): Observable<AiConfigOptions> {
+    return this.http.get<ApiResponse<AiConfigOptions>>(`${this.baseUrl}/ai-config/options`)
+      .pipe(this.unwrap('取得模型清單失敗'));
+  }
+
+  getBudgets(): Observable<BudgetSnapshot> {
+    return this.http.get<ApiResponse<BudgetSnapshot>>(`${environment.apiBaseUrl}/ai/budgets`)
+      .pipe(this.unwrap('取得今日配額用量失敗'));
   }
 
   updateAiConfig(config: AiRuntimeConfig): Observable<AiRuntimeConfig> {
