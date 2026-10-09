@@ -2,12 +2,8 @@
   <header class="mh">
     <div>
       <h3>系統設定</h3>
-      <div class="sub">主檔管理 · 維護品項建檔與篩選所使用的類別及供應商資料</div>
+      <div class="sub">系統管理員專用・帳號、AI 模型與配額、排程、風險門檻與主檔。所有變更即時生效並寫入稽核紀錄。</div>
     </div>
-    <button mat-stroked-button class="btn" type="button" [disabled]="loading()" (click)="reload()">
-      <mat-icon>refresh</mat-icon>
-      重新載入
-    </button>
   </header>
 
   @if (success() || error()) {
@@ -17,129 +13,86 @@
     </div>
   }
 
-  @if (loading()) {
-    <div class="loading-panel">
-      <mat-spinner diameter="36" />
-      <span>正在載入主檔…</span>
-    </div>
-  } @else {
-    <mat-tab-group animationDuration="150ms">
-      <mat-tab label="AI 設定">
-        @if (aiConfig) {
-          <div class="settings-stack">
-            <section class="list-card">
-              <div class="card-heading">
-                <div>
-                  <h2>模型路由</h2>
-                  <p>儲存後套用到後續 AI 任務；API Key 仍由部署環境管理。</p>
-                </div>
-              </div>
-              <div class="settings-grid model-grid">
-                @for (route of modelRoutes; track route.alias) {
-                  <label class="setting-field">
-                    <span>{{ route.alias }}</span>
-                    <input [(ngModel)]="route.primary" [name]="route.alias + '-primary'" placeholder="主要模型 ID" />
-                    <input [(ngModel)]="route.fallbacks" [name]="route.alias + '-fallbacks'" placeholder="備援模型，以逗號分隔" />
-                  </label>
-                }
-              </div>
-            </section>
+  <mat-tab-group animationDuration="150ms" mat-stretch-tabs="false" [selectedIndex]="selectedTab()"
+    (selectedIndexChange)="selectTab($event)">
+    <mat-tab label="使用者管理">
+      <ng-template matTabContent><app-admin-users /></ng-template>
+    </mat-tab>
 
-            <section class="list-card">
-              <div class="card-heading">
-                <div><h2>配額與執行策略</h2><p>比例總和必須為 100%。</p></div>
-                <button mat-flat-button class="btn pri" type="button" [disabled]="saving()" (click)="saveAiConfig()">儲存並套用</button>
-              </div>
-              <div class="settings-grid compact-grid">
-                <label class="setting-field"><span>每日總配額</span><input type="number" min="0" [(ngModel)]="aiConfig.dailyQuota" name="dailyQuota" /></label>
-                <label class="setting-field"><span>A 軌比例</span><input type="number" min="0" max="1" step="0.05" [(ngModel)]="aiConfig.trackAShare" name="trackAShare" /></label>
-                <label class="setting-field"><span>B 軌比例</span><input type="number" min="0" max="1" step="0.05" [(ngModel)]="aiConfig.trackBShare" name="trackBShare" /></label>
-                <label class="setting-field"><span>重試／校準比例</span><input type="number" min="0" max="1" step="0.05" [(ngModel)]="aiConfig.retryShare" name="retryShare" /></label>
-                <label class="setting-field"><span>警示比例</span><input type="number" min="0.01" max="0.99" step="0.05" [(ngModel)]="aiConfig.warningRatio" name="warningRatio" /></label>
-                <label class="setting-field"><span>每分鐘請求上限</span><input type="number" min="1" [(ngModel)]="aiConfig.rateLimitPerMinute" name="rateLimit" /></label>
-                <label class="setting-field"><span>趨勢每分鐘上限</span><input type="number" min="1" [(ngModel)]="aiConfig.trendRateLimitPerMinute" name="trendRateLimit" /></label>
-                <label class="setting-field"><span>單輪品項上限</span><input type="number" min="1" [(ngModel)]="aiConfig.batchItemCap" name="batchItemCap" /></label>
-                <label class="setting-field"><span>重試次數</span><input type="number" min="0" [(ngModel)]="aiConfig.retryMax" name="retryMax" /></label>
-                <label class="setting-field"><span>一般逾時（秒）</span><input type="number" min="1" [(ngModel)]="aiConfig.timeoutSeconds" name="timeoutSeconds" /></label>
-                <label class="setting-field"><span>尋源逾時（秒）</span><input type="number" min="1" [(ngModel)]="aiConfig.sourcingTimeoutSeconds" name="sourcingTimeoutSeconds" /></label>
-                <label class="setting-field"><span>一般快取（天）</span><input type="number" min="0" [(ngModel)]="aiConfig.cacheDays" name="cacheDays" /></label>
-                <label class="setting-field"><span>趨勢快取（天）</span><input type="number" min="0" [(ngModel)]="aiConfig.trendCacheDays" name="trendCacheDays" /></label>
-                <label class="setting-field"><span>尋源快取（天）</span><input type="number" min="0" [(ngModel)]="aiConfig.sourcingCacheDays" name="sourcingCacheDays" /></label>
-              </div>
-            </section>
-          </div>
-        }
-      </mat-tab>
+    <mat-tab label="AI 設定">
+      <ng-template matTabContent><app-admin-ai-settings /></ng-template>
+    </mat-tab>
 
-      <mat-tab label="營運參數">
-        @if (operationalConfig) {
-          <div class="settings-stack">
-            <section class="list-card">
-              <div class="card-heading">
-                <div>
-                  <h2>安全與判定門檻</h2>
-                  <p>僅列出目前已有正式消費端、儲存後可立即生效的參數。</p>
-                </div>
-                <button mat-flat-button class="btn pri" type="button" [disabled]="saving()" (click)="saveOperationalConfig()">儲存並套用</button>
-              </div>
-              <div class="settings-grid compact-grid">
-                <label class="setting-field"><span>登入失敗鎖定門檻</span><input type="number" min="1" [(ngModel)]="operationalConfig.loginMaxFailedAttempts" name="loginMaxFailedAttempts" /></label>
-                <label class="setting-field"><span>登入鎖定時間（分鐘）</span><input type="number" min="1" [(ngModel)]="operationalConfig.loginLockDurationMinutes" name="loginLockDurationMinutes" /></label>
-                <label class="setting-field"><span>人工熱度減半天數</span><input type="number" min="1" [(ngModel)]="operationalConfig.heatTagHalveAfterDays" name="heatTagHalveAfterDays" /></label>
-                <label class="setting-field"><span>人工熱度失效天數</span><input type="number" min="2" [(ngModel)]="operationalConfig.heatTagExpireDays" name="heatTagExpireDays" /></label>
-                <label class="setting-field"><span>同品類最低樣本數</span><input type="number" min="1" [(ngModel)]="operationalConfig.scoringMinCategorySample" name="scoringMinCategorySample" /></label>
-                <label class="setting-field"><span>情境採用信心門檻</span><input type="number" min="0" max="1" step="0.05" [(ngModel)]="operationalConfig.sceneAdoptConfidence" name="sceneAdoptConfidence" /></label>
-                <label class="setting-field"><span>情境計分信心門檻</span><input type="number" min="0" max="1" step="0.05" [(ngModel)]="operationalConfig.sceneScoringConfidence" name="sceneScoringConfidence" /></label>
-                <label class="setting-field"><span>校準最低樣本數</span><input type="number" min="1" [(ngModel)]="operationalConfig.calibrationMinSample" name="calibrationMinSample" /></label>
-              </div>
-              <p class="setting-note">失效天數必須大於減半天數；情境計分門檻不得低於採用門檻。所有變更都會寫入稽核紀錄。</p>
-            </section>
-          </div>
-        }
-      </mat-tab>
+    <mat-tab label="排程">
+      <ng-template matTabContent><app-admin-schedules /></ng-template>
+    </mat-tab>
 
-      <mat-tab label="排程">
-        <div class="settings-stack">
+    <mat-tab label="風險規則">
+      <ng-template matTabContent><app-admin-risk-rules /></ng-template>
+    </mat-tab>
+
+    <mat-tab label="營運參數">
+      <ng-template matTabContent>
+        @if (loading()) {
+          <div class="loading-panel"><mat-spinner diameter="30" /><span>正在載入…</span></div>
+        } @else if (operationalConfig) {
           <section class="list-card">
             <div class="card-heading">
-              <div><h2>主要業務排程</h2><p>使用 Spring cron 格式；儲存後立即取消舊排程並重新註冊。</p></div>
-              <button mat-flat-button class="btn pri" type="button" [disabled]="saving()" (click)="saveSchedules()">儲存排程</button>
+              <div>
+                <h2>安全與判定門檻</h2>
+                <p>登入鎖定、人工熱度標記時效、評分與情境判定門檻。儲存後立即生效。</p>
+              </div>
+              <div class="heading-actions">
+                @if (operationalDirty()) { <span class="dirty-text">有尚未儲存的變更</span> }
+                <button mat-stroked-button class="btn" type="button" [disabled]="saving() || !operationalDirty()" (click)="resetOperational()">還原</button>
+                <button mat-flat-button class="btn pri" type="button"
+                  [disabled]="saving() || !operationalDirty() || operationalErrors().length > 0" (click)="saveOperationalConfig()">儲存並套用</button>
+              </div>
             </div>
-            <div class="schedule-list">
-              @for (schedule of schedules; track schedule.code) {
-                <div class="schedule-row">
-                  <label class="toggle"><input type="checkbox" [(ngModel)]="schedule.enabled" [name]="schedule.code + '-enabled'" />啟用</label>
-                  <div><strong>{{ schedule.label }}</strong><small>{{ schedule.code }}</small></div>
-                  <input class="cron-input" [(ngModel)]="schedule.cron" [name]="schedule.code + '-cron'" />
-                </div>
-              }
-            </div>
-          </section>
-        </div>
-      </mat-tab>
 
-      <mat-tab label="風險規則">
-        <div class="settings-stack">
-          <section class="list-card">
-            <div class="card-heading"><div><h2>扣分與示警門檻</h2><p>儲存後會寫入稽核紀錄；影響分數的規則會啟動背景重算。</p></div></div>
-            <div class="risk-rule-grid">
-              @for (rule of riskRules; track rule.ruleCode + '-' + (rule.categoryId ?? 'global')) {
-                <article class="rule-card">
-                  <div class="rule-title"><strong>{{ rule.ruleName || rule.ruleCode }}</strong><code>{{ rule.ruleCode }}</code></div>
-                  <textarea rows="5" [(ngModel)]="rule.thresholdText" [name]="rule.ruleCode + '-threshold-' + (rule.categoryId ?? 'global')"></textarea>
-                  @if (rule.maxPenalty != null) {
-                    <label class="setting-field"><span>最大扣分</span><input type="number" min="0" [(ngModel)]="rule.maxPenalty" [name]="rule.ruleCode + '-penalty'" /></label>
-                  }
-                  <button mat-stroked-button class="btn" type="button" [disabled]="saving()" (click)="saveRiskRule(rule)">儲存此規則</button>
-                </article>
-              }
+            <h4 class="group-title">登入安全</h4>
+            <div class="settings-grid compact-grid">
+              <label class="setting-field"><span>連續登入失敗幾次鎖定</span>
+                <div class="unit-input"><input type="number" min="1" step="1" [(ngModel)]="operationalConfig.loginMaxFailedAttempts" name="loginMaxFailedAttempts" /><em>次</em></div></label>
+              <label class="setting-field"><span>鎖定時間</span>
+                <div class="unit-input"><input type="number" min="1" step="1" [(ngModel)]="operationalConfig.loginLockDurationMinutes" name="loginLockDurationMinutes" /><em>分鐘</em></div></label>
             </div>
+
+            <h4 class="group-title">人工熱度標記</h4>
+            <div class="settings-grid compact-grid">
+              <label class="setting-field"><span>權重減半</span>
+                <div class="unit-input"><input type="number" min="1" step="1" [(ngModel)]="operationalConfig.heatTagHalveAfterDays" name="heatTagHalveAfterDays" /><em>天後</em></div>
+                <small>標記滿此天數後權重減半</small></label>
+              <label class="setting-field"><span>失效</span>
+                <div class="unit-input"><input type="number" min="2" step="1" [(ngModel)]="operationalConfig.heatTagExpireDays" name="heatTagExpireDays" /><em>天後</em></div>
+                <small>須大於減半天數</small></label>
+            </div>
+
+            <h4 class="group-title">評分與情境判定</h4>
+            <div class="settings-grid compact-grid">
+              <label class="setting-field"><span>同品類最低樣本數</span>
+                <div class="unit-input"><input type="number" min="1" step="1" [(ngModel)]="operationalConfig.scoringMinCategorySample" name="scoringMinCategorySample" /><em>件</em></div>
+                <small>同品類品項少於此數時，先與兄弟品類合併計算，且信心度扣分（§5.3.1）</small></label>
+              <label class="setting-field"><span>情境採用信心門檻</span>
+                <div class="unit-input"><input type="number" min="0" max="100" step="5" [(ngModel)]="operationalConfig.sceneAdoptPercent" name="sceneAdoptPercent" /><em>%</em></div>
+                <small>AI 判定信心低於此值不採信，改用預設權重組（補貨型）</small></label>
+              <label class="setting-field"><span>情境計分信心門檻</span>
+                <div class="unit-input"><input type="number" min="0" max="100" step="5" [(ngModel)]="operationalConfig.sceneScoringPercent" name="sceneScoringPercent" /><em>%</em></div>
+                <small>信心低於此值仍採用判定，但分數信心度扣 10 分；不得低於採用門檻</small></label>
+              <label class="setting-field"><span>校準最低樣本數</span>
+                <div class="unit-input"><input type="number" min="1" step="1" [(ngModel)]="operationalConfig.calibrationMinSample" name="calibrationMinSample" /><em>筆</em></div>
+                <small>回填樣本未達此數時，校準頁標示「樣本數不足，僅供觀察趨勢」</small></label>
+            </div>
+            @if (operationalErrors().length) {
+              <p class="field-error">{{ operationalErrors().join('；') }}</p>
+            }
           </section>
-        </div>
-      </mat-tab>
+        }
+      </ng-template>
+    </mat-tab>
 
       <mat-tab label="類別管理">
-        <div class="tab-content">
+        <div class="tab-content" [class.busy]="loading()">
           <section class="list-card">
             <div class="card-heading">
               <div>
@@ -232,10 +185,15 @@
             </form>
           </section>
         </div>
+        <a class="link-card" routerLink="/festivals">
+          <mat-icon>event</mat-icon>
+          <span><strong>品類前置天數與氣候基準</strong><small>在「節慶檔期維護」頁設定各品類的採購前置天數與適溫區間</small></span>
+          <mat-icon>chevron_right</mat-icon>
+        </a>
       </mat-tab>
 
       <mat-tab label="供應商管理">
-        <div class="tab-content">
+        <div class="tab-content" [class.busy]="loading()">
           <section class="list-card">
             <div class="card-heading">
               <div>
@@ -325,6 +283,21 @@
           </section>
         </div>
       </mat-tab>
-    </mat-tab-group>
-  }
+
+      <mat-tab label="熱度來源">
+        <a class="link-card" routerLink="/heat-sources">
+          <mat-icon>sensors</mat-icon>
+          <span><strong>前往熱度來源狀態</strong><small>來源啟用／停用、合成權重調整、連線測試都在熱度來源狀態頁維護，這裡不重複建置。</small></span>
+          <mat-icon>chevron_right</mat-icon>
+        </a>
+      </mat-tab>
+
+      <mat-tab label="節慶檔期">
+        <a class="link-card" routerLink="/festivals">
+          <mat-icon>celebration</mat-icon>
+          <span><strong>前往節慶檔期維護</strong><small>節慶時間窗、品類前置天數與季節氣候基準都在節慶檔期維護頁編輯，這裡不重複建置。</small></span>
+          <mat-icon>chevron_right</mat-icon>
+        </a>
+      </mat-tab>
+  </mat-tab-group>
 </section>

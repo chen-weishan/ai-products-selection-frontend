@@ -1,0 +1,113 @@
+@if (error()) {
+  <div class="notice error" role="alert">
+    <span>{{ error() }}</span>
+    <button type="button" aria-label="關閉訊息" (click)="error.set(null)">×</button>
+  </div>
+}
+@if (success()) {
+  <div class="notice" role="status">
+    <span>{{ success() }}</span>
+    <button type="button" aria-label="關閉訊息" (click)="success.set(null)">×</button>
+  </div>
+}
+
+<section class="list-card">
+  <div class="card-heading">
+    <div>
+      <h2>自動排程</h2>
+      <p>系統自動執行的背景工作。時間一律以台北時間計。儲存後立即生效，不需重啟。</p>
+    </div>
+    <div class="heading-actions">
+      @if (isDirty()) { <span class="dirty-text">有尚未儲存的變更</span> }
+      <button mat-stroked-button class="btn" type="button" [disabled]="saving() || !isDirty()" (click)="reset()">還原</button>
+      <button mat-flat-button class="btn pri" type="button" [disabled]="saving() || !isDirty()" (click)="save()">
+        {{ saving() ? '儲存中…' : '儲存排程' }}
+      </button>
+    </div>
+  </div>
+
+  @if (loading()) {
+    <div class="loading-panel"><mat-spinner diameter="30" /><span>正在載入排程…</span></div>
+  } @else {
+    <div class="schedule-list">
+      @for (draft of drafts; track draft.item.code) {
+        <article class="schedule-card" [class.off]="!draft.enabled">
+          <div class="schedule-info">
+            <mat-slide-toggle [(ngModel)]="draft.enabled" [name]="draft.item.code + '-enabled'"
+              [attr.aria-label]="'啟用 ' + draft.item.label">
+            </mat-slide-toggle>
+            <div>
+              <strong>{{ draft.item.label }}</strong>
+              <p>{{ hints[draft.item.code] }}</p>
+            </div>
+          </div>
+
+          <div class="schedule-editor">
+            <label class="setting-field">
+              <span>頻率</span>
+              <mat-select class="plain-select" panelClass="unified-mat-select-panel" [ngModel]="draft.form.frequency"
+                (ngModelChange)="changeFrequency(draft, $event)" [aria-label]="draft.item.label + ' 頻率'">
+                @for (option of frequencies; track option.value) {
+                  <mat-option [value]="option.value">{{ option.label }}</mat-option>
+                }
+              </mat-select>
+            </label>
+
+            @switch (draft.form.frequency) {
+              @case ('WEEKLY') {
+                <div class="setting-field">
+                  <span>星期</span>
+                  <div class="day-picker" role="group" [attr.aria-label]="draft.item.label + ' 星期'">
+                    @for (day of weekdays; track day.value) {
+                      <button type="button" [class.on]="draft.form.weekdays.includes(day.value)"
+                        (click)="toggleWeekday(draft, day.value)">{{ day.label.slice(1) }}</button>
+                    }
+                  </div>
+                </div>
+              }
+              @case ('MONTHLY') {
+                <label class="setting-field">
+                  <span>日期</span>
+                  <mat-select class="plain-select" panelClass="unified-mat-select-panel" [(ngModel)]="draft.form.dayOfMonth">
+                    @for (day of days; track day) { <mat-option [value]="day">{{ day }} 日</mat-option> }
+                  </mat-select>
+                </label>
+              }
+              @case ('QUARTERLY') {
+                <label class="setting-field">
+                  <span>季首月的日期</span>
+                  <mat-select class="plain-select" panelClass="unified-mat-select-panel" [(ngModel)]="draft.form.dayOfMonth">
+                    @for (day of days; track day) { <mat-option [value]="day">{{ day }} 日</mat-option> }
+                  </mat-select>
+                </label>
+              }
+            }
+
+            @if (draft.form.frequency === 'ADVANCED') {
+              <label class="setting-field cron-field">
+                <span>cron 運算式</span>
+                <input class="mono" [(ngModel)]="draft.form.cron" [name]="draft.item.code + '-cron'" placeholder="0 0 7 * * MON" />
+                <small>6 欄依序為：秒 分 時 日 月 星期。例：<code>0 0 8,9 1 1,4,7,10 *</code> 表示每季首日 08:00 與 09:00。</small>
+              </label>
+            } @else {
+              <label class="setting-field">
+                <span>時間</span>
+                <input type="time" [(ngModel)]="draft.form.time" [name]="draft.item.code + '-time'" />
+              </label>
+            }
+          </div>
+
+          <div class="schedule-summary">
+            @if (errorOf(draft); as message) {
+              <span class="field-error">{{ message }}</span>
+            } @else {
+              <span class="badge" [class.teal]="draft.enabled" [class.muted]="!draft.enabled">
+                {{ draft.enabled ? describe(draft) : '已停用' }}
+              </span>
+            }
+          </div>
+        </article>
+      }
+    </div>
+  }
+</section>

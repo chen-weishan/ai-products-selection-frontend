@@ -1,0 +1,51 @@
+:host { display: block; }
+
+.mono { font-family: var(--mono) !important; }
+.dirty-text { color: #8a5a00; font-size: 11px; font-weight: 600; }
+
+.schedule-list { display: grid; gap: 10px; margin-top: 14px; }
+
+.schedule-card {
+  display: grid;
+  grid-template-columns: minmax(240px, 1fr) minmax(360px, 1.4fr) minmax(150px, auto);
+  align-items: center;
+  gap: 16px;
+  padding: 12px 14px;
+  border: 1px solid var(--line-soft);
+  border-radius: 8px;
+  background: var(--surface);
+}
+.schedule-card.off { background: #f8fafc; }
+.schedule-card.off .schedule-editor { opacity: .55; }
+
+.schedule-info { display: flex; align-items: flex-start; gap: 10px; }
+.schedule-info strong { color: var(--navy-deep); font-size: 13px; }
+.schedule-info p { margin: 2px 0 0; color: var(--ink-3); font-size: 11px; }
+
+.schedule-editor { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 10px; }
+.schedule-editor .setting-field { min-width: 120px; }
+.schedule-editor .cron-field { flex: 1; min-width: 220px; }
+.schedule-editor .cron-field code { font-size: 10px; }
+
+.plain-select { display: block; min-width: 150px; padding: 9px 10px; background: #fff; }
+
+.day-picker { display: inline-flex; overflow: hidden; border: 1px solid var(--line); border-radius: 7px; }
+.day-picker button {
+  width: 32px;
+  height: 36px;
+  border: 0;
+  border-right: 1px solid var(--line-soft);
+  background: #fff;
+  color: var(--ink-2);
+  font-size: 12px;
+  cursor: pointer;
+}
+.day-picker button:last-child { border-right: 0; }
+.day-picker button.on { background: var(--teal); color: #fff; font-weight: 600; }
+
+.schedule-summary { justify-self: end; text-align: right; }
+
+@media (max-width: 1100px) {
+  .schedule-card { grid-template-columns: 1fr; }
+  .schedule-summary { justify-self: start; }
+}

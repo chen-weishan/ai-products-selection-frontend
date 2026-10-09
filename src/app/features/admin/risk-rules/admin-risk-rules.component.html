@@ -1,0 +1,117 @@
+@if (error()) {
+  <div class="notice error" role="alert">
+    <span>{{ error() }}</span>
+    <button type="button" aria-label="關閉訊息" (click)="error.set(null)">×</button>
+  </div>
+}
+@if (success()) {
+  <div class="notice" role="status">
+    <span>{{ success() }}</span>
+    <button type="button" aria-label="關閉訊息" (click)="success.set(null)">×</button>
+  </div>
+}
+@if (recalculation()?.running) {
+  <div class="notice info" role="status">
+    <span>扣分重算進行中：{{ recalculation()?.progressPercent ?? 0 }}%。完成前排行與分數仍是舊值。</span>
+    <button mat-stroked-button class="btn small" type="button" (click)="load()">更新進度</button>
+  </div>
+}
+
+@if (loading()) {
+  <div class="loading-panel"><mat-spinner diameter="30" /><span>正在載入風險規則…</span></div>
+} @else {
+  <div class="settings-stack">
+    <ng-template #ruleCard let-draft>
+      <article class="rule-card" [class.dirty]="isDirty(draft)">
+        <header>
+          <div>
+            <strong>{{ label(draft.rule.ruleCode) }}</strong>
+            <span class="badge" [class.teal]="draft.rule.categoryId != null">{{ scope(draft.rule) }}</span>
+          </div>
+          <p>{{ description(draft.rule) }}</p>
+        </header>
+
+        @if (draft.locked) {
+          <p class="locked"><mat-icon>lock</mat-icon>{{ draft.locked }}</p>
+        } @else {
+          <div class="rule-fields">
+            @for (field of draft.fields; track field.key) {
+              <label class="setting-field" [class.invalid]="errorOf(draft, field)">
+                <span>{{ field.label }}</span>
+                <div class="unit-input">
+                  <input type="number" [min]="field.min" [max]="field.max" [step]="field.step"
+                    [(ngModel)]="draft.values[field.key]" [name]="draft.key + '-' + field.key" />
+                  @if (field.unit) { <em>{{ field.unit }}</em> }
+                </div>
+                @if (errorOf(draft, field); as message) {
+                  <small class="field-error">{{ message }}</small>
+                } @else if (field.hint) {
+                  <small>{{ field.hint }}</small>
+                }
+              </label>
+            }
+            @if (draft.penalty; as penalty) {
+              <label class="setting-field penalty" [class.invalid]="penaltyError(draft)">
+                <span>扣分上限</span>
+                <div class="unit-input">
+                  <input type="number" min="0" [max]="penalty.max" step="0.5"
+                    [(ngModel)]="draft.maxPenalty" [name]="draft.key + '-maxPenalty'" />
+                  <em>分</em>
+                </div>
+                @if (penaltyError(draft); as message) {
+                  <small class="field-error">{{ message }}</small>
+                } @else {
+                  <small>{{ penalty.hint }}（最高 {{ penalty.max }}）</small>
+                }
+              </label>
+            }
+          </div>
+          @if (draft.conditions.length) {
+            <p class="conditions">適用物流條件：
+              @for (condition of draft.conditions; track condition) { <span class="badge muted">{{ conditionLabel(condition) }}</span> }
+            </p>
+          }
+          <footer>
+            @if (isDirty(draft)) { <span class="dirty-text">尚未儲存</span> }
+            <button mat-button class="btn small" type="button" [disabled]="!isDirty(draft) || savingKey() != null"
+              (click)="reset(draft)">還原</button>
+            <button mat-flat-button class="btn pri small" type="button"
+              [disabled]="!isDirty(draft) || hasErrors(draft) || savingKey() != null"
+              (click)="save(draft)">
+              {{ savingKey() === draft.key ? '儲存中…' : '儲存' }}
+            </button>
+          </footer>
+        }
+      </article>
+    </ng-template>
+
+    <section class="list-card">
+      <div class="card-heading">
+        <div>
+          <h2>扣分規則</h2>
+          <p>影響選品分數。儲存後立即在背景重新計算全部品項的扣分與示警。</p>
+        </div>
+      </div>
+      <div class="rule-grid">
+        @for (draft of penaltyDrafts(); track draft.key) {
+          <ng-container *ngTemplateOutlet="ruleCard; context: { $implicit: draft }" />
+        }
+      </div>
+    </section>
+
+    <section class="list-card">
+      <div class="card-heading">
+        <div>
+          <h2>示警門檻</h2>
+          <p>決定何時產生風險示警，不改變分數。儲存後同樣會在背景重新檢查全部品項。</p>
+        </div>
+      </div>
+      <div class="rule-grid">
+        @for (draft of alertDrafts(); track draft.key) {
+          <ng-container *ngTemplateOutlet="ruleCard; context: { $implicit: draft }" />
+        }
+      </div>
+    </section>
+    <p class="setting-note">所有門檻變更都會寫入稽核紀錄（含變更前後的值）。</p>
+  </div>
+}

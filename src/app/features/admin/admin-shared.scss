@@ -1,0 +1,157 @@
+// S-14 各分頁共用的卡片、按鈕、欄位樣式（admin 與其子元件以 styleUrls 共同引用）
+
+.btn {
+  min-width: 0;
+  height: 34px;
+  padding: 6px 14px;
+  border: 1px solid var(--line) !important;
+  border-radius: 7px !important;
+  background: #fff !important;
+  color: var(--ink-2) !important;
+  font-family: var(--sans);
+  font-size: 12px;
+  line-height: 20px;
+  transition: all .2s cubic-bezier(.19, 1, .22, 1);
+}
+
+.btn:hover { border-color: #cbd5e1 !important; background: #f1f5f9 !important; }
+.btn:active { transform: scale(.96); }
+.btn:disabled { opacity: .55; cursor: not-allowed; }
+.btn.pri { border-color: var(--teal) !important; background: var(--teal) !important; color: #fff !important; font-weight: 500; }
+.btn.pri:hover { background: #186380 !important; }
+.btn.danger { border-color: #fecaca !important; background: #fef2f2 !important; color: var(--risk) !important; }
+.btn.small { height: 28px; padding: 3px 10px; font-size: 11px; }
+.btn mat-icon { width: 16px; height: 16px; margin-right: 4px; font-size: 16px; vertical-align: -3px; }
+
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--ink-2);
+  cursor: pointer;
+}
+.icon-btn:hover:not(:disabled) { border-color: var(--teal); color: var(--teal); }
+.icon-btn:disabled { opacity: .4; cursor: not-allowed; }
+.icon-btn mat-icon { width: 16px; height: 16px; font-size: 16px; }
+
+.notice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 42px;
+  margin-bottom: 14px;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 7px;
+  background: #e4f3eb;
+  color: #2f6946;
+  font-size: 12px;
+}
+
+.notice.error { background: #fbe9e7; color: var(--risk); }
+.notice.warn { background: #fff7e6; color: #8a5a00; }
+.notice.info { background: #eaf6fa; color: var(--navy-deep); }
+.notice button { border: 0; background: transparent; color: currentcolor; font-size: 22px; line-height: 1; cursor: pointer; }
+.loading-panel { display: flex; align-items: center; justify-content: center; gap: 14px; min-height: 220px; color: var(--ink-2); }
+
+.list-card,
+.form-card {
+  min-width: 0;
+  padding: 18px 20px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--card);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 4%);
+}
+
+.card-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.card-heading h2 { margin: 0; color: var(--navy-deep); font-family: var(--serif); font-size: 14px; font-weight: 600; }
+.card-heading p { margin: 2px 0 0; color: var(--ink-3); font-size: 12px; }
+.heading-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+
+.settings-stack { display: grid; gap: 16px; }
+.settings-grid { display: grid; gap: 12px; margin-top: 16px; }
+.compact-grid { grid-template-columns: repeat(4, minmax(150px, 1fr)); }
+
+.setting-field { display: grid; align-content: start; gap: 6px; color: var(--ink-2); font-size: 11px; }
+.setting-field > span { font-weight: 600; }
+.setting-field small { color: var(--ink-3); font-size: 11px; font-weight: 400; }
+.setting-field.invalid input { border-color: var(--risk); }
+.field-error { color: var(--risk); font-size: 11px; }
+
+.unit-input { position: relative; display: flex; align-items: center; }
+.unit-input input { padding-right: 38px; }
+.unit-input em { position: absolute; right: 10px; color: var(--ink-3); font-size: 11px; font-style: normal; pointer-events: none; }
+
+.setting-field input,
+.plain-input,
+.plain-select {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 38px;
+  padding: 7px 9px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--ink);
+  font: 12px var(--sans);
+}
+.setting-field input[type='number'] { font-family: var(--mono); }
+.setting-field input:focus,
+.plain-input:focus,
+.plain-select:focus { border-color: var(--teal); outline: 2px solid rgb(30 122 158 / 12%); }
+.setting-field input:disabled { color: var(--ink-3); cursor: not-allowed; }
+
+.setting-note { margin: 14px 0 0; color: var(--ink-3); font-size: 11px; }
+.empty-message { padding: 42px 12px; color: var(--ink-3); font-size: 12px; text-align: center; }
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: #eef2f6;
+  color: var(--ink-2);
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.badge.ok { background: #e4f3eb; color: #2f6946; }
+.badge.warn { background: #fff4dc; color: #8a5a00; }
+.badge.danger { background: #fbe9e7; color: var(--risk); }
+.badge.muted { background: #f1f5f9; color: var(--ink-3); }
+.badge.teal { background: #eaf6fa; color: var(--teal); }
+
+.save-bar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  color: var(--ink-3);
+  font-size: 11px;
+}
+.save-bar .dirty { color: #8a5a00; font-weight: 600; }
+
+@media (max-width: 980px) {
+  .compact-grid { grid-template-columns: repeat(2, minmax(150px, 1fr)); }
+}
+
+@media (max-width: 620px) {
+  .card-heading { align-items: stretch; flex-direction: column; }
+  .compact-grid { grid-template-columns: 1fr; }
+}

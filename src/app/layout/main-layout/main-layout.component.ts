@@ -46,7 +46,7 @@ export class MainLayoutComponent {
     { label: 'S-11 風險示警', path: '/risks', icon: 'warning' },
     { label: 'S-12 決策紀錄', path: '/decisions', icon: 'history_edu' },
     { label: 'S-13 報表', path: '/reports', icon: 'bar_chart' },
-    { label: 'S-14設定', path: '/admin', icon: 'settings', roles: ['BUYER_LEAD', 'DATA_ADMIN', 'SYS_ADMIN'] },
+    { label: 'S-14設定', path: '/admin', icon: 'settings', roles: ['SYS_ADMIN'] },
   ];
 
   readonly navItems = computed(() => {

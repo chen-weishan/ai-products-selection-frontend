@@ -1,0 +1,72 @@
+:host { display: block; }
+
+.mono { font-family: var(--mono) !important; }
+
+.users-layout {
+  display: grid;
+  grid-template-columns: minmax(480px, 1.4fr) minmax(320px, .8fr);
+  align-items: start;
+  gap: 16px;
+}
+
+.toolbar { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
+.toolbar .plain-input { flex: 1; min-width: 180px; }
+
+.segmented { display: inline-flex; overflow: hidden; border: 1px solid var(--line); border-radius: 7px; }
+.segmented button {
+  padding: 0 12px;
+  border: 0;
+  border-right: 1px solid var(--line);
+  background: #fff;
+  color: var(--ink-2);
+  font-size: 12px;
+  cursor: pointer;
+}
+.segmented button:last-child { border-right: 0; }
+.segmented button.active { background: #eaf6fa; color: var(--navy-deep); font-weight: 600; }
+
+.user-table { display: grid; gap: 4px; margin-top: 12px; }
+.row {
+  display: grid;
+  grid-template-columns: minmax(160px, 1.3fr) minmax(140px, 1.2fr) 72px 132px;
+  align-items: center;
+  gap: 10px;
+  min-height: 52px;
+  padding: 6px 10px;
+  border: 1px solid var(--line-soft);
+  border-radius: 7px;
+  background: var(--surface);
+}
+.row.head { min-height: 30px; border: 0; background: transparent; color: var(--ink-3); font-size: 11px; font-weight: 600; }
+.row.selected { border-color: var(--teal); background: #eaf6fa; box-shadow: inset 3px 0 0 var(--teal); }
+.row.disabled .who { opacity: .6; }
+.who { display: grid; min-width: 0; }
+.who strong { display: flex; align-items: center; gap: 6px; color: var(--navy-deep); font-size: 12px; }
+.who small { overflow: hidden; color: var(--ink-3); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.role-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.row-actions, .actions-col { display: flex; justify-content: flex-end; gap: 4px; }
+
+.user-form { display: grid; gap: 14px; margin-top: 16px; }
+.role-picker { display: grid; gap: 4px; margin: 0; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; }
+.role-picker legend { padding: 0 4px; color: var(--ink-2); font-size: 11px; font-weight: 600; }
+.role-name { margin-right: 6px; color: var(--ink); font-size: 12px; font-weight: 600; }
+.role-picker small { color: var(--ink-3); font-size: 11px; }
+.role-picker .hint { color: #8a5a00; }
+
+.password-row { display: flex; align-items: center; gap: 6px; }
+.password-row input { flex: 1; }
+
+.password-handoff { margin: 0; gap: 10px; }
+.password-handoff code { padding: 1px 6px; border-radius: 4px; background: #fff; font: 13px var(--mono); user-select: all; }
+.submit { justify-self: start; min-width: 120px; }
+.field-error { margin: 0; }
+
+@media (max-width: 1100px) {
+  .users-layout { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 620px) {
+  .row { grid-template-columns: 1fr auto; }
+  .row.head { display: none; }
+  .role-chips { grid-column: 1 / -1; }
+}

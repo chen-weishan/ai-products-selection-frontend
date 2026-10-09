@@ -1,0 +1,180 @@
+@if (error()) {
+  <div class="notice error" role="alert">
+    <span>{{ error() }}</span>
+    <button type="button" aria-label="關閉訊息" (click)="error.set(null)">×</button>
+  </div>
+}
+@if (success()) {
+  <div class="notice" role="status">
+    <span>{{ success() }}</span>
+    <button type="button" aria-label="關閉訊息" (click)="success.set(null)">×</button>
+  </div>
+}
+
+<div class="users-layout">
+  <section class="list-card">
+    <div class="card-heading">
+      <div>
+        <h2>帳號清單</h2>
+        <p>共 {{ counts().total }} 個帳號・啟用 {{ counts().active }}・停用 {{ counts().disabled }}@if (counts().locked) {・鎖定中 {{ counts().locked }}}</p>
+      </div>
+      <button mat-flat-button class="btn pri" type="button" (click)="startCreate()">
+        <mat-icon>person_add</mat-icon>新增使用者
+      </button>
+    </div>
+
+    <div class="toolbar">
+      <input class="plain-input" type="search" placeholder="搜尋姓名或 Email" [ngModel]="keyword()"
+        (ngModelChange)="keyword.set($event)" aria-label="搜尋使用者" />
+      <div class="segmented" role="group" aria-label="狀態篩選">
+        @for (option of [
+          { value: 'ALL', label: '全部' },
+          { value: 'ACTIVE', label: '啟用' },
+          { value: 'DISABLED', label: '停用' },
+          { value: 'LOCKED', label: '鎖定中' }
+        ]; track option.value) {
+          <button type="button" [class.active]="statusFilter() === option.value"
+            (click)="statusFilter.set($any(option.value))">{{ option.label }}</button>
+        }
+      </div>
+    </div>
+
+    @if (loading()) {
+      <div class="loading-panel"><mat-spinner diameter="30" /><span>正在載入帳號…</span></div>
+    } @else {
+      <div class="user-table" role="table" aria-label="使用者清單">
+        <div class="row head" role="row">
+          <span role="columnheader">使用者</span>
+          <span role="columnheader">角色</span>
+          <span role="columnheader">狀態</span>
+          <span role="columnheader" class="actions-col">操作</span>
+        </div>
+        @for (user of filtered(); track user.id) {
+          <div class="row" role="row" [class.selected]="selectedId() === user.id" [class.disabled]="user.status === 'DISABLED'">
+            <div role="cell" class="who">
+              <strong>{{ user.displayName }} @if (isSelf(user)) { <span class="badge teal">你</span> }</strong>
+              <small>{{ user.email }}</small>
+            </div>
+            <div role="cell" class="role-chips">
+              @for (role of user.roles; track role) {
+                <span class="badge" [class.teal]="role === 'SYS_ADMIN'">{{ roleName(role) }}</span>
+              }
+            </div>
+            <div role="cell">
+              @if (user.status === 'DISABLED') {
+                <span class="badge muted">停用</span>
+              } @else if (user.locked) {
+                <span class="badge danger" [matTooltip]="'鎖定至 ' + (user.lockedUntil | date: 'MM/dd HH:mm')">鎖定中</span>
+              } @else {
+                <span class="badge ok">啟用</span>
+              }
+            </div>
+            <div role="cell" class="row-actions">
+              <button type="button" class="icon-btn" (click)="startEdit(user)" matTooltip="編輯名稱與角色" aria-label="編輯">
+                <mat-icon>edit</mat-icon>
+              </button>
+              <button type="button" class="icon-btn" (click)="startPasswordReset(user)" matTooltip="重設密碼" aria-label="重設密碼">
+                <mat-icon>key</mat-icon>
+              </button>
+              @if (user.locked) {
+                <button type="button" class="icon-btn" [disabled]="saving()" (click)="unlock(user)" matTooltip="解除鎖定" aria-label="解除鎖定">
+                  <mat-icon>lock_open</mat-icon>
+                </button>
+              }
+              <button type="button" class="icon-btn" [disabled]="saving() || isSelf(user)" (click)="toggleStatus(user)"
+                [matTooltip]="isSelf(user) ? '不能停用自己' : user.status === 'ACTIVE' ? '停用帳號' : '重新啟用'"
+                [attr.aria-label]="user.status === 'ACTIVE' ? '停用帳號' : '重新啟用'">
+                <mat-icon>{{ user.status === 'ACTIVE' ? 'block' : 'check_circle' }}</mat-icon>
+              </button>
+            </div>
+          </div>
+        } @empty {
+          <p class="empty-message">沒有符合條件的帳號。</p>
+        }
+      </div>
+    }
+  </section>
+
+  <section class="form-card">
+    <div class="card-heading">
+      <div>
+        @switch (mode()) {
+          @case ('CREATE') { <h2>新增使用者</h2><p>建立後請把初始密碼交給使用者。</p> }
+          @case ('EDIT') { <h2>編輯使用者</h2><p>{{ form.email }}</p> }
+          @case ('PASSWORD') { <h2>重設密碼</h2><p>{{ form.displayName }}（{{ form.email }}）</p> }
+        }
+      </div>
+      @if (mode() !== 'CREATE') {
+        <button mat-button class="btn" type="button" (click)="startCreate()">取消</button>
+      }
+    </div>
+
+    <form class="user-form" (ngSubmit)="submit()">
+      @if (mode() === 'CREATE') {
+        <label class="setting-field">
+          <span>Email（登入帳號）</span>
+          <input type="email" name="email" [(ngModel)]="form.email" placeholder="name@company.com" autocomplete="off" />
+        </label>
+      }
+
+      @if (mode() !== 'PASSWORD') {
+        <label class="setting-field">
+          <span>顯示名稱</span>
+          <input name="displayName" maxlength="50" [(ngModel)]="form.displayName" placeholder="例如：王小明" />
+        </label>
+
+        <fieldset class="role-picker">
+          <legend>角色（可複選）</legend>
+          @for (role of roles(); track role.code) {
+            <mat-checkbox [checked]="hasRole(role.code)" [disabled]="roleLocked(role.code)"
+              (change)="toggleRole(role.code, $event.checked)">
+              <span class="role-name">{{ role.name }}</span>
+              <small>{{ role.description }}</small>
+            </mat-checkbox>
+          }
+          @if (roleLocked('SYS_ADMIN')) {
+            <small class="hint">不能移除自己的系統管理員角色。</small>
+          }
+        </fieldset>
+      }
+
+      @if (mode() !== 'EDIT') {
+        <div class="setting-field">
+          <span>{{ mode() === 'CREATE' ? '初始密碼' : '新密碼' }}</span>
+          <div class="password-row">
+            <input [type]="showPassword ? 'text' : 'password'" name="password" [(ngModel)]="form.password"
+              autocomplete="new-password" class="mono" />
+            <button type="button" class="icon-btn" (click)="showPassword = !showPassword"
+              [matTooltip]="showPassword ? '隱藏' : '顯示'" aria-label="顯示或隱藏密碼">
+              <mat-icon>{{ showPassword ? 'visibility_off' : 'visibility' }}</mat-icon>
+            </button>
+            <button type="button" class="icon-btn" (click)="regeneratePassword()" matTooltip="重新產生隨機密碼" aria-label="重新產生密碼">
+              <mat-icon>autorenew</mat-icon>
+            </button>
+          </div>
+          <small>已自動產生 12 碼隨機密碼，也可自行輸入（至少 8 碼）。</small>
+        </div>
+      }
+
+      @if (revealedPassword(); as password) {
+        <div class="notice info password-handoff">
+          <span>請把這組密碼交給使用者：<code>{{ password }}</code></span>
+          <button mat-stroked-button class="btn small" type="button" (click)="copyPassword()">複製</button>
+        </div>
+      }
+
+      @if (attempted && formErrors().length) {
+        <p class="field-error">{{ formErrors().join('；') }}</p>
+      }
+
+      <button mat-flat-button class="btn pri submit" type="submit" [disabled]="saving()">
+        @switch (mode()) {
+          @case ('CREATE') { {{ saving() ? '建立中…' : '建立帳號' }} }
+          @case ('EDIT') { {{ saving() ? '儲存中…' : '儲存變更' }} }
+          @case ('PASSWORD') { {{ saving() ? '重設中…' : '重設密碼' }} }
+        }
+      </button>
+      <p class="setting-note">所有帳號變更都會寫入稽核紀錄。停用與角色變更立即生效。</p>
+    </form>
+  </section>
+</div>

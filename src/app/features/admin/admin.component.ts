@@ -8,21 +8,19 @@ import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSelectModule } from '@angular/material/select';
 import { MatTabsModule } from '@angular/material/tabs';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { filter, finalize, forkJoin, switchMap } from 'rxjs';
 import { DialogService } from '../../services/dialog-service';
-import { RiskService } from '../risks/risk.service';
-import { RiskRuleItem } from '../risks/risk.model';
+import { AdminAiSettingsComponent } from './ai-settings/admin-ai-settings.component';
+import { AdminRiskRulesComponent } from './risk-rules/admin-risk-rules.component';
+import { AdminSchedulesComponent } from './schedules/admin-schedules.component';
+import { AdminUsersComponent } from './users/admin-users.component';
 import {
   CategoryNode,
   MasterDataService,
   SupplierRecord,
 } from './master-data.service';
-import {
-  AiRuntimeConfig,
-  OperationalRuntimeConfig,
-  RuntimeSchedule,
-  RuntimeSettingsService,
-} from './runtime-settings.service';
+import { OperationalRuntimeConfig, RuntimeSettingsService } from './runtime-settings.service';
 
 interface FlatCategory {
   id: number;
@@ -34,14 +32,10 @@ interface FlatCategory {
   hasChildren: boolean;
 }
 
-interface ModelRouteDraft {
-  alias: string;
-  primary: string;
-  fallbacks: string;
-}
-
-interface RiskRuleDraft extends RiskRuleItem {
-  thresholdText: string;
+/** 情境信心門檻以百分比編輯，存檔時轉回 0～1。 */
+interface OperationalDraft extends Omit<OperationalRuntimeConfig, 'sceneAdoptConfidence' | 'sceneScoringConfidence'> {
+  sceneAdoptPercent: number;
+  sceneScoringPercent: number;
 }
 
 @Component({
@@ -56,9 +50,14 @@ interface RiskRuleDraft extends RiskRuleItem {
     MatProgressSpinnerModule,
     MatSelectModule,
     MatTabsModule,
+    RouterLink,
+    AdminUsersComponent,
+    AdminAiSettingsComponent,
+    AdminSchedulesComponent,
+    AdminRiskRulesComponent,
   ],
   templateUrl: './admin.component.html',
-  styleUrl: './admin.component.scss',
+  styleUrls: ['./admin-shared.scss', './admin.component.scss'],
 })
 export class AdminComponent {
   private readonly api = inject(MasterDataService);
@@ -66,9 +65,13 @@ export class AdminComponent {
   private readonly destroyRef = inject(DestroyRef);
   private readonly dialogs = inject(DialogService);
   private readonly runtimeSettings = inject(RuntimeSettingsService);
-  private readonly risksApi = inject(RiskService);
+  private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
   private successTimer: ReturnType<typeof setTimeout> | null = null;
 
+  /** 分頁順序：§FR-13 六個分頁＋排程、營運參數、供應商；以 ?tab= 記住位置，方便從別頁直接連過來。 */
+  readonly tabKeys = ['users', 'ai', 'schedules', 'risk-rules', 'operational', 'categories', 'suppliers', 'heat-sources', 'festivals'];
+  readonly selectedTab = signal(Math.max(0, this.tabKeys.indexOf(this.route.snapshot.queryParamMap.get('tab') ?? '')));
   readonly loading = signal(false);
   readonly saving = signal(false);
   readonly error = signal<string | null>(null);
@@ -77,11 +80,8 @@ export class AdminComponent {
   readonly suppliers = signal<SupplierRecord[]>([]);
   readonly editingCategoryId = signal<number | null>(null);
   readonly editingSupplierId = signal<number | null>(null);
-  aiConfig: AiRuntimeConfig | null = null;
-  modelRoutes: ModelRouteDraft[] = [];
-  schedules: RuntimeSchedule[] = [];
-  operationalConfig: OperationalRuntimeConfig | null = null;
-  riskRules: RiskRuleDraft[] = [];
+  operationalConfig: OperationalDraft | null = null;
+  private savedOperational: OperationalDraft | null = null;
   readonly flatCategories = computed(() => flattenCategories(this.categories()));
   readonly rootCategories = computed(() =>
     this.categories().filter((category) => category.id !== this.editingCategoryId()),
@@ -110,34 +110,25 @@ export class AdminComponent {
     forkJoin({
       categories: this.api.categories(),
       suppliers: this.api.suppliers(),
-      aiConfig: this.runtimeSettings.getAiConfig(),
-      schedules: this.runtimeSettings.getSchedules(),
       operationalConfig: this.runtimeSettings.getOperationalConfig(),
-      riskRules: this.risksApi.getRiskRules(),
     })
       .pipe(
         finalize(() => this.loading.set(false)),
         takeUntilDestroyed(this.destroyRef),
       )
       .subscribe({
-        next: ({ categories, suppliers, aiConfig, schedules, operationalConfig, riskRules }) => {
+        next: ({ categories, suppliers, operationalConfig }) => {
           this.categories.set(categories);
           this.suppliers.set(suppliers);
-          this.aiConfig = structuredClone(aiConfig);
-          this.modelRoutes = Object.entries(aiConfig.models).map(([alias, route]) => ({
-            alias,
-            primary: route.primary,
-            fallbacks: route.fallbacks.join(', '),
-          }));
-          this.schedules = structuredClone(schedules.items);
-          this.operationalConfig = structuredClone(operationalConfig);
-          this.riskRules = riskRules.rules.map((rule) => ({
-            ...rule,
-            thresholdText: JSON.stringify(rule.thresholdJson, null, 2),
-          }));
+          this.setOperational(operationalConfig);
         },
         error: (error: Error) => this.error.set(error.message),
       });
+  }
+
+  selectTab(index: number): void {
+    this.selectedTab.set(index);
+    this.router.navigate([], { relativeTo: this.route, queryParams: { tab: this.tabKeys[index] }, replaceUrl: true });
   }
 
   newCategory(): void {
@@ -292,51 +283,55 @@ export class AdminComponent {
     this.error.set(null);
   }
 
-  saveAiConfig(): void {
-    if (this.aiConfig == null || this.saving()) return;
-    const request: AiRuntimeConfig = {
-      ...this.aiConfig,
-      models: Object.fromEntries(this.modelRoutes.map((route) => [route.alias, {
-        primary: route.primary.trim(),
-        fallbacks: route.fallbacks.split(',').map((value) => value.trim()).filter(Boolean),
-      }])),
-    };
-    this.runSave(this.runtimeSettings.updateAiConfig(request), 'AI 設定已立即生效', (saved) => {
-      this.aiConfig = structuredClone(saved);
-    });
+  operationalDirty(): boolean {
+    return this.operationalConfig != null
+      && JSON.stringify(this.operationalConfig) !== JSON.stringify(this.savedOperational);
   }
 
-  saveSchedules(): void {
-    if (this.saving()) return;
-    this.runSave(
-      this.runtimeSettings.updateSchedules({ items: this.schedules }),
-      '排程已重新註冊',
-      (saved) => { this.schedules = structuredClone(saved.items); },
-    );
+  resetOperational(): void {
+    if (this.savedOperational) this.operationalConfig = structuredClone(this.savedOperational);
+  }
+
+  operationalErrors(): string[] {
+    const config = this.operationalConfig;
+    if (config == null) return [];
+    const errors: string[] = [];
+    const positive = [
+      config.loginMaxFailedAttempts, config.loginLockDurationMinutes, config.heatTagHalveAfterDays,
+      config.scoringMinCategorySample, config.calibrationMinSample,
+    ];
+    if (positive.some((value) => !(value >= 1) || !Number.isInteger(value))) errors.push('次數、分鐘、天數與樣本數須為正整數');
+    if (!(config.heatTagExpireDays > config.heatTagHalveAfterDays)) errors.push('人工熱度失效天數須大於減半天數');
+    const inRange = (value: number) => value >= 0 && value <= 100;
+    if (!inRange(config.sceneAdoptPercent) || !inRange(config.sceneScoringPercent)) errors.push('情境信心門檻須介於 0%～100%');
+    else if (config.sceneScoringPercent < config.sceneAdoptPercent) errors.push('情境計分門檻不得低於採用門檻');
+    return errors;
   }
 
   saveOperationalConfig(): void {
-    if (this.operationalConfig == null || this.saving()) return;
+    const draft = this.operationalConfig;
+    if (draft == null || this.saving() || this.operationalErrors().length) return;
+    const { sceneAdoptPercent, sceneScoringPercent, ...rest } = draft;
+    const request: OperationalRuntimeConfig = {
+      ...rest,
+      sceneAdoptConfidence: Math.round(sceneAdoptPercent * 10) / 1000,
+      sceneScoringConfidence: Math.round(sceneScoringPercent * 10) / 1000,
+    };
     this.runSave(
-      this.runtimeSettings.updateOperationalConfig(this.operationalConfig),
-      '營運參數已立即生效',
-      (saved) => { this.operationalConfig = structuredClone(saved); },
+      this.runtimeSettings.updateOperationalConfig(request),
+      '營運參數已儲存並立即生效',
+      (saved) => this.setOperational(saved),
     );
   }
 
-  saveRiskRule(rule: RiskRuleDraft): void {
-    if (this.saving()) return;
-    let threshold: Record<string, unknown>;
-    try {
-      threshold = JSON.parse(rule.thresholdText) as Record<string, unknown>;
-    } catch {
-      this.error.set(`${rule.ruleCode} 的門檻不是合法 JSON`);
-      return;
-    }
-    this.runSave(
-      this.risksApi.updateRuleThreshold(rule.ruleCode, threshold, rule.categoryId, rule.maxPenalty),
-      `${rule.ruleCode} 已更新，背景重算已啟動`,
-    );
+  private setOperational(config: OperationalRuntimeConfig): void {
+    const { sceneAdoptConfidence, sceneScoringConfidence, ...rest } = config;
+    this.savedOperational = {
+      ...rest,
+      sceneAdoptPercent: Math.round(Number(sceneAdoptConfidence) * 1000) / 10,
+      sceneScoringPercent: Math.round(Number(sceneScoringConfidence) * 1000) / 10,
+    };
+    this.operationalConfig = structuredClone(this.savedOperational);
   }
 
   private reloadCategories(): void {

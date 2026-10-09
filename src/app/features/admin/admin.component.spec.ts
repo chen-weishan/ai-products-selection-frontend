@@ -1,6 +1,10 @@
+import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
 import { of } from 'rxjs';
+import { AuthService } from '../../core/auth/auth.service';
 import { DialogService } from '../../services/dialog-service';
+import { AdminUsersService } from './admin-users.service';
 
 import { AdminComponent } from './admin.component';
 import { MasterDataService } from './master-data.service';
@@ -33,6 +37,9 @@ describe('AdminComponent', () => {
     updateRuleThreshold: vi.fn(),
   };
   const dialogs = { Confirm: vi.fn() };
+  // 預設分頁「使用者管理」會載入子元件，需要它的服務
+  const adminUsers = { list: vi.fn(() => of([])), roles: vi.fn(() => of([])) };
+  const auth = { currentUser: signal({ email: 'sysadmin@ssds.dev' }) };
 
   beforeEach(async () => {
     vi.clearAllMocks();
@@ -82,6 +89,9 @@ describe('AdminComponent', () => {
         { provide: RuntimeSettingsService, useValue: runtimeSettings },
         { provide: RiskService, useValue: risks },
         { provide: DialogService, useValue: dialogs },
+        { provide: AdminUsersService, useValue: adminUsers },
+        { provide: AuthService, useValue: auth },
+        provideRouter([]),
       ],
     })
     .compileComponents();
@@ -151,5 +161,29 @@ describe('AdminComponent', () => {
 
     expect(api.deleteSupplier).toHaveBeenCalledWith(2);
     expect(api.suppliers).toHaveBeenCalledTimes(2);
+  });
+
+  it('edits scene confidence as percent and saves it back as a 0-1 ratio', () => {
+    runtimeSettings.updateOperationalConfig.mockImplementation((config) => of(config));
+    expect(component.operationalConfig?.sceneAdoptPercent).toBe(50);
+    expect(component.operationalDirty()).toBe(false);
+
+    component.operationalConfig!.sceneAdoptPercent = 55;
+    expect(component.operationalDirty()).toBe(true);
+    component.saveOperationalConfig();
+
+    expect(runtimeSettings.updateOperationalConfig).toHaveBeenCalledWith(expect.objectContaining({
+      sceneAdoptConfidence: 0.55,
+      sceneScoringConfidence: 0.7,
+    }));
+    expect(component.operationalDirty()).toBe(false);
+  });
+
+  it('blocks saving when the scoring threshold is below the adopt threshold', () => {
+    component.operationalConfig!.sceneScoringPercent = 40;
+
+    expect(component.operationalErrors()).toContain('情境計分門檻不得低於採用門檻');
+    component.saveOperationalConfig();
+    expect(runtimeSettings.updateOperationalConfig).not.toHaveBeenCalled();
   });
 });
