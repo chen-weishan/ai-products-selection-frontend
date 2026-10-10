@@ -25,6 +25,9 @@ describe('AdminAiSettingsComponent', () => {
     cacheDays: 6,
     trendCacheDays: 3,
     sourcingCacheDays: 3,
+    // Java AiConfig record 把兩個新欄位序列化在最後；dirty 比對不可依賴 JSON 欄位順序。
+    externalLlmEnabled: true,
+    trendScheduleEnabled: true,
   };
   const api = {
     getAiConfig: vi.fn(),
@@ -45,7 +48,8 @@ describe('AdminAiSettingsComponent', () => {
         { id: 'mistral-medium-3-5', available: true, inUse: true },
         { id: 'mistral-small-latest', available: true, inUse: true },
         { id: 'magistral-medium-latest', available: true, inUse: false },
-        { id: 'my-private-model', available: false, inUse: true },
+        { id: 'my-private-model', available: true, inUse: true },
+        { id: 'legacy-no-reasoning', available: false, inUse: false },
       ],
       source: 'MISTRAL_API',
       warning: null,
@@ -69,8 +73,12 @@ describe('AdminAiSettingsComponent', () => {
     expect(component.routes.map((route) => route.alias)).toEqual(['MODEL_CLASSIFY', 'MODEL_NUMERIC']);
     expect(component.routes[0].info?.label).toBe('情境判定');
     expect(component.quota?.trackAPercent).toBe(70);
+    expect(component.externalLlmEnabled).toBe(true);
+    expect(component.trendScheduleEnabled).toBe(true);
     expect(component.isDirty()).toBe(false);
     expect(fixture.nativeElement.textContent).toContain('今日已用 600 / 700 次');
+    expect(fixture.nativeElement.textContent).not.toContain('ai.external-llm-enabled');
+    expect(fixture.nativeElement.textContent).not.toContain('ai.trend.schedule-enabled');
   });
 
   it('offers only unused models as fallback candidates and adds them in order', () => {
@@ -97,6 +105,14 @@ describe('AdminAiSettingsComponent', () => {
     expect(component.unavailableModels(numeric)).toEqual(['ministral-8b-latest']);
   });
 
+  it('blocks a listed model that did not pass reasoning validation', () => {
+    const numeric = component.routes[1];
+    numeric.primaryChoice = 'legacy-no-reasoning';
+
+    expect(component.routeError(numeric)).toContain('reasoning=true');
+    expect(component.canSave()).toBe(false);
+  });
+
   it('blocks saving until the three pools add up to 100%', () => {
     component.quota!.trackAPercent = 60;
     expect(component.quotaErrors()[0]).toContain('目前為 90%');
@@ -105,6 +121,8 @@ describe('AdminAiSettingsComponent', () => {
 
   it('saves percentages back as ratios with the edited model routes', () => {
     component.routes[1].primaryChoice = 'magistral-medium-latest';
+    component.externalLlmEnabled = false;
+    component.trendScheduleEnabled = false;
     component.quota!.trackAPercent = 60;
     component.quota!.trackBPercent = 30;
 
@@ -113,6 +131,8 @@ describe('AdminAiSettingsComponent', () => {
     const request = api.updateAiConfig.mock.calls[0][0] as AiRuntimeConfig;
     expect(request.models['MODEL_NUMERIC'].primary).toBe('magistral-medium-latest');
     expect(request.models['MODEL_CLASSIFY'].primary).toBe('my-private-model');
+    expect(request.externalLlmEnabled).toBe(false);
+    expect(request.trendScheduleEnabled).toBe(false);
     expect(request.trackAShare).toBe(0.6);
     expect(request.trackBShare).toBe(0.3);
     expect(component.isDirty()).toBe(false);

@@ -5,6 +5,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSelectModule } from '@angular/material/select';
+import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { catchError, finalize, forkJoin, of } from 'rxjs';
 import {
@@ -58,7 +59,7 @@ const POOL_LABELS: Record<string, { label: string; hint: string }> = {
 
 @Component({
   selector: 'app-admin-ai-settings',
-  imports: [FormsModule, MatButtonModule, MatIconModule, MatProgressSpinnerModule, MatSelectModule, MatTooltipModule],
+  imports: [FormsModule, MatButtonModule, MatIconModule, MatProgressSpinnerModule, MatSelectModule, MatSlideToggleModule, MatTooltipModule],
   templateUrl: './admin-ai-settings.component.html',
   styleUrls: ['../admin-shared.scss', './admin-ai-settings.component.scss'],
 })
@@ -81,6 +82,8 @@ export class AdminAiSettingsComponent {
   readonly budget = signal<BudgetSnapshot | null>(null);
 
   routes: RouteDraft[] = [];
+  externalLlmEnabled = true;
+  trendScheduleEnabled = true;
   quota: QuotaDraft | null = null;
   private saved: AiRuntimeConfig | null = null;
 
@@ -111,6 +114,8 @@ export class AdminAiSettingsComponent {
   reset(config: AiRuntimeConfig | null = this.saved): void {
     if (config == null) return;
     this.saved = structuredClone(config);
+    this.externalLlmEnabled = config.externalLlmEnabled;
+    this.trendScheduleEnabled = config.trendScheduleEnabled;
     const aliases = this.options()?.aliases ?? [];
     const order = aliases.map((alias) => alias.code);
     const codes = Object.keys(config.models).sort((a, b) => rank(order, a) - rank(order, b));
@@ -160,7 +165,7 @@ export class AdminAiSettingsComponent {
   /** 備援下拉只列還沒被選的模型。 */
   fallbackCandidates(route: RouteDraft): ModelOption[] {
     const used = new Set([this.primaryOf(route), ...route.fallbacks]);
-    return (this.options()?.models ?? []).filter((model) => !used.has(model.id));
+    return (this.options()?.models ?? []).filter((model) => model.available && !used.has(model.id));
   }
 
   onFallbackChosen(route: RouteDraft, value: string | null): void {
@@ -195,10 +200,14 @@ export class AdminAiSettingsComponent {
     const primary = this.primaryOf(route);
     if (!primary) return '請選擇主要模型';
     if (!MODEL_ID.test(primary)) return '模型名稱只能包含英數字與 . _ : / -，不可有空白';
+    const unsupported = this.options()?.source === 'MISTRAL_API'
+      ? [primary, ...route.fallbacks].filter((id) => this.modelOption(id)?.available === false)
+      : [];
+    if (unsupported.length) return `${unsupported.join('、')} 未通過 reasoning=true 驗證`;
     return null;
   }
 
-  /** 選到不在可用清單的模型時提醒（可能是手動輸入或已下架），不擋存檔。 */
+  /** 手動輸入的未知模型由後端在存檔時向 Mistral 驗證。 */
   unavailableModels(route: RouteDraft): string[] {
     if (this.options() == null) return [];
     return [this.primaryOf(route), ...route.fallbacks]
@@ -286,6 +295,8 @@ export class AdminAiSettingsComponent {
         primary: this.primaryOf(route),
         fallbacks: route.fallbacks,
       }])),
+      externalLlmEnabled: this.externalLlmEnabled,
+      trendScheduleEnabled: this.trendScheduleEnabled,
       dailyQuota: quota.dailyQuota,
       trackAShare: quota.trackAPercent / 100,
       trackBShare: quota.trackBPercent / 100,
@@ -322,11 +333,22 @@ function normalize(config: AiRuntimeConfig): AiRuntimeConfig {
   const fix = (value: number) => Math.round(value * 1000) / 1000;
   const models = Object.fromEntries(Object.keys(config.models).sort().map((alias) => [alias, config.models[alias]]));
   return {
-    ...config,
     models,
+    externalLlmEnabled: config.externalLlmEnabled,
+    trendScheduleEnabled: config.trendScheduleEnabled,
+    dailyQuota: config.dailyQuota,
     trackAShare: fix(config.trackAShare),
     trackBShare: fix(config.trackBShare),
     retryShare: fix(config.retryShare),
     warningRatio: fix(config.warningRatio),
+    rateLimitPerMinute: config.rateLimitPerMinute,
+    trendRateLimitPerMinute: config.trendRateLimitPerMinute,
+    batchItemCap: config.batchItemCap,
+    retryMax: config.retryMax,
+    timeoutSeconds: config.timeoutSeconds,
+    sourcingTimeoutSeconds: config.sourcingTimeoutSeconds,
+    cacheDays: config.cacheDays,
+    trendCacheDays: config.trendCacheDays,
+    sourcingCacheDays: config.sourcingCacheDays,
   };
 }

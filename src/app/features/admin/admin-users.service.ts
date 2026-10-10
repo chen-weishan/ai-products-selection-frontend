@@ -1,6 +1,7 @@
-import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { HttpClient, HttpContext, HttpErrorResponse } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, catchError, map, throwError } from 'rxjs';
+import { SKIP_GLOBAL_LOADING } from '../../core/http/loading-interceptor';
 import { environment } from '../../../environments/environment';
 
 export type RoleCode = 'BUYER' | 'BUYER_LEAD' | 'DATA_ADMIN' | 'SYS_ADMIN' | 'VIEWER';
@@ -48,35 +49,37 @@ interface ApiResponse<T> {
 export class AdminUsersService {
   private readonly http = inject(HttpClient);
   private readonly baseUrl = `${environment.apiBaseUrl}/admin/users`;
+  private readonly localLoading = { context: new HttpContext().set(SKIP_GLOBAL_LOADING, true) };
 
   list(): Observable<AdminUser[]> {
-    return this.http.get<ApiResponse<AdminUser[]>>(this.baseUrl).pipe(unwrap('取得使用者清單失敗'));
+    return this.http.get<ApiResponse<AdminUser[]>>(this.baseUrl, this.localLoading).pipe(unwrap('取得使用者清單失敗'));
   }
 
   roles(): Observable<RoleOption[]> {
-    return this.http.get<ApiResponse<RoleOption[]>>(`${this.baseUrl}/roles`).pipe(unwrap('取得角色清單失敗'));
+    return this.http.get<ApiResponse<RoleOption[]>>(`${this.baseUrl}/roles`, this.localLoading).pipe(unwrap('取得角色清單失敗'));
   }
 
   create(request: CreateUserRequest): Observable<AdminUser> {
-    return this.http.post<ApiResponse<AdminUser>>(this.baseUrl, request).pipe(unwrap('新增使用者失敗'));
+    return this.http.post<ApiResponse<AdminUser>>(this.baseUrl, request, this.localLoading).pipe(unwrap('新增使用者失敗'));
   }
 
   update(id: number, request: UpdateUserRequest): Observable<AdminUser> {
-    return this.http.put<ApiResponse<AdminUser>>(`${this.baseUrl}/${id}`, request).pipe(unwrap('更新使用者失敗'));
+    return this.http.put<ApiResponse<AdminUser>>(`${this.baseUrl}/${id}`, request, this.localLoading).pipe(unwrap('更新使用者失敗'));
   }
 
   changeStatus(id: number, status: UserStatus): Observable<AdminUser> {
-    return this.http.patch<ApiResponse<AdminUser>>(`${this.baseUrl}/${id}/status`, { status })
+    return this.http.patch<ApiResponse<AdminUser>>(`${this.baseUrl}/${id}/status`, { status }, this.localLoading)
       .pipe(unwrap(status === 'DISABLED' ? '停用帳號失敗' : '啟用帳號失敗'));
   }
 
   resetPassword(id: number, password: string): Observable<AdminUser> {
-    return this.http.patch<ApiResponse<AdminUser>>(`${this.baseUrl}/${id}/password`, { password })
+    return this.http.patch<ApiResponse<AdminUser>>(`${this.baseUrl}/${id}/password`, { password }, this.localLoading)
       .pipe(unwrap('重設密碼失敗'));
   }
 
   unlock(id: number): Observable<AdminUser> {
-    return this.http.patch<ApiResponse<AdminUser>>(`${this.baseUrl}/${id}/unlock`, {}).pipe(unwrap('解除鎖定失敗'));
+    return this.http.patch<ApiResponse<AdminUser>>(`${this.baseUrl}/${id}/unlock`, {}, this.localLoading)
+      .pipe(unwrap('解除鎖定失敗'));
   }
 }
 

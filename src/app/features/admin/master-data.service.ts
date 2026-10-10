@@ -1,6 +1,7 @@
-import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { HttpClient, HttpContext, HttpErrorResponse } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, catchError, map, throwError } from 'rxjs';
+import { SKIP_GLOBAL_LOADING } from '../../core/http/loading-interceptor';
 import { environment } from '../../../environments/environment';
 
 export interface CategoryNode {
@@ -49,52 +50,53 @@ interface ApiResponse<T> {
 export class MasterDataService {
   private readonly http = inject(HttpClient);
   private readonly baseUrl = environment.apiBaseUrl;
+  private readonly localLoading = { context: new HttpContext().set(SKIP_GLOBAL_LOADING, true) };
 
   categories(): Observable<CategoryNode[]> {
     return this.http
-      .get<ApiResponse<CategoryNode[]>>(`${this.baseUrl}/categories`)
+      .get<ApiResponse<CategoryNode[]>>(`${this.baseUrl}/categories`, this.localLoading)
       .pipe(this.unwrap('取得類別失敗'));
   }
 
   createCategory(request: CategoryUpsertRequest): Observable<CategoryRecord> {
     return this.http
-      .post<ApiResponse<CategoryRecord>>(`${this.baseUrl}/categories`, request)
+      .post<ApiResponse<CategoryRecord>>(`${this.baseUrl}/categories`, request, this.localLoading)
       .pipe(this.unwrap('新增類別失敗'));
   }
 
   updateCategory(id: number, request: CategoryUpsertRequest): Observable<CategoryRecord> {
     return this.http
-      .put<ApiResponse<CategoryRecord>>(`${this.baseUrl}/categories/${id}`, request)
+      .put<ApiResponse<CategoryRecord>>(`${this.baseUrl}/categories/${id}`, request, this.localLoading)
       .pipe(this.unwrap('修改類別失敗'));
   }
 
   deleteCategory(id: number): Observable<void> {
     return this.http
-      .delete<ApiResponse<void>>(`${this.baseUrl}/categories/${id}`)
+      .delete<ApiResponse<void>>(`${this.baseUrl}/categories/${id}`, this.localLoading)
       .pipe(this.unwrapVoid('刪除類別失敗'));
   }
 
   suppliers(): Observable<SupplierRecord[]> {
     return this.http
-      .get<ApiResponse<SupplierRecord[]>>(`${this.baseUrl}/suppliers`)
+      .get<ApiResponse<SupplierRecord[]>>(`${this.baseUrl}/suppliers`, this.localLoading)
       .pipe(this.unwrap('取得供應商失敗'));
   }
 
   createSupplier(request: SupplierUpsertRequest): Observable<SupplierRecord> {
     return this.http
-      .post<ApiResponse<SupplierRecord>>(`${this.baseUrl}/suppliers`, request)
+      .post<ApiResponse<SupplierRecord>>(`${this.baseUrl}/suppliers`, request, this.localLoading)
       .pipe(this.unwrap('新增供應商失敗'));
   }
 
   updateSupplier(id: number, request: SupplierUpsertRequest): Observable<SupplierRecord> {
     return this.http
-      .put<ApiResponse<SupplierRecord>>(`${this.baseUrl}/suppliers/${id}`, request)
+      .put<ApiResponse<SupplierRecord>>(`${this.baseUrl}/suppliers/${id}`, request, this.localLoading)
       .pipe(this.unwrap('修改供應商失敗'));
   }
 
   deleteSupplier(id: number): Observable<void> {
     return this.http
-      .delete<ApiResponse<void>>(`${this.baseUrl}/suppliers/${id}`)
+      .delete<ApiResponse<void>>(`${this.baseUrl}/suppliers/${id}`, this.localLoading)
       .pipe(this.unwrapVoid('刪除供應商失敗'));
   }
 

@@ -14,6 +14,7 @@ import { DialogService } from '../../services/dialog-service';
 import { AdminAiSettingsComponent } from './ai-settings/admin-ai-settings.component';
 import { AdminRiskRulesComponent } from './risk-rules/admin-risk-rules.component';
 import { AdminSchedulesComponent } from './schedules/admin-schedules.component';
+import { AdminRecoverySettingsComponent } from './recovery/admin-recovery-settings.component';
 import { AdminUsersComponent } from './users/admin-users.component';
 import {
   CategoryNode,
@@ -54,6 +55,7 @@ interface OperationalDraft extends Omit<OperationalRuntimeConfig, 'sceneAdoptCon
     AdminUsersComponent,
     AdminAiSettingsComponent,
     AdminSchedulesComponent,
+    AdminRecoverySettingsComponent,
     AdminRiskRulesComponent,
   ],
   templateUrl: './admin.component.html',
@@ -69,8 +71,8 @@ export class AdminComponent {
   private readonly route = inject(ActivatedRoute);
   private successTimer: ReturnType<typeof setTimeout> | null = null;
 
-  /** 分頁順序：§FR-13 六個分頁＋排程、營運參數、供應商；以 ?tab= 記住位置，方便從別頁直接連過來。 */
-  readonly tabKeys = ['users', 'ai', 'schedules', 'risk-rules', 'operational', 'categories', 'suppliers', 'heat-sources', 'festivals'];
+  /** 分頁順序以 ?tab= 記住位置，方便從別頁直接連過來。 */
+  readonly tabKeys = ['users', 'ai', 'schedules', 'recovery', 'risk-rules', 'operational', 'categories', 'suppliers', 'heat-sources', 'festivals'];
   readonly selectedTab = signal(Math.max(0, this.tabKeys.indexOf(this.route.snapshot.queryParamMap.get('tab') ?? '')));
   readonly loading = signal(false);
   readonly saving = signal(false);

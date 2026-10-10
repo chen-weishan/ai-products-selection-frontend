@@ -1,0 +1,91 @@
+@if (error()) {
+  <div class="notice error" role="alert">
+    <span>{{ error() }}</span>
+    <button type="button" aria-label="關閉訊息" (click)="error.set(null)">×</button>
+  </div>
+}
+@if (success()) {
+  <div class="notice" role="status">
+    <span>{{ success() }}</span>
+    <button type="button" aria-label="關閉訊息" (click)="success.set(null)">×</button>
+  </div>
+}
+
+<section class="list-card">
+  <div class="card-heading">
+    <div>
+      <h2>補跑與兜底</h2>
+      <p>控制服務重啟後的補跑，以及執行中工作遺失時的定期恢復。</p>
+    </div>
+    <div class="heading-actions">
+      @if (isDirty()) { <span class="dirty-text">有尚未儲存的變更</span> }
+      <button mat-stroked-button class="btn" type="button" [disabled]="saving() || !isDirty()" (click)="reset()">還原</button>
+      <button mat-flat-button class="btn pri" type="button"
+        [disabled]="saving() || !isDirty() || errors().length > 0" (click)="save()">
+        {{ saving() ? '儲存中…' : '儲存設定' }}
+      </button>
+    </div>
+  </div>
+
+  @if (loading()) {
+    <div class="loading-panel"><mat-spinner diameter="30" /><span>正在載入補跑與兜底設定…</span></div>
+  } @else if (config) {
+    <h4 class="group-title">定期恢復輪詢</h4>
+    <div class="recovery-list">
+      <article class="recovery-card" [class.off]="!config.aiTaskRecoveryPollingEnabled">
+        <div class="recovery-info">
+          <mat-slide-toggle [(ngModel)]="config.aiTaskRecoveryPollingEnabled" name="aiTaskRecoveryPollingEnabled"
+            aria-label="啟用 AI 任務恢復輪詢"></mat-slide-toggle>
+          <div>
+            <strong>AI 任務持久化恢復輪詢</strong>
+            <p>定期掃描 PENDING／RUNNING AI 任務並恢復遺失的 worker；啟動時固定恢復一次，不受此開關影響。</p>
+          </div>
+        </div>
+        <label class="setting-field interval-field">
+          <span>輪詢間隔</span>
+          <div class="unit-input"><input type="number" min="1" step="1"
+            [(ngModel)]="config.aiTaskRecoveryPollSeconds" name="aiTaskRecoveryPollSeconds" /><em>秒</em></div>
+        </label>
+      </article>
+
+      <article class="recovery-card" [class.off]="!config.importPeriodicRecoveryEnabled">
+        <div class="recovery-info">
+          <mat-slide-toggle [(ngModel)]="config.importPeriodicRecoveryEnabled" name="importPeriodicRecoveryEnabled"
+            aria-label="啟用匯入批次恢復輪詢"></mat-slide-toggle>
+          <div>
+            <strong>FR-09 匯入批次恢復輪詢</strong>
+            <p>定期掃描 RUNNING 匯入批次並恢復未完成工作；啟動時固定恢復一次，不受此開關影響。</p>
+          </div>
+        </div>
+        <label class="setting-field interval-field">
+          <span>輪詢間隔</span>
+          <div class="unit-input"><input type="number" min="1" step="1"
+            [(ngModel)]="config.importRecoveryPollSeconds" name="importRecoveryPollSeconds" /><em>秒</em></div>
+        </label>
+      </article>
+    </div>
+
+    <h4 class="group-title">啟動補跑</h4>
+    <p class="restart-note">以下開關控制應用程式下次啟動時是否執行，儲存當下不會立即補跑。</p>
+    <div class="startup-grid">
+      <label class="toggle-card" [class.off]="!config.heatCatchUpEnabled">
+        <mat-slide-toggle [(ngModel)]="config.heatCatchUpEnabled" name="heatCatchUpEnabled"
+          aria-label="啟用熱度資料啟動補跑"></mat-slide-toggle>
+        <span>
+          <strong>熱度資料啟動補跑</strong>
+          <small>於 06:00 後啟動且當日資料不完整時，依已啟用的熱度來源補跑。</small>
+        </span>
+      </label>
+      <label class="toggle-card" [class.off]="!config.riskStartupRunEnabled">
+        <mat-slide-toggle [(ngModel)]="config.riskStartupRunEnabled" name="riskStartupRunEnabled"
+          aria-label="啟用風險偵測啟動補跑"></mat-slide-toggle>
+        <span>
+          <strong>風險偵測啟動補跑</strong>
+          <small>應用啟動後補跑熱度異常、季節不匹配與節慶檔期偵測。</small>
+        </span>
+      </label>
+    </div>
+
+    @if (errors().length) { <p class="field-error">{{ errors().join('；') }}</p> }
+  }
+</section>

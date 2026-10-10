@@ -29,6 +29,8 @@ describe('AdminComponent', () => {
     updateAiConfig: vi.fn(),
     getSchedules: vi.fn(),
     updateSchedules: vi.fn(),
+    getRecoveryConfig: vi.fn(),
+    updateRecoveryConfig: vi.fn(),
     getOperationalConfig: vi.fn(),
     updateOperationalConfig: vi.fn(),
   };
@@ -52,6 +54,8 @@ describe('AdminComponent', () => {
     ]));
     runtimeSettings.getAiConfig.mockReturnValue(of({
       models: {},
+      externalLlmEnabled: true,
+      trendScheduleEnabled: true,
       dailyQuota: 1000,
       trackAShare: 0.7,
       trackBShare: 0.2,
@@ -105,6 +109,7 @@ describe('AdminComponent', () => {
     expect(component).toBeTruthy();
     expect(component.flatCategories()).toHaveLength(1);
     expect(component.suppliers()).toHaveLength(1);
+    expect(component.tabKeys.slice(2, 5)).toEqual(['schedules', 'recovery', 'risk-rules']);
   });
 
   it('creates a category and reloads the category tree', () => {

@@ -2,7 +2,7 @@
   <header class="mh">
     <div>
       <h3>系統設定</h3>
-      <div class="sub">系統管理員專用・帳號、AI 模型與配額、排程、風險門檻與主檔。所有變更即時生效並寫入稽核紀錄。</div>
+      <div class="sub">系統管理員專用・帳號、AI 模型與配額、排程、風險門檻與主檔。變更均寫入稽核紀錄，生效時機依各設定標示。</div>
     </div>
   </header>
 
@@ -25,6 +25,10 @@
 
     <mat-tab label="排程">
       <ng-template matTabContent><app-admin-schedules /></ng-template>
+    </mat-tab>
+
+    <mat-tab label="補跑與兜底">
+      <ng-template matTabContent><app-admin-recovery-settings /></ng-template>
     </mat-tab>
 
     <mat-tab label="風險規則">

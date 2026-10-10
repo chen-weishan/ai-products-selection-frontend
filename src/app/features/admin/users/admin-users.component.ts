@@ -137,7 +137,6 @@ export class AdminUsersComponent {
 
   regeneratePassword(): void {
     this.form.password = generatePassword();
-    this.showPassword = true;
   }
 
   hasRole(code: RoleCode): boolean {

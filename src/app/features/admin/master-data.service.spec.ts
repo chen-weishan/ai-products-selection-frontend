@@ -3,6 +3,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { MasterDataService } from './master-data.service';
 import { environment } from '../../../environments/environment';
+import { SKIP_GLOBAL_LOADING } from '../../core/http/loading-interceptor';
 
 describe('MasterDataService', () => {
   let service: MasterDataService;
@@ -25,6 +26,7 @@ describe('MasterDataService', () => {
 
     const request = http.expectOne(`${environment.apiBaseUrl}/categories`);
     expect(request.request.method).toBe('POST');
+    expect(request.request.context.get(SKIP_GLOBAL_LOADING)).toBe(true);
     expect(request.request.body).toEqual({ name: '食品', parentId: null, sortOrder: 0 });
     request.flush({
       success: true,

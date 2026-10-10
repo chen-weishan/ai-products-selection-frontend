@@ -1,6 +1,7 @@
-import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { HttpClient, HttpContext, HttpErrorResponse } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, catchError, map, throwError } from 'rxjs';
+import { SKIP_GLOBAL_LOADING } from '../../core/http/loading-interceptor';
 import { environment } from '../../../environments/environment';
 
 export interface ModelRoute {
@@ -10,6 +11,8 @@ export interface ModelRoute {
 
 export interface AiRuntimeConfig {
   models: Record<string, ModelRoute>;
+  externalLlmEnabled: boolean;
+  trendScheduleEnabled: boolean;
   dailyQuota: number;
   trackAShare: number;
   trackBShare: number;
@@ -37,6 +40,15 @@ export interface RuntimeScheduleConfig {
   items: RuntimeSchedule[];
 }
 
+export interface RecoveryRuntimeConfig {
+  aiTaskRecoveryPollingEnabled: boolean;
+  aiTaskRecoveryPollSeconds: number;
+  importPeriodicRecoveryEnabled: boolean;
+  importRecoveryPollSeconds: number;
+  heatCatchUpEnabled: boolean;
+  riskStartupRunEnabled: boolean;
+}
+
 export interface OperationalRuntimeConfig {
   loginMaxFailedAttempts: number;
   loginLockDurationMinutes: number;
@@ -58,7 +70,7 @@ export interface ModelAliasInfo {
 
 export interface ModelOption {
   id: string;
-  /** 出現在可用清單（Mistral 即時查詢或系統設定清單）。 */
+  /** 已由 Mistral 即時確認可對話且 capabilities.reasoning=true。 */
   available: boolean;
   /** 目前設定中的主模型或備援模型。 */
   inUse: boolean;
@@ -98,44 +110,55 @@ interface ApiResponse<T> {
 export class RuntimeSettingsService {
   private readonly http = inject(HttpClient);
   private readonly baseUrl = `${environment.apiBaseUrl}/admin`;
+  private readonly localLoading = { context: new HttpContext().set(SKIP_GLOBAL_LOADING, true) };
 
   getAiConfig(): Observable<AiRuntimeConfig> {
-    return this.http.get<ApiResponse<AiRuntimeConfig>>(`${this.baseUrl}/ai-config`)
+    return this.http.get<ApiResponse<AiRuntimeConfig>>(`${this.baseUrl}/ai-config`, this.localLoading)
       .pipe(this.unwrap('取得 AI 設定失敗'));
   }
 
   getAiConfigOptions(): Observable<AiConfigOptions> {
-    return this.http.get<ApiResponse<AiConfigOptions>>(`${this.baseUrl}/ai-config/options`)
+    return this.http.get<ApiResponse<AiConfigOptions>>(`${this.baseUrl}/ai-config/options`, this.localLoading)
       .pipe(this.unwrap('取得模型清單失敗'));
   }
 
   getBudgets(): Observable<BudgetSnapshot> {
-    return this.http.get<ApiResponse<BudgetSnapshot>>(`${environment.apiBaseUrl}/ai/budgets`)
+    return this.http.get<ApiResponse<BudgetSnapshot>>(`${environment.apiBaseUrl}/ai/budgets`, this.localLoading)
       .pipe(this.unwrap('取得今日配額用量失敗'));
   }
 
   updateAiConfig(config: AiRuntimeConfig): Observable<AiRuntimeConfig> {
-    return this.http.put<ApiResponse<AiRuntimeConfig>>(`${this.baseUrl}/ai-config`, config)
+    return this.http.put<ApiResponse<AiRuntimeConfig>>(`${this.baseUrl}/ai-config`, config, this.localLoading)
       .pipe(this.unwrap('儲存 AI 設定失敗'));
   }
 
   getSchedules(): Observable<RuntimeScheduleConfig> {
-    return this.http.get<ApiResponse<RuntimeScheduleConfig>>(`${this.baseUrl}/schedules`)
+    return this.http.get<ApiResponse<RuntimeScheduleConfig>>(`${this.baseUrl}/schedules`, this.localLoading)
       .pipe(this.unwrap('取得排程設定失敗'));
   }
 
   updateSchedules(config: RuntimeScheduleConfig): Observable<RuntimeScheduleConfig> {
-    return this.http.put<ApiResponse<RuntimeScheduleConfig>>(`${this.baseUrl}/schedules`, config)
+    return this.http.put<ApiResponse<RuntimeScheduleConfig>>(`${this.baseUrl}/schedules`, config, this.localLoading)
       .pipe(this.unwrap('儲存排程設定失敗'));
   }
 
+  getRecoveryConfig(): Observable<RecoveryRuntimeConfig> {
+    return this.http.get<ApiResponse<RecoveryRuntimeConfig>>(`${this.baseUrl}/recovery-config`, this.localLoading)
+      .pipe(this.unwrap('取得補跑與兜底設定失敗'));
+  }
+
+  updateRecoveryConfig(config: RecoveryRuntimeConfig): Observable<RecoveryRuntimeConfig> {
+    return this.http.put<ApiResponse<RecoveryRuntimeConfig>>(`${this.baseUrl}/recovery-config`, config, this.localLoading)
+      .pipe(this.unwrap('儲存補跑與兜底設定失敗'));
+  }
+
   getOperationalConfig(): Observable<OperationalRuntimeConfig> {
-    return this.http.get<ApiResponse<OperationalRuntimeConfig>>(`${this.baseUrl}/operational-config`)
+    return this.http.get<ApiResponse<OperationalRuntimeConfig>>(`${this.baseUrl}/operational-config`, this.localLoading)
       .pipe(this.unwrap('取得營運參數失敗'));
   }
 
   updateOperationalConfig(config: OperationalRuntimeConfig): Observable<OperationalRuntimeConfig> {
-    return this.http.put<ApiResponse<OperationalRuntimeConfig>>(`${this.baseUrl}/operational-config`, config)
+    return this.http.put<ApiResponse<OperationalRuntimeConfig>>(`${this.baseUrl}/operational-config`, config, this.localLoading)
       .pipe(this.unwrap('儲存營運參數失敗'));
   }
 

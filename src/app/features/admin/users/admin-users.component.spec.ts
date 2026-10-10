@@ -72,6 +72,15 @@ describe('AdminUsersComponent', () => {
     expect(component.users().some((item) => item.id === 9)).toBe(true);
   });
 
+  it('keeps a manually hidden password hidden after regenerating it', () => {
+    component.showPassword = false;
+
+    component.regeneratePassword();
+
+    expect(component.form.password).toHaveLength(12);
+    expect(component.showPassword).toBe(false);
+  });
+
   it('shows validation errors only after a submit attempt', () => {
     component.form.email = '';
     expect(component.attempted).toBe(false);

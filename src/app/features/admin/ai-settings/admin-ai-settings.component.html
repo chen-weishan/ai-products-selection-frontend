@@ -24,7 +24,35 @@
         </button>
       </div>
 
-      <!-- 1. 模型分派 -->
+      <!-- 1. AI 功能開關 -->
+      <section class="list-card">
+        <div class="card-heading">
+          <div>
+            <h2>AI 功能開關</h2>
+            <p>控制外部模型請求與每日趨勢解讀。儲存後立即生效，不需重啟。</p>
+          </div>
+        </div>
+        <div class="feature-toggle-list">
+          <label class="feature-toggle-card" [class.off]="!externalLlmEnabled">
+            <mat-slide-toggle [(ngModel)]="externalLlmEnabled" name="externalLlmEnabled"
+              aria-label="啟用外部 LLM"></mat-slide-toggle>
+            <span>
+              <strong>外部 LLM</strong>
+              <small>控制 Mistral 請求；關閉時停止外部呼叫，具備規則基準的工作改走 fallback。</small>
+            </span>
+          </label>
+          <label class="feature-toggle-card" [class.off]="!trendScheduleEnabled">
+            <mat-slide-toggle [(ngModel)]="trendScheduleEnabled" name="trendScheduleEnabled"
+              aria-label="啟用 Agent 5 每日趨勢分析"></mat-slide-toggle>
+            <span>
+              <strong>Agent 5 每日趨勢分析</strong>
+              <small>每日熱度合成後建立 TrendInterpreterAgent 任務；關閉時保留規則基準結果。</small>
+            </span>
+          </label>
+        </div>
+      </section>
+
+      <!-- 2. 模型分派 -->
       <section class="list-card">
         <div class="card-heading">
           <div>
@@ -34,7 +62,7 @@
         </div>
         @if (options(); as opts) {
           @if (opts.source === 'MISTRAL_API') {
-            <p class="source-note ok"><mat-icon>verified</mat-icon>下拉清單為 Mistral 帳號目前可用的對話模型（即時查詢）。</p>
+            <p class="source-note ok"><mat-icon>verified</mat-icon>下拉清單為 Mistral 帳號目前可用且支援 reasoning 的對話模型（即時查詢）。</p>
           } @else {
             <p class="source-note warn"><mat-icon>info</mat-icon>{{ opts.warning }}</p>
           }
@@ -61,9 +89,11 @@
                   <mat-select class="model-select" panelClass="unified-mat-select-panel" [(ngModel)]="route.primaryChoice"
                     [aria-label]="(route.info?.label ?? route.alias) + ' 主要模型'">
                     @for (model of options()?.models ?? []; track model.id) {
-                      <mat-option [value]="model.id">
+                      <mat-option [value]="model.id" [disabled]="!model.available">
                         {{ model.id }}
-                        @if (!model.available) { <span class="badge warn">不在可用清單</span> }
+                        @if (!model.available) {
+                          <span class="badge warn">{{ options()?.source === 'MISTRAL_API' ? '未通過 reasoning 驗證' : '尚未驗證' }}</span>
+                        }
                       </mat-option>
                     }
                     <mat-option [value]="customModel">其他（手動輸入模型名稱）</mat-option>
@@ -81,7 +111,7 @@
                       <li>
                         <span class="order">{{ i + 1 }}</span>
                         <span class="mono">{{ model }}</span>
-                        @if (!modelOption(model)?.available) { <span class="badge warn">不在可用清單</span> }
+                        @if (!modelOption(model)?.available) { <span class="badge warn">未驗證</span> }
                         <span class="spacer"></span>
                         <button type="button" class="icon-btn" [disabled]="i === 0" (click)="moveFallback(route, i, -1)"
                           matTooltip="往前移" aria-label="往前移"><mat-icon>arrow_upward</mat-icon></button>
@@ -116,14 +146,14 @@
               @if (routeError(route); as message) {
                 <p class="field-error">{{ message }}</p>
               } @else if (unavailableModels(route).length) {
-                <p class="route-warn">{{ unavailableModels(route).join('、') }} 不在可用清單，可能拼錯或已下架；儲存仍可，但呼叫時可能失敗並改用下一個備援。</p>
+                <p class="route-warn">{{ unavailableModels(route).join('、') }} 不在已驗證清單；若為手動輸入，儲存時會向 Mistral 驗證 reasoning=true。</p>
               }
             </article>
           }
         </div>
       </section>
 
-      <!-- 2. 每日配額 -->
+      <!-- 3. 每日配額 -->
       <section class="list-card">
         <div class="card-heading">
           <div>
@@ -181,7 +211,7 @@
         <p class="share-total" [class.bad]="shareTotal() !== 100">三池合計 {{ shareTotal() }}%{{ shareTotal() === 100 ? '' : '（須為 100%）' }}</p>
       </section>
 
-      <!-- 3. 呼叫與快取 -->
+      <!-- 4. 呼叫與快取 -->
       <section class="list-card">
         <div class="card-heading">
           <div><h2>呼叫限制與快取</h2><p>控制送往模型的速度與重複呼叫。快取期間內相同內容不重複呼叫、不佔配額。</p></div>
