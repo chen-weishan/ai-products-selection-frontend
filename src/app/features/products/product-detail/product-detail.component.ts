@@ -7,7 +7,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatDialog } from '@angular/material/dialog';
 import { ActivatedRoute, Router } from '@angular/router';
-import { catchError, forkJoin, map, of } from 'rxjs';
+import { catchError, forkJoin, map, of, switchMap } from 'rxjs';
 
 import {
   DeductionItem,
@@ -27,6 +27,7 @@ import {
 } from '../../../api';
 import { AuthService } from '../../../core/auth/auth.service';
 import { DECISION_LABELS, Decision, DecisionType } from '../../../core/models/decision';
+import { DecisionService } from '../../decisions/decision.service';
 import {
   CreateDecisionDialogComponent,
   CreateDecisionDialogData,
@@ -66,6 +67,7 @@ export class ProductDetailComponent implements OnInit {
   private readonly insightService = inject(ProductInsightService);
   private readonly reviewRiskService = inject(ReviewRiskControllerService);
   private readonly recommendationService = inject(RecommendationControllerService);
+  private readonly decisionService = inject(DecisionService);
 
   readonly productId = signal<number | null>(null);
   readonly period = signal(currentIsoWeek());
@@ -227,11 +229,12 @@ export class ProductDetailComponent implements OnInit {
         })
         .pipe(
           map((response) => response.data ?? null),
-          catchError(() => {
-            this.addWarning(`評分週期 ${this.period()} 尚無正式快照`);
-            return of(null);
-          }),
+          catchError(() => of(null)),
         ),
+      latestDecision: this.decisionService.list({ productId: id, page: 0, size: 1 }).pipe(
+        map((response) => response.content[0] ?? null),
+        catchError(() => of(null)),
+      ),
       insight: this.insightService
         .latest5({ productId: id }, 'body', false, {
           httpHeaderAccept: 'application/json' as never,
@@ -266,11 +269,43 @@ export class ProductDetailComponent implements OnInit {
           }),
         ),
     })
-      .pipe(takeUntilDestroyed(this.destroyRef))
+      .pipe(
+        switchMap((data) => {
+          const terminal = data.product?.status === 'LISTED' || data.product?.status === 'REJECTED';
+          if (!terminal) {
+            if (!data.score) this.addWarning(`評分週期 ${this.period()} 尚無正式快照`);
+            return of(data);
+          }
+
+          if (!data.latestDecision) {
+            this.addWarning('找不到此終態品項的決策快照');
+            return of(data);
+          }
+
+          return this.decisionService.snapshot(data.latestDecision.id).pipe(
+            // DecisionService 與 OpenAPI client 各自宣告了同一份後端 DTO；執行期 JSON 形狀相同。
+            map((snapshot) => ({
+              ...data,
+              score: snapshot.score as unknown as ScoreDetailResponse,
+            })),
+            catchError(() => {
+              this.addWarning('決策當下的評分與因子快照載入失敗');
+              return of(data);
+            }),
+          );
+        }),
+        takeUntilDestroyed(this.destroyRef),
+      )
       .subscribe((data) => {
         this.product.set(data.product);
         this.scene.set(data.scene);
         this.score.set(data.score);
+        if (
+          data.score?.period &&
+          (data.product?.status === 'LISTED' || data.product?.status === 'REJECTED')
+        ) {
+          this.period.set(data.score.period);
+        }
         this.insight.set(data.insight);
         this.reviewRisk.set(data.reviewRisk);
         this.recommendation.set(data.recommendation);

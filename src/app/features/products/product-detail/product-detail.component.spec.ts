@@ -153,6 +153,27 @@ describe('ProductDetailComponent', () => {
     expect(component.selectedScene()).toBe('REPLENISHMENT');
   });
 
+  it('已上架品項顯示決策當下的因子快照，不誤用目前查詢週期', () => {
+    flushInitialRequests('LISTED', null, 41);
+    http.expectOne('/api/v1/decisions/41/snapshot').flush({
+      success: true,
+      data: {
+        decisionId: 41,
+        score: scoreFixture('REPLENISHMENT', '2026W27'),
+        decision: 'ADOPT',
+        followedAi: false,
+        decidedByName: '採購主管',
+        decidedAt: '2026-07-01T10:00:00+08:00',
+      },
+    });
+    fixture.detectChanges();
+
+    expect(component.period()).toBe('2026W27');
+    expect(component.score()?.period).toBe('2026W27');
+    expect(component.factorRows().find((row) => row.code === 'TREND')?.detail).toBeDefined();
+    expect(fixture.nativeElement.textContent).toContain('2026W27 評估週期');
+  });
+
   it('覆寫理由必填；有效覆寫送出情境與理由並重新讀取情境及分數', () => {
     flushInitialRequests();
 
@@ -184,7 +205,11 @@ describe('ProductDetailComponent', () => {
     expect(component.successMessage()).toContain('已儲存');
   });
 
-  function flushInitialRequests(): void {
+  function flushInitialRequests(
+    status: 'EVALUATING' | 'LISTED' | 'REJECTED' = 'EVALUATING',
+    score: ReturnType<typeof scoreFixture> | null = scoreFixture('VIRAL'),
+    decisionId?: number,
+  ): void {
     http.expectOne('/api/v1/products/7').flush({
       success: true,
       data: {
@@ -192,7 +217,7 @@ describe('ProductDetailComponent', () => {
         name: '日式抹茶夾心餅乾',
         categoryName: '零食類',
         trackType: 'A',
-        status: 'EVALUATING',
+        status,
         logisticsConditions: ['MELTABLE'],
       },
     });
@@ -203,7 +228,10 @@ describe('ProductDetailComponent', () => {
       .expectOne(
         (req) => req.url === '/api/v1/products/7/scores' && req.params.get('period') === '2026W30',
       )
-      .flush({ success: true, data: scoreFixture('VIRAL') });
+      .flush(
+        score ? { success: true, data: score } : null,
+        score ? undefined : { status: 404, statusText: 'Not Found' },
+      );
     http.expectOne('/api/v1/products/7/product-insight/latest').flush({
       success: true,
       data: {
@@ -220,6 +248,23 @@ describe('ProductDetailComponent', () => {
       success: true,
       data: { action: 'WATCH', reasoning: '先小量試單' },
     });
+    http
+      .expectOne(
+        (req) =>
+          req.url === '/api/v1/decisions' &&
+          req.params.get('productId') === '7' &&
+          req.params.get('size') === '1',
+      )
+      .flush({
+        success: true,
+        data: {
+          content: decisionId ? [{ id: decisionId }] : [],
+          page: 0,
+          size: 1,
+          totalElements: decisionId ? 1 : 0,
+          totalPages: decisionId ? 1 : 0,
+        },
+      });
     fixture.detectChanges();
   }
 });
@@ -237,10 +282,13 @@ function sceneFixture(sceneType: 'VIRAL' | 'FESTIVAL' | 'REPLENISHMENT' | 'SEASO
   };
 }
 
-function scoreFixture(sceneType: 'VIRAL' | 'FESTIVAL' | 'REPLENISHMENT' | 'SEASONAL') {
+function scoreFixture(
+  sceneType: 'VIRAL' | 'FESTIVAL' | 'REPLENISHMENT' | 'SEASONAL',
+  period = '2026W30',
+) {
   return {
     productId: 7,
-    period: '2026W30',
+    period,
     sceneType,
     bonusSubtotal: 86.89,
     penaltySubtotal: 4,
