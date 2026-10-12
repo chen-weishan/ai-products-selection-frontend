@@ -142,7 +142,7 @@ export const routes: Routes = [
           import('./features/calibration/calibration.component').then(
             m => m.CalibrationComponent
           ),
-        data: { roles: ['BUYER_LEAD'] }
+        data: { roles: ['BUYER_LEAD', 'SYS_ADMIN'] }
       },
       {
         path: 'festivals',
