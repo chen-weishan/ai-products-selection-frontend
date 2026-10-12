@@ -13,7 +13,6 @@ interface NavItem {
   path: string;
   label: string;
   icon: string;
-  roles?: UserRole[];
   /** 子路徑另有選單項目時設 true，避免兩項同時高亮（/weights vs /weights/calibration）。 */
   exact?: boolean;
 }
@@ -32,27 +31,41 @@ export class MainLayoutComponent {
   private authService = inject(AuthService);
 
   private readonly allNavItems: NavItem[] = [
-    { label: 'S-02 儀表板', path: '/dashboard', icon: 'dashboard' },
-    { label: 'S-03 品項清單', path: '/products', icon: 'inventory_2' },
-    { label: 'S-05 選品排行', path: '/ranking', icon: 'leaderboard' },
-    { label: 'S-07 趨勢分析', path: '/trends', icon: 'trending_up' },
-    { label: 'S-15 熱度標記', path: '/heat-tags', icon: 'local_fire_department', roles: ['BUYER', 'BUYER_LEAD', 'DATA_ADMIN', 'SYS_ADMIN'] },
-    { label: 'S-17 尋源探索', path: '/sourcing', icon: 'travel_explore', roles: ['BUYER', 'BUYER_LEAD', 'DATA_ADMIN', 'SYS_ADMIN'] },
-    { label: 'S-08 AI任務', path: '/ai-tasks', icon: 'smart_toy', roles: ['BUYER', 'BUYER_LEAD', 'DATA_ADMIN', 'SYS_ADMIN'] },
-    { label: 'S-09 權重設定', path: '/weights', icon: 'tune', roles: ['BUYER', 'BUYER_LEAD', 'DATA_ADMIN', 'SYS_ADMIN'], exact: true },
-    { label: 'S-19 權重校準', path: '/weights/calibration', icon: 'model_training', roles: ['BUYER_LEAD'] },
-    { label: 'S-20 節慶檔期', path: '/festivals', icon: 'event', roles: ['BUYER_LEAD', 'DATA_ADMIN', 'SYS_ADMIN'] },
-    { label: 'S-10 資料匯入', path: '/imports', icon: 'file_upload', roles: ['BUYER_LEAD', 'DATA_ADMIN', 'SYS_ADMIN'] },
-    { label: 'S-11 風險示警', path: '/risks', icon: 'warning' },
-    { label: 'S-12 決策紀錄', path: '/decisions', icon: 'history_edu' },
-    { label: 'S-13 報表', path: '/reports', icon: 'bar_chart' },
-    { label: 'S-14設定', path: '/admin', icon: 'settings', roles: ['SYS_ADMIN'] },
+    { label: '儀表板', path: '/dashboard', icon: 'dashboard' },
+    { label: '品項清單', path: '/products', icon: 'inventory_2' },
+    { label: '選品排行', path: '/ranking', icon: 'leaderboard' },
+    { label: '趨勢分析', path: '/trends', icon: 'trending_up' },
+    { label: '熱度標記', path: '/heat-tags', icon: 'local_fire_department' },
+    { label: '尋源探索', path: '/sourcing', icon: 'travel_explore' },
+    { label: 'AI任務', path: '/ai-tasks', icon: 'smart_toy' },
+    { label: '權重設定', path: '/weights', icon: 'tune', exact: true },
+    { label: '權重校準', path: '/weights/calibration', icon: 'model_training' },
+    { label: '節慶檔期', path: '/festivals', icon: 'event' },
+    { label: '資料匯入', path: '/imports', icon: 'file_upload' },
+    { label: '風險示警', path: '/risks', icon: 'warning' },
+    { label: '決策紀錄', path: '/decisions', icon: 'history_edu' },
+    { label: '報表', path: '/reports', icon: 'bar_chart' },
+    { label: '設定', path: '/admin', icon: 'settings' },
   ];
 
+  private readonly navPathsByRole: Record<UserRole, readonly string[]> = {
+    BUYER: ['/dashboard', '/products', '/ranking', '/trends', '/heat-tags', '/sourcing', '/risks', '/decisions', '/reports'],
+    BUYER_LEAD: ['/dashboard', '/weights', '/ranking', '/reports'],
+    DATA_ADMIN: ['/dashboard', '/trends', '/festivals', '/imports'],
+    SYS_ADMIN: this.allNavItems.map(item => item.path),
+    VIEWER: ['/dashboard', '/products', '/ranking', '/trends', '/risks', '/decisions', '/reports'],
+  };
   readonly navItems = computed(() => {
-    const currentRole = this.authService.currentUser()?.role;
-    if (!currentRole) return this.allNavItems;
-    return this.allNavItems.filter(item => !item.roles || item.roles.includes(currentRole));
+    const user = this.authService.currentUser();
+    const roles = user?.roles?.length ? user.roles : (user?.role ? [user.role] : []);
+    if (roles.includes('SYS_ADMIN')) return this.allNavItems;
+
+    // 多角色帳號依角色順序合併可見項目，並移除重複項目。
+    const paths = new Set(roles.flatMap(role => this.navPathsByRole[role] ?? []));
+    return [...paths].flatMap(path => {
+      const item = this.allNavItems.find(item => item.path === path);
+      return item ? [item] : [];
+    });
   });
 
 }

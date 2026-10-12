@@ -204,23 +204,23 @@ export class HeatSourcesComponent implements OnInit {
     this.loading.set(true);
     const jsonOptions = { httpHeaderAccept: 'application/json' as any };
 
-    this.sourceSubscription = this.heatSourceApi.list6('body', false, jsonOptions)
+    this.sourceSubscription = this.heatSourceApi.list7('body', false, jsonOptions)
       .pipe(takeUntil(this.sessionChanged$), takeUntilDestroyed(this.destroyRef)).subscribe({
-      next: (res: any) => {
-        this.loading.set(false);
-        const data = res?.data || res || [];
-        this.sources.set(Array.isArray(data) ? data : []);
-        this.lastLoadedAt.set(new Date().toISOString());
-        this.cdr.markForCheck();
-      },
-      error: (err: any) => {
-        this.loading.set(false);
-        this.sourceError.set(this.errorMessage(err));
-        const msg = this.errorMessage(err);
-        this.snackBar.open(`無法載入熱度來源: ${msg}`, '關閉', { duration: 3500 });
-        this.cdr.markForCheck();
-      }
-    });
+        next: (res: any) => {
+          this.loading.set(false);
+          const data = res?.data || res || [];
+          this.sources.set(Array.isArray(data) ? data : []);
+          this.lastLoadedAt.set(new Date().toISOString());
+          this.cdr.markForCheck();
+        },
+        error: (err: any) => {
+          this.loading.set(false);
+          this.sourceError.set(this.errorMessage(err));
+          const msg = this.errorMessage(err);
+          this.snackBar.open(`無法載入熱度來源: ${msg}`, '關閉', { duration: 3500 });
+          this.cdr.markForCheck();
+        }
+      });
   }
 
   loadExcludedSources(): void {
@@ -231,17 +231,17 @@ export class HeatSourcesComponent implements OnInit {
     const jsonOptions = { httpHeaderAccept: 'application/json' as any };
     this.excludedSubscription = this.heatSourceApi.excluded('body', false, jsonOptions)
       .pipe(takeUntil(this.sessionChanged$), takeUntilDestroyed(this.destroyRef)).subscribe({
-      next: (res: any) => {
-        const data = res?.data || res || [];
-        this.excludedLoading.set(false);
-        this.excludedSources.set(Array.isArray(data) ? data : []);
-        this.cdr.markForCheck();
-      },
-      error: (err) => {
-        this.excludedLoading.set(false);
-        this.excludedError.set(this.errorMessage(err));
-      }
-    });
+        next: (res: any) => {
+          const data = res?.data || res || [];
+          this.excludedLoading.set(false);
+          this.excludedSources.set(Array.isArray(data) ? data : []);
+          this.cdr.markForCheck();
+        },
+        error: (err) => {
+          this.excludedLoading.set(false);
+          this.excludedError.set(this.errorMessage(err));
+        }
+      });
   }
 
   // ── 格式化與輔助方法 ──
@@ -365,22 +365,22 @@ export class HeatSourcesComponent implements OnInit {
 
     this.heatSourceApi.test({ id: row.id }, 'body', false, jsonOptions)
       .pipe(takeUntil(this.sessionChanged$), takeUntilDestroyed(this.destroyRef)).subscribe({
-      next: (res: any) => {
-        this.testingSourceIds.update(map => ({ ...map, [row.id!]: false }));
-        const testRes: HeatSourceTestResponse = res?.data || res;
-        const msg = testRes?.message || (testRes?.success ? '探測成功' : '探測失敗');
-        this.snackBar.open(`[${this.getSourceName(row.sourceCode)}] ${msg}`, '關閉', { duration: 3500 });
-        this.loadSources();
-        this.cdr.markForCheck();
-      },
-      error: (err) => {
-        this.testingSourceIds.update(map => ({ ...map, [row.id!]: false }));
-        console.error('[HeatSources] 連線測試失敗:', err);
-        const msg = this.errorMessage(err);
-        this.snackBar.open(`[${this.getSourceName(row.sourceCode)}] 連線測試失敗: ${msg}`, '關閉', { duration: 4000 });
-        this.cdr.markForCheck();
-      }
-    });
+        next: (res: any) => {
+          this.testingSourceIds.update(map => ({ ...map, [row.id!]: false }));
+          const testRes: HeatSourceTestResponse = res?.data || res;
+          const msg = testRes?.message || (testRes?.success ? '探測成功' : '探測失敗');
+          this.snackBar.open(`[${this.getSourceName(row.sourceCode)}] ${msg}`, '關閉', { duration: 3500 });
+          this.loadSources();
+          this.cdr.markForCheck();
+        },
+        error: (err) => {
+          this.testingSourceIds.update(map => ({ ...map, [row.id!]: false }));
+          console.error('[HeatSources] 連線測試失敗:', err);
+          const msg = this.errorMessage(err);
+          this.snackBar.open(`[${this.getSourceName(row.sourceCode)}] 連線測試失敗: ${msg}`, '關閉', { duration: 4000 });
+          this.cdr.markForCheck();
+        }
+      });
   }
 
   /** 啟用 / 停用切換 (僅限 SYS_ADMIN) */
