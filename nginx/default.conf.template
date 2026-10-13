@@ -1,0 +1,22 @@
+server {
+    listen 80;
+    server_name _;
+
+    root /usr/share/nginx/html;
+    index index.html;
+
+    # API 反向代理（路徑原樣轉發，後端 context-path 為 /api/v1）
+    location /api/ {
+        proxy_pass ${API_URL};
+        proxy_set_header Host $proxy_host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        client_max_body_size 20m;
+    }
+
+    # Angular SPA fallback
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+}
