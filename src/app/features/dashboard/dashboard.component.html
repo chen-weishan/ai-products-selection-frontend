@@ -91,7 +91,11 @@
   <div class="card kpi-card">
     <div class="v mono">{{ dashboardSummary.overdueFeedbackCount ?? 0 }}</div>
     <div class="l">結案未回填</div>
-    <div class="sub-hint warn-hint mono">已逾 7 天</div>
+    @if ((dashboardSummary.overdueFeedbackCount ?? 0) > 0) {
+    <div class="sub-hint warn-hint mono">最久已逾 {{ dashboardSummary.maxOverdueDays ?? 0 }} 天</div>
+    } @else {
+    <div class="sub-hint mono">目前無逾期</div>
+    }
   </div>
 </div>
 

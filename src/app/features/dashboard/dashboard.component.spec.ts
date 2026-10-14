@@ -20,8 +20,10 @@ describe('DashboardComponent', () => {
           totalCandidates: 25,
           aGradeCount: 5,
           openRiskCount: 2,
-          overdueFeedbackCount: 1
+          overdueFeedbackCount: 1,
+          maxOverdueDays: 10
         },
+        weeklyNewCount: 4,
         scoringExecuted: true
       })),
       getRankings: vi.fn().mockReturnValue(of({
@@ -87,6 +89,30 @@ describe('DashboardComponent', () => {
     expect(component.viralRankings.length).toBe(1);
     expect(component.viralRankings[0].productName).toBe('測試話題爆款商品');
     expect(component.dashboardSummary.totalCandidates).toBe(25);
+    expect(component.weeklyNewCount).toBe(4);
+    expect(fixture.nativeElement.textContent).toContain('最久已逾 10 天');
+  });
+
+  it('hides the overdue warning after all overdue feedback is filled', () => {
+    mockDashboardService.getSummary.mockReturnValue(of({
+      kpi: {
+        totalCandidates: 25,
+        aGradeCount: 5,
+        openRiskCount: 2,
+        overdueFeedbackCount: 0
+      },
+      weeklyNewCount: 4,
+      scoringExecuted: true
+    }));
+    mockDashboardService.getTodos.mockReturnValue(of({ data: { overdueCampaigns: [] } }));
+
+    const emptyFixture = TestBed.createComponent(DashboardComponent);
+    emptyFixture.detectChanges();
+
+    const kpiText = emptyFixture.nativeElement.querySelector('.kpis')?.textContent ?? '';
+    expect(kpiText).toContain('目前無逾期');
+    expect(kpiText).not.toContain('最久已逾');
+    emptyFixture.destroy();
   });
 
   it('should switch tabs smoothly and return corresponding rankings', () => {

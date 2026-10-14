@@ -50,7 +50,7 @@ export class MainLayoutComponent {
 
   private readonly navPathsByRole: Record<UserRole, readonly string[]> = {
     BUYER: ['/dashboard', '/products', '/ranking', '/trends', '/heat-tags', '/sourcing', '/risks', '/decisions', '/reports'],
-    BUYER_LEAD: ['/dashboard', '/weights', '/ranking', '/reports'],
+    BUYER_LEAD: ['/dashboard', '/weights', '/weights/calibration', '/ranking', '/reports'],
     DATA_ADMIN: ['/dashboard', '/trends', '/festivals', '/imports'],
     SYS_ADMIN: this.allNavItems.map(item => item.path),
     VIEWER: ['/dashboard', '/products', '/ranking', '/trends', '/risks', '/decisions', '/reports'],

@@ -51,10 +51,10 @@
       <article class="recovery-card" [class.off]="!config.importPeriodicRecoveryEnabled">
         <div class="recovery-info">
           <mat-slide-toggle [(ngModel)]="config.importPeriodicRecoveryEnabled" name="importPeriodicRecoveryEnabled"
-            aria-label="啟用匯入批次恢復輪詢"></mat-slide-toggle>
+            aria-label="啟用資料匯入批次恢復輪詢"></mat-slide-toggle>
           <div>
-            <strong>FR-09 匯入批次恢復輪詢</strong>
-            <p>定期掃描 RUNNING 匯入批次並恢復未完成工作；啟動時固定恢復一次，不受此開關影響。</p>
+            <strong>資料匯入批次恢復輪詢</strong>
+            <p>定期掃描 RUNNING 資料匯入批次並恢復未完成工作；啟動時固定恢復一次，不受此開關影響。</p>
           </div>
         </div>
         <label class="setting-field interval-field">

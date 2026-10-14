@@ -20,7 +20,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   sourcingSummary: any = { items: [] };
   overdueCampaigns: any[] = [];
   heatSources: any[] = [];
-  weeklyNewCount = 9;
+  weeklyNewCount = 0;
   activeTab: string = 'viral';
   activeTrack: string = 'A';
   activePeriod: 'week' | 'lastWeek' | 'custom' = 'week';
@@ -277,16 +277,20 @@ export class DashboardComponent implements OnInit, OnDestroy {
           const data = response?.data || response;
           if (data && (data.kpi || data.totalCandidates !== undefined)) {
             this.dashboardSummary = data.kpi || data;
-            this.weeklyNewCount = data.weeklyNewCount ?? 9;
+            this.weeklyNewCount = data.weeklyNewCount ?? 0;
             this.scoringExecuted = data.scoringExecuted !== undefined ? data.scoringExecuted : true;
           } else {
-            this.loadMockSummary();
+            this.dashboardSummary = {};
+            this.weeklyNewCount = 0;
+            this.scoringExecuted = false;
           }
         });
       },
       error: (error: any) => {
         console.error('Failed to load dashboard summary:', error);
-        this.loadMockSummary();
+        this.dashboardSummary = {};
+        this.weeklyNewCount = 0;
+        this.scoringExecuted = false;
         this.cdr.markForCheck();
       }
     });
@@ -369,13 +373,13 @@ export class DashboardComponent implements OnInit, OnDestroy {
           if (data && data.overdueCampaigns) {
             this.overdueCampaigns = data.overdueCampaigns;
           } else {
-            this.overdueCampaigns = this.getMockOverdueCampaigns();
+            this.overdueCampaigns = [];
           }
         });
       },
       error: (error: any) => {
         console.error('Failed to load overdue campaigns:', error);
-        this.overdueCampaigns = this.getMockOverdueCampaigns();
+        this.overdueCampaigns = [];
         this.cdr.markForCheck();
       }
     });
@@ -403,17 +407,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
         this.cdr.markForCheck();
       }
     });
-  }
-
-  /** Mock data for development when backend is unavailable */
-  private loadMockSummary(): void {
-    this.dashboardSummary = {
-      totalCandidates: 128,
-      aGradeCount: 27,
-      openRiskCount: 7,
-      overdueFeedbackCount: 3
-    };
-    this.weeklyNewCount = 9;
   }
 
   private loadMockRankings(): void {
@@ -471,14 +464,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
         { productId: 42, productName: '新興供應商 C', timeGapDays: -1, sourcingStatus: 'REJECTED' }
       ]
     };
-  }
-
-  private getMockOverdueCampaigns(): any[] {
-    return [
-      { productName: '過期活動 1', overdueDays: 10 },
-      { productName: '過期活動 2', overdueDays: 5 },
-      { productId: 3, productName: '過期活動 3', overdueDays: 2 }
-    ];
   }
 
   private getMockHeatSources(): any[] {

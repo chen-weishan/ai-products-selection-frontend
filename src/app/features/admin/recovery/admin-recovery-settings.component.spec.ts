@@ -35,7 +35,7 @@ describe('AdminRecoverySettingsComponent', () => {
   it('loads defaults without reporting unsaved changes', () => {
     expect(component.config).toEqual(config);
     expect(component.isDirty()).toBe(false);
-    expect(fixture.nativeElement.textContent).toContain('FR-09 匯入批次恢復輪詢');
+    expect(fixture.nativeElement.textContent).toContain('資料匯入批次恢復輪詢');
     expect(fixture.nativeElement.textContent).not.toContain('ai.task.recovery-poll-seconds');
     expect(fixture.nativeElement.textContent).not.toContain('ssds.calibration.heat-catch-up-enabled');
   });

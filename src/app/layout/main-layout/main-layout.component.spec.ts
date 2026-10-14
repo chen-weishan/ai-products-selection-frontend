@@ -30,7 +30,7 @@ describe('MainLayoutComponent', () => {
 
   const menus: [UserRole, string[]][] = [
     ['BUYER', ['/dashboard', '/products', '/ranking', '/trends', '/heat-tags', '/sourcing', '/risks', '/decisions', '/reports']],
-    ['BUYER_LEAD', ['/dashboard', '/weights', '/ranking', '/reports']],
+    ['BUYER_LEAD', ['/dashboard', '/weights', '/weights/calibration', '/ranking', '/reports']],
     ['DATA_ADMIN', ['/dashboard', '/trends', '/festivals', '/imports']],
     ['SYS_ADMIN', ['/dashboard', '/products', '/ranking', '/trends', '/heat-tags', '/sourcing', '/ai-tasks', '/weights', '/weights/calibration', '/festivals', '/imports', '/risks', '/decisions', '/reports', '/admin']],
     ['VIEWER', ['/dashboard', '/products', '/ranking', '/trends', '/risks', '/decisions', '/reports']],
@@ -48,7 +48,7 @@ describe('MainLayoutComponent', () => {
   it('combines assigned roles without duplicate links and reacts to role changes', () => {
     currentUser.set({ role: 'BUYER_LEAD', roles: ['BUYER_LEAD', 'DATA_ADMIN'] });
     expect(component.navItems().map(item => item.path)).toEqual([
-      '/dashboard', '/weights', '/ranking', '/reports', '/trends', '/festivals', '/imports',
+      '/dashboard', '/weights', '/weights/calibration', '/ranking', '/reports', '/trends', '/festivals', '/imports',
     ]);
     currentUser.set({ role: 'VIEWER', roles: ['VIEWER', 'SYS_ADMIN'] });
     expect(component.navItems()).toHaveLength(15);
