@@ -1,4 +1,4 @@
-import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { HttpClient, HttpContext, HttpErrorResponse } from '@angular/common/http';
 import { computed, Injectable, inject, OnDestroy, signal } from '@angular/core';
 import {
   catchError,
@@ -26,6 +26,7 @@ import {
 import { ProductControllerService } from '../../api/api/productController.service';
 import { SearchRequestParams } from '../../api/api/productController.serviceInterface';
 import { environment } from '../../../environments/environment';
+import { SKIP_LOADING } from '../../core/http/loading-interceptor';
 
 export type ProductSearchCriteria = Omit<SearchRequestParams, 'size'> & {
   size?: 20 | 50 | 100;
@@ -59,6 +60,9 @@ const SUCCESS_FEEDBACK_DURATION_MS = 5_000;
 export class ProductService implements OnDestroy {
   private readonly api = inject(ProductControllerService);
   private readonly http = inject(HttpClient);
+  private readonly listRequestOptions = {
+    context: new HttpContext().set(SKIP_LOADING, true),
+  };
   private readonly analysisPolls = new Map<number, Subscription>();
   private batchMessageDismissTimer: ReturnType<typeof setTimeout> | null = null;
   private analysisMessageDismissTimer: ReturnType<typeof setTimeout> | null = null;
@@ -87,12 +91,17 @@ export class ProductService implements OnDestroy {
     this.error.set(null);
 
     return this.api
-      .search({
-        ...filters,
-        page,
-        size,
-        sort,
-      })
+      .search(
+        {
+          ...filters,
+          page,
+          size,
+          sort,
+        },
+        'body',
+        false,
+        this.listRequestOptions,
+      )
       .pipe(
         map((response) => {
           if (!response.success || !response.data) {

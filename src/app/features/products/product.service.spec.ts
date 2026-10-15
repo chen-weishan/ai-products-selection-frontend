@@ -1,7 +1,8 @@
-import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { HttpClient, HttpContext, HttpErrorResponse } from '@angular/common/http';
 import { TestBed } from '@angular/core/testing';
 import { firstValueFrom, of, throwError } from 'rxjs';
 import { ProductControllerService } from '../../api/api/productController.service';
+import { SKIP_LOADING } from '../../core/http/loading-interceptor';
 import { ProductService } from './product.service';
 
 describe('ProductService', () => {
@@ -63,12 +64,19 @@ describe('ProductService', () => {
 
     await firstValueFrom(service.load({ keyword: '抹茶', page: 1, size: 50 }));
 
-    expect(search).toHaveBeenCalledWith({
-      keyword: '抹茶',
-      page: 1,
-      size: 50,
-      sort: ['latestScore,desc'],
-    });
+    expect(search).toHaveBeenCalledWith(
+      {
+        keyword: '抹茶',
+        page: 1,
+        size: 50,
+        sort: ['latestScore,desc'],
+      },
+      'body',
+      false,
+      expect.any(Object),
+    );
+    const options = search.mock.calls[0][3] as { context: HttpContext };
+    expect(options.context.get(SKIP_LOADING)).toBe(true);
     expect(service.products()).toEqual([{ id: 101, name: '抹茶餅乾', trackType: 'A' }]);
     expect(service.totalElements()).toBe(51);
     expect(service.loading()).toBe(false);
